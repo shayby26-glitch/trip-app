@@ -250,12 +250,18 @@
     ::-webkit-scrollbar { width:6px; } ::-webkit-scrollbar-track { background:var(--bg); } ::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
     @media(max-width:600px) { .form-row{grid-template-columns:1fr;} .detail-header{flex-direction:column;} }
   </style>
+  <!-- Firebase SDK (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 </head>
 <body>
 
 <nav>
   <div class="nav-brand">✈️ Trip Planner</div>
   <div style="display:flex;gap:8px;align-items:center">
+    <span id="cloud-status" title="Cloud sync status" style="font-size:.75rem;padding:3px 8px;border-radius:12px;background:rgba(255,255,255,.08);color:var(--muted);display:flex;align-items:center;gap:4px">
+      <span id="cloud-dot" style="width:6px;height:6px;border-radius:50%;background:#f59e0b;display:inline-block"></span> Connecting...
+    </span>
     <button class="btn-icon" onclick="toggleTheme()" id="theme-btn" title="Toggle light/dark mode" style="font-size:1.2rem;padding:6px 8px">🌙</button>
     <button class="btn btn-ghost btn-sm" onclick="triggerImportFile()">📥 Import</button>
     <button class="btn btn-ghost btn-sm" onclick="showPage('home')">My Trips</button>
@@ -586,6 +592,25 @@
 const EMOJIS = ['🌴','🗼','🏔️','🌊','🏖️','🏛️','🌸','🗽','🎌','🌅','🚂','🛳️','🎡','🌍','🏕️','🎿','🏜️','🌮','🍜','🍷'];
 const AVATAR_COLORS = ['#5b8dee','#7c5cbf','#3ecf8e','#f59e0b','#ef4444','#06b6d4','#ec4899','#84cc16'];
 
+// ══════════════════════════════════════════════
+// FIREBASE SETUP
+// ══════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyBopvbVVqYntV3q0g7jrP_VpXNzlhoXCU8",
+  authDomain: "trip-planner-c6bad.firebaseapp.com",
+  databaseURL: "https://trip-planner-c6bad-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "trip-planner-c6bad",
+  storageBucket: "trip-planner-c6bad.firebasestorage.app",
+  messagingSenderId: "1084729247068",
+  appId: "1:1084729247068:web:a38ca49a3deea241492d99",
+  measurementId: "G-WRS6E54VKC"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const tripsRef = db.ref('trips');
+let firebaseReady = false;
+let suppressFirebaseSync = false;
+
 let trips = JSON.parse(localStorage.getItem('trips') || '[]');
 let currentTripId = null;
 let editingPersonId   = null;
@@ -597,8 +622,94 @@ let editingStayId     = null;
 // Undo delete
 let undoState = null;
 
-function save() { localStorage.setItem('trips', JSON.stringify(trips)); }
+// Save to both localStorage (offline cache) and Firebase
+function save() {
+  localStorage.setItem('trips', JSON.stringify(trips));
+  if (firebaseReady && !suppressFirebaseSync) {
+    const tripsObj = {};
+    trips.forEach(t => { tripsObj[t.id] = t; });
+    tripsRef.set(tripsObj).catch(err => console.warn('Firebase save error:', err));
+  }
+}
+
+// Save a single trip to Firebase (more efficient for single-trip edits)
+function saveTripToFirebase(tripId) {
+  if (!firebaseReady || suppressFirebaseSync) return;
+  const t = trips.find(tr => tr.id === tripId);
+  if (t) {
+    tripsRef.child(t.id).set(t).catch(err => console.warn('Firebase save error:', err));
+  } else {
+    tripsRef.child(tripId).remove().catch(err => console.warn('Firebase delete error:', err));
+  }
+}
+
 function getTrip() { return trips.find(t => t.id === currentTripId); }
+
+// ── Cloud status indicator ──
+function setCloudStatus(status) {
+  const el = document.getElementById('cloud-status');
+  const dot = document.getElementById('cloud-dot');
+  if (!el || !dot) return;
+  if (status === 'connected') {
+    dot.style.background = '#10b981'; el.innerHTML = '<span id="cloud-dot" style="width:6px;height:6px;border-radius:50%;background:#10b981;display:inline-block"></span> ☁️ Synced';
+  } else if (status === 'offline') {
+    dot.style.background = '#ef4444'; el.innerHTML = '<span id="cloud-dot" style="width:6px;height:6px;border-radius:50%;background:#ef4444;display:inline-block"></span> Offline';
+  } else {
+    dot.style.background = '#f59e0b'; el.innerHTML = '<span id="cloud-dot" style="width:6px;height:6px;border-radius:50%;background:#f59e0b;display:inline-block"></span> Connecting...';
+  }
+}
+
+// Monitor Firebase connection state
+db.ref('.info/connected').on('value', (snap) => {
+  setCloudStatus(snap.val() ? 'connected' : 'offline');
+});
+
+// ── Firebase real-time listener ──
+tripsRef.on('value', (snapshot) => {
+  firebaseReady = true;
+  setCloudStatus('connected');
+  if (suppressFirebaseSync) return;
+  const data = snapshot.val();
+  if (!data) return;
+  const firebaseTrips = Object.values(data);
+  // Only update if data actually changed
+  const localJSON = JSON.stringify(trips);
+  const remoteJSON = JSON.stringify(firebaseTrips);
+  if (localJSON === remoteJSON) return;
+  // Merge: use Firebase as source of truth
+  trips = firebaseTrips;
+  localStorage.setItem('trips', JSON.stringify(trips));
+  // Re-render current view
+  const activePage = document.querySelector('.page.active');
+  if (activePage && activePage.id === 'page-home') {
+    renderHome();
+  } else if (activePage && activePage.id === 'page-detail' && currentTripId) {
+    const activeTab = document.querySelector('.tab.active');
+    const tabName = activeTab ? activeTab.dataset.tab : 'overview';
+    renderAllTabs();
+    // Show sync indicator
+    toast('🔄 Synced from cloud');
+  }
+}, (err) => {
+  console.warn('Firebase read error:', err);
+  firebaseReady = false;
+  setCloudStatus('offline');
+});
+
+// Helper to re-render all active tab content
+function renderAllTabs() {
+  if (!currentTripId) return;
+  try {
+    renderPeople();
+    renderItinerary();
+    renderDestinations();
+    renderExpenses();
+    renderStays();
+    renderPacking();
+    renderOverview();
+    renderTransport();
+  } catch(e) { /* some render functions may not exist yet */ }
+}
 
 // ══════════════════════════════════════════════
 // UTILS
@@ -2227,6 +2338,43 @@ function archiveCurrentTrip() {
   if (!trips.find(t => t.id === 'demo-tanzania')) trips.push(tanzania);
   save();
   localStorage.setItem(SEED_KEY, '1');
+})();
+
+// ══════════════════════════════════════════════
+// FIREBASE INITIAL SYNC — pull cloud data on first load
+// ══════════════════════════════════════════════
+(async function initialFirebaseSync() {
+  try {
+    const snapshot = await tripsRef.once('value');
+    const data = snapshot.val();
+    firebaseReady = true;
+    if (data) {
+      // Firebase has data — use it as source of truth
+      const fbTrips = Object.values(data);
+      if (fbTrips.length > 0) {
+        // Merge: keep local trips that aren't in Firebase, add Firebase trips
+        const fbIds = new Set(fbTrips.map(t => t.id));
+        const localOnly = trips.filter(t => !fbIds.has(t.id));
+        trips = [...fbTrips, ...localOnly];
+        if (localOnly.length > 0) {
+          // Push local-only trips to Firebase too
+          save();
+        } else {
+          localStorage.setItem('trips', JSON.stringify(trips));
+        }
+        renderHome();
+        return;
+      }
+    }
+    // Firebase is empty — push local data up
+    if (trips.length > 0) {
+      const tripsObj = {};
+      trips.forEach(t => { tripsObj[t.id] = t; });
+      await tripsRef.set(tripsObj);
+    }
+  } catch (err) {
+    console.warn('Initial Firebase sync failed (offline mode):', err);
+  }
 })();
 
 renderHome();
