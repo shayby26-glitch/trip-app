@@ -73,9 +73,9 @@
     .trip-card { background:rgba(14,21,37,.6); backdrop-filter:blur(10px); border:1px solid rgba(124,58,237,.1); border-radius:18px; overflow:hidden; transition:transform .3s cubic-bezier(.34,1.4,.64,1),box-shadow .3s ease; cursor:pointer; position:relative; }
     .trip-card:hover { transform:translateY(-8px) scale(1.015); box-shadow:0 24px 60px rgba(0,0,0,.55),0 0 0 1px rgba(124,58,237,.3),0 0 40px rgba(124,58,237,.1); }
     .trip-card-banner { height:190px; position:relative; overflow:hidden; display:flex; align-items:flex-end; background:linear-gradient(135deg,#1a1040,#0d1a2e); }
-    .trip-card-banner-img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transition:transform .5s ease, filter .5s ease; filter:brightness(.72) saturate(1.15); }
+    .trip-card-banner-img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transition:transform .5s ease, filter .5s ease; filter:brightness(.82) saturate(1.2); }
     .trip-card-banner-img.loaded { animation: fadeIn .5s ease; }
-    .trip-card:hover .trip-card-banner-img { transform:scale(1.08); filter:brightness(.8) saturate(1.2); }
+    .trip-card:hover .trip-card-banner-img { transform:scale(1.08); filter:brightness(.9) saturate(1.3); }
     .trip-card-banner-overlay { position:absolute; inset:0; background:linear-gradient(to top,rgba(5,8,15,.95) 0%,rgba(5,8,15,.2) 55%,transparent 100%); }
     .trip-card-banner-content { position:relative; z-index:1; padding:14px 16px; width:100%; }
     .trip-card-emoji { font-size:1.9rem; line-height:1; margin-bottom:5px; display:block; }
@@ -285,8 +285,8 @@
     .gradient-text { background:var(--grad); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
 
     /* HERO PHOTO */
-    .hero-photo { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; filter:brightness(.55) saturate(1.2); transition:transform .3s ease; }
-    .hero-overlay-animated { position:absolute; inset:0; background:linear-gradient(135deg,rgba(124,58,237,.25),rgba(244,63,94,.15),rgba(124,58,237,.2)); background-size:300% 300%; animation:gradientShift 8s ease infinite; pointer-events:none; }
+    .hero-photo { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; filter:brightness(.7) saturate(1.3); transition:transform .5s ease; }
+    .hero-overlay-animated { position:absolute; inset:0; background:linear-gradient(135deg,rgba(124,58,237,.12),rgba(244,63,94,.08),rgba(124,58,237,.1)); background-size:300% 300%; animation:gradientShift 8s ease infinite; pointer-events:none; }
 
     /* RESPONSIVE */
     @media(max-width:600px) {
@@ -835,18 +835,24 @@ function getDestPhoto(dest) {
   const keywordMap = {
     'italy': 11, 'italia': 12, 'rome': 11, 'roma': 11, 'venice': 11, 'venezia': 11,
     'amalfi': 12, 'florence': 12, 'firenze': 12, 'napl': 12, 'sicil': 12, 'milan': 12,
-    'tokyo': 10, 'japan': 10, 'kyoto': 10, 'osaka': 10,
-    'safari': 14, 'kenya': 14, 'tanzania': 16, 'serengeti': 14, 'kilimanjaro': 16,
-    'africa': 14, 'cape town': 14, 'morocco': 14,
-    'beach': 2, 'bali': 13, 'maldiv': 13, 'hawaii': 5, 'cancun': 2, 'caribbean': 13,
-    'mountain': 3, 'alps': 15, 'dolomit': 15, 'swiss': 15, 'nepal': 3, 'patagonia': 3,
-    'paris': 4, 'london': 4, 'new york': 4, 'barcelona': 4, 'amsterdam': 4,
+    '\u05d3\u05d5\u05dc\u05d5\u05de\u05d9\u05d8': 15, '\u05d0\u05d9\u05d8\u05dc\u05d9\u05d4': 12, '\u05e8\u05d5\u05de\u05d0': 11, '\u05d5\u05e0\u05e6\u05d9\u05d4': 11, '\u05e4\u05d9\u05e8\u05e0\u05e6\u05d4': 12,
+    'tokyo': 10, 'japan': 10, 'kyoto': 10, 'osaka': 10, '\u05d9\u05e4\u05df': 10, '\u05d8\u05d5\u05e7\u05d9\u05d5': 10,
+    'safari': 14, '\u05e1\u05e4\u05d0\u05e8\u05d9': 14, 'kenya': 14, '\u05e7\u05e0\u05d9\u05d4': 14,
+    'tanzania': 16, '\u05d8\u05e0\u05d6\u05e0\u05d9\u05d4': 16, 'serengeti': 14, '\u05e1\u05e8\u05e0\u05d2\u05d8\u05d9': 14,
+    'kilimanjaro': 16, '\u05e7\u05d9\u05dc\u05d9\u05de\u05e0\u05d2\'\u05e8\u05d5': 16,
+    'africa': 14, '\u05d0\u05e4\u05e8\u05d9\u05e7\u05d4': 14, 'cape town': 14, 'morocco': 14, '\u05de\u05e8\u05d5\u05e7\u05d5': 14,
+    'beach': 2, '\u05d7\u05d5\u05e3': 2, 'bali': 13, '\u05d1\u05d0\u05dc\u05d9': 13, 'maldiv': 13, '\u05de\u05dc\u05d3\u05d9\u05d1': 13,
+    'hawaii': 5, 'cancun': 2, 'caribbean': 13,
+    'mountain': 3, 'alps': 15, '\u05d0\u05dc\u05e4\u05d9\u05dd': 15, 'dolomit': 15, 'swiss': 15, '\u05e9\u05d5\u05d5\u05d9\u05e5': 15,
+    'nepal': 3, '\u05e0\u05e4\u05d0\u05dc': 3, 'patagonia': 3,
+    'paris': 4, '\u05e4\u05e8\u05d9\u05d6': 4, 'london': 4, '\u05dc\u05d5\u05e0\u05d3\u05d5\u05df': 4,
+    'new york': 4, '\u05e0\u05d9\u05d5 \u05d9\u05d5\u05e8\u05e7': 4, 'barcelona': 4, '\u05d1\u05e8\u05e6\u05dc\u05d5\u05e0\u05d4': 4, 'amsterdam': 4,
     'road trip': 6, 'drive': 6,
     'hotel': 7, 'resort': 7, 'luxury': 7,
-    'trek': 8, 'hike': 8, 'climb': 8, 'adventure': 8,
-    'lake': 3, 'nature': 17, 'forest': 17, 'national park': 17,
-    'thailand': 13, 'phuket': 13, 'costa rica': 13, 'fiji': 13, 'tahiti': 13,
-    'sunset': 5, 'island': 13,
+    'trek': 8, 'hike': 8, 'climb': 8, 'adventure': 8, '\u05d4\u05e8\u05e4\u05ea\u05e7\u05d4': 8, '\u05d8\u05d9\u05d5\u05dc': 8,
+    'lake': 3, '\u05d0\u05d2\u05dd': 3, 'nature': 17, '\u05d8\u05d1\u05e2': 17, 'forest': 17, 'national park': 17,
+    'thailand': 13, '\u05ea\u05d0\u05d9\u05dc\u05e0\u05d3': 13, 'phuket': 13, 'costa rica': 13, 'fiji': 13, 'tahiti': 13,
+    'sunset': 5, 'island': 13, '\u05d0\u05d9': 13,
   };
   for (const [keyword, idx] of Object.entries(keywordMap)) {
     if (destLower.includes(keyword)) {
