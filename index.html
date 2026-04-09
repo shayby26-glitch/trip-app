@@ -1096,7 +1096,7 @@ function saveEditPerson(id) {
   const p = t.people.find(x => x.id === id);
   if (p) p.name = name;
   editingPersonId = null;
-  save(); renderPeople();
+  save(); renderPeople(); renderExpenses(); renderOverview(); renderStays(); renderItinerary();
 }
 function addPerson() {
   const name = document.getElementById('new-person-name').value.trim();
