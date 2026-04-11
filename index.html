@@ -826,7 +826,7 @@ function getDestPhoto(dest) {
     'photo-1516483638261-f4dbaf036963', // italy coast
     'photo-1547471080-7cc2caa01a7e', // tropical
     'photo-1518548419970-58e3b4079ab2', // safari
-    'photo-1612299065617-7c9e1e914693', // dolomites
+    'photo-1589308078059-be1415eab4c3', // dolomites
     'photo-1534430480872-3498386e7856', // kilimanjaro
     'photo-1493246507139-91e8fad9978e', // nature
   ];
@@ -846,6 +846,8 @@ function getDestPhoto(dest) {
     'mountain': 3, 'alps': 15, '\u05d0\u05dc\u05e4\u05d9\u05dd': 15, 'dolomit': 15, 'swiss': 15, '\u05e9\u05d5\u05d5\u05d9\u05e5': 15,
     'nepal': 3, '\u05e0\u05e4\u05d0\u05dc': 3, 'patagonia': 3,
     'paris': 4, '\u05e4\u05e8\u05d9\u05d6': 4, 'london': 4, '\u05dc\u05d5\u05e0\u05d3\u05d5\u05df': 4,
+    'france': 5, 'provence': 5, 'nice': 5, 'aix': 5, 'riviera': 5, 'lavender': 5,
+    'spain': 4, 'basque': 4, 'bilbao': 4, 'san sebastian': 4, 'pintxos': 4, 'picos': 3,
     'new york': 4, '\u05e0\u05d9\u05d5 \u05d9\u05d5\u05e8\u05e7': 4, 'barcelona': 4, '\u05d1\u05e8\u05e6\u05dc\u05d5\u05e0\u05d4': 4, 'amsterdam': 4,
     'road trip': 6, 'drive': 6,
     'hotel': 7, 'resort': 7, 'luxury': 7,
@@ -2272,7 +2274,7 @@ function archiveCurrentTrip() {
 // SEED DEMO TRIPS
 // ══════════════════════════════════════════════
 (function seedDemoTrips() {
-  const SEED_KEY = 'seeded_v2';
+  const SEED_KEY = 'seeded_v3';
   if (localStorage.getItem(SEED_KEY)) return;
 
   const dolomites = {
@@ -2449,9 +2451,153 @@ function archiveCurrentTrip() {
     ]
   };
 
+  // ── PDF Road Trip itineraries ──
+  const dolomitesRoad = {
+    id: 'pdf-dolomites-road', destination: 'Dolomites Road Trip, Italy', start: '2026-08-01', end: '2026-08-07',
+    description: 'Best mix of dramatic nature, driving, and great food.', emoji: '🏔️', currency: '€',
+    color: '#0d1a2e', budget: 2500, archived: false, transport: [], notes: 'Book early (July peak). Start hikes early. Balance driving and relaxing.',
+    people: [{id:'pr1',name:'Me'},{id:'pr2',name:'Travel Buddy'}],
+    stays: [
+      {id:'rs1', hotel:'Garni Snaltner', city:'Ortisei', checkin:'2026-08-01', checkout:'2026-08-04', conf:'GS-2026', cost:540, note:'Charming B&B in Ortisei'},
+      {id:'rs2', hotel:'Apartments Agnes', city:'Val Gardena', checkin:'2026-08-04', checkout:'2026-08-06', conf:'AA-2026', cost:320, note:'Self-catering apartments'},
+      {id:'rs3', hotel:'Hotel Villa Argentina', city:'Cortina d\'Ampezzo', checkin:'2026-08-06', checkout:'2026-08-07', conf:'VA-2026', cost:180, note:'Classic hotel in Cortina'}
+    ],
+    expenses: [],
+    packing: [
+      {id:'rpk1', name:'Hiking boots', category:'Clothing', checked:false},
+      {id:'rpk2', name:'Rain jacket', category:'Clothing', checked:false},
+      {id:'rpk3', name:'Sunscreen SPF 50', category:'Toiletries', checked:false},
+      {id:'rpk4', name:'Camera + lenses', category:'Electronics', checked:false},
+      {id:'rpk5', name:'Power adapter (EU)', category:'Electronics', checked:false},
+      {id:'rpk6', name:'Passport', category:'Documents', checked:false}
+    ],
+    destinations: [
+      {id:'rd1', day:'2026-08-01', name:'Lake Garda', note:'Arrival + scenic stop'},
+      {id:'rd2', day:'2026-08-01', name:'Ortisei', note:'Check-in, evening stroll'},
+      {id:'rd3', day:'2026-08-02', name:'Seceda Ridge', note:'Iconic ridge hike with panoramic views'},
+      {id:'rd4', day:'2026-08-03', name:'Alpe di Siusi', note:'Largest alpine meadow in Europe'},
+      {id:'rd5', day:'2026-08-04', name:'Sella Pass', note:'Dramatic mountain pass drive'},
+      {id:'rd6', day:'2026-08-04', name:'Lago di Carezza', note:'Crystal-clear rainbow lake'},
+      {id:'rd7', day:'2026-08-05', name:'Tre Cime di Lavaredo', note:'Iconic three peaks hike'},
+      {id:'rd8', day:'2026-08-06', name:'Lago di Braies', note:'Stunning turquoise lake'},
+      {id:'rd9', day:'2026-08-07', name:'Bolzano', note:'Return via South Tyrol capital'}
+    ],
+    itinerary: [
+      {id:'ri1', day:'2026-08-01', name:'Arrive at Lake Garda', time:'10:00', category:'transport'},
+      {id:'ri2', day:'2026-08-01', name:'Drive to Ortisei', time:'14:00', category:'transport'},
+      {id:'ri3', day:'2026-08-01', name:'Dinner in Ortisei', time:'19:30', category:'food'},
+      {id:'ri4', day:'2026-08-02', name:'Seceda ridge hike (full day)', time:'07:00', category:'activity'},
+      {id:'ri5', day:'2026-08-02', name:'Cable car to Seceda', time:'07:30', category:'activity'},
+      {id:'ri6', day:'2026-08-03', name:'Explore Alpe di Siusi', time:'08:00', category:'activity'},
+      {id:'ri7', day:'2026-08-03', name:'Lunch at mountain hut', time:'13:00', category:'food'},
+      {id:'ri8', day:'2026-08-04', name:'Drive Sella Pass', time:'08:00', category:'transport'},
+      {id:'ri9', day:'2026-08-04', name:'Visit Lago di Carezza', time:'12:00', category:'activity'},
+      {id:'ri10', day:'2026-08-05', name:'Tre Cime hike', time:'07:00', category:'activity'},
+      {id:'ri11', day:'2026-08-06', name:'Lago di Braies visit', time:'09:00', category:'activity'},
+      {id:'ri12', day:'2026-08-07', name:'Drive to Bolzano + departure', time:'09:00', category:'transport'}
+    ]
+  };
+
+  const southFrance = {
+    id: 'pdf-south-france', destination: 'South of France', start: '2026-06-15', end: '2026-06-21',
+    description: 'Relaxed vibe, wine, villages, and coastline.', emoji: '🍷', currency: '€',
+    color: '#1a1020', budget: 3000, archived: false, transport: [], notes: 'Reserve restaurants ahead. Drive early to avoid traffic. Enjoy slow pace.',
+    people: [{id:'pf1',name:'Me'},{id:'pf2',name:'Travel Buddy'}],
+    stays: [
+      {id:'fs1', hotel:'Hotel Le Mozart', city:'Aix-en-Provence', checkin:'2026-06-15', checkout:'2026-06-18', conf:'MOZ-2026', cost:480, note:'Central location in Aix'},
+      {id:'fs2', hotel:'Mas des Romarins', city:'Gordes', checkin:'2026-06-18', checkout:'2026-06-19', conf:'MDR-2026', cost:220, note:'Charming Provencal hotel'},
+      {id:'fs3', hotel:'Hotel Rossetti', city:'Nice', checkin:'2026-06-19', checkout:'2026-06-21', conf:'ROS-2026', cost:380, note:'Old Town Nice, walking distance to beach'}
+    ],
+    expenses: [],
+    packing: [
+      {id:'fpk1', name:'Sunglasses', category:'Clothing', checked:false},
+      {id:'fpk2', name:'Light summer clothes', category:'Clothing', checked:false},
+      {id:'fpk3', name:'Swimsuit', category:'Clothing', checked:false},
+      {id:'fpk4', name:'Sunscreen', category:'Toiletries', checked:false},
+      {id:'fpk5', name:'Camera', category:'Electronics', checked:false},
+      {id:'fpk6', name:'Passport', category:'Documents', checked:false}
+    ],
+    destinations: [
+      {id:'fd1', day:'2026-06-15', name:'Aix-en-Provence', note:'Arrival + town market exploration'},
+      {id:'fd2', day:'2026-06-16', name:'Gordes', note:'One of the most beautiful villages in France'},
+      {id:'fd3', day:'2026-06-16', name:'Roussillon', note:'Ochre-colored hilltop village'},
+      {id:'fd4', day:'2026-06-17', name:'Lavender Fields', note:'Iconic Provence scenery'},
+      {id:'fd5', day:'2026-06-17', name:'Local Winery', note:'Wine tasting afternoon'},
+      {id:'fd6', day:'2026-06-18', name:'Nice', note:'Drive to the Riviera'},
+      {id:'fd7', day:'2026-06-19', name:'Monaco', note:'Glamorous principality day trip'},
+      {id:'fd8', day:'2026-06-19', name:'Eze', note:'Medieval hilltop village with sea views'},
+      {id:'fd9', day:'2026-06-20', name:'Nice Beach', note:'Relaxing beach day'},
+      {id:'fd10', day:'2026-06-21', name:'Nice', note:'Return / departure'}
+    ],
+    itinerary: [
+      {id:'fi1', day:'2026-06-15', name:'Arrive in Aix-en-Provence', time:'11:00', category:'transport'},
+      {id:'fi2', day:'2026-06-15', name:'Explore town + market', time:'14:00', category:'activity'},
+      {id:'fi3', day:'2026-06-16', name:'Drive to Gordes', time:'09:00', category:'transport'},
+      {id:'fi4', day:'2026-06-16', name:'Explore Gordes + Roussillon', time:'10:00', category:'activity'},
+      {id:'fi5', day:'2026-06-17', name:'Lavender fields visit', time:'09:00', category:'activity'},
+      {id:'fi6', day:'2026-06-17', name:'Winery tour + tasting', time:'15:00', category:'food'},
+      {id:'fi7', day:'2026-06-18', name:'Drive to Nice', time:'09:00', category:'transport'},
+      {id:'fi8', day:'2026-06-18', name:'Explore Old Town Nice', time:'15:00', category:'activity'},
+      {id:'fi9', day:'2026-06-19', name:'Day trip: Monaco + Eze', time:'09:00', category:'activity'},
+      {id:'fi10', day:'2026-06-20', name:'Beach day in Nice', time:'10:00', category:'activity'},
+      {id:'fi11', day:'2026-06-20', name:'Farewell dinner', time:'20:00', category:'food'},
+      {id:'fi12', day:'2026-06-21', name:'Departure', time:'10:00', category:'transport'}
+    ]
+  };
+
+  const basqueCountry = {
+    id: 'pdf-basque', destination: 'Basque Country, North Spain', start: '2026-09-10', end: '2026-09-16',
+    description: 'Top-tier food with rugged coastline and mountains.', emoji: '🍽️', currency: '€',
+    color: '#1e1a0f', budget: 2800, archived: false, transport: [], notes: 'Try multiple pintxos bars. Book top restaurants in advance. Enjoy flexible schedule.',
+    people: [{id:'pb1',name:'Me'},{id:'pb2',name:'Travel Buddy'}],
+    stays: [
+      {id:'bs1', hotel:'NYX Hotel Bilbao', city:'Bilbao', checkin:'2026-09-10', checkout:'2026-09-12', conf:'NYX-2026', cost:320, note:'Modern hotel near Guggenheim'},
+      {id:'bs2', hotel:'Hotel Parma', city:'San Sebastian', checkin:'2026-09-12', checkout:'2026-09-15', conf:'PAR-2026', cost:540, note:'Central San Sebastian'},
+      {id:'bs3', hotel:'Hotel Valdecoro', city:'Picos de Europa', checkin:'2026-09-15', checkout:'2026-09-16', conf:'VAL-2026', cost:120, note:'Mountain lodge near Picos'}
+    ],
+    expenses: [],
+    packing: [
+      {id:'bpk1', name:'Walking shoes', category:'Clothing', checked:false},
+      {id:'bpk2', name:'Rain jacket', category:'Clothing', checked:false},
+      {id:'bpk3', name:'Hiking boots', category:'Clothing', checked:false},
+      {id:'bpk4', name:'Camera', category:'Electronics', checked:false},
+      {id:'bpk5', name:'Phone charger', category:'Electronics', checked:false},
+      {id:'bpk6', name:'Passport', category:'Documents', checked:false}
+    ],
+    destinations: [
+      {id:'bd1', day:'2026-09-10', name:'Bilbao', note:'Arrival + city exploration'},
+      {id:'bd2', day:'2026-09-10', name:'Guggenheim Museum', note:'World-famous modern art museum'},
+      {id:'bd3', day:'2026-09-11', name:'Gaztelugatxe', note:'Dramatic island stairway (Game of Thrones)'},
+      {id:'bd4', day:'2026-09-12', name:'San Sebastian', note:'Drive to foodie capital'},
+      {id:'bd5', day:'2026-09-13', name:'Old Town (Parte Vieja)', note:'Pintxos food tour'},
+      {id:'bd6', day:'2026-09-14', name:'La Concha Beach', note:'Beautiful city beach day'},
+      {id:'bd7', day:'2026-09-15', name:'Picos de Europa', note:'Drive to stunning mountain range'},
+      {id:'bd8', day:'2026-09-16', name:'Picos de Europa', note:'Hike + return'}
+    ],
+    itinerary: [
+      {id:'bi1', day:'2026-09-10', name:'Arrive in Bilbao', time:'11:00', category:'transport'},
+      {id:'bi2', day:'2026-09-10', name:'Visit Guggenheim Museum', time:'14:00', category:'activity'},
+      {id:'bi3', day:'2026-09-10', name:'Pintxos dinner in Casco Viejo', time:'20:00', category:'food'},
+      {id:'bi4', day:'2026-09-11', name:'Drive to Gaztelugatxe', time:'09:00', category:'transport'},
+      {id:'bi5', day:'2026-09-11', name:'Hike up Gaztelugatxe island', time:'10:30', category:'activity'},
+      {id:'bi6', day:'2026-09-12', name:'Drive to San Sebastian', time:'09:00', category:'transport'},
+      {id:'bi7', day:'2026-09-12', name:'Explore La Concha + Old Town', time:'14:00', category:'activity'},
+      {id:'bi8', day:'2026-09-13', name:'Pintxos food tour', time:'12:00', category:'food'},
+      {id:'bi9', day:'2026-09-13', name:'Fine dining experience', time:'20:30', category:'food'},
+      {id:'bi10', day:'2026-09-14', name:'La Concha Beach day', time:'10:00', category:'activity'},
+      {id:'bi11', day:'2026-09-15', name:'Drive to Picos de Europa', time:'08:00', category:'transport'},
+      {id:'bi12', day:'2026-09-15', name:'Evening at mountain lodge', time:'18:00', category:'activity'},
+      {id:'bi13', day:'2026-09-16', name:'Morning hike in Picos', time:'07:30', category:'activity'},
+      {id:'bi14', day:'2026-09-16', name:'Return / departure', time:'14:00', category:'transport'}
+    ]
+  };
+
   // Only add if not already there
   if (!trips.find(t => t.id === 'demo-dolomites')) trips.push(dolomites);
   if (!trips.find(t => t.id === 'demo-tanzania')) trips.push(tanzania);
+  if (!trips.find(t => t.id === 'pdf-dolomites-road')) trips.push(dolomitesRoad);
+  if (!trips.find(t => t.id === 'pdf-south-france')) trips.push(southFrance);
+  if (!trips.find(t => t.id === 'pdf-basque')) trips.push(basqueCountry);
   save();
   localStorage.setItem(SEED_KEY, '1');
 })();
