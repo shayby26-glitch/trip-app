@@ -378,11 +378,13 @@
     .journal-text-only .journal-item-delete { position:absolute; top:.6rem; right:.6rem; }
 
     /* ═══ FIXED HERO BG FOR DETAIL ═══ */
-    #detail-hero-fixed-bg { position:fixed; top:0; left:0; right:0; bottom:0; z-index:0; pointer-events:none; display:none; }
-    #detail-hero-fixed-bg img { width:100%; height:100%; object-fit:cover; filter:brightness(.25) saturate(1.2); }
+    #detail-hero-fixed-bg { position:fixed; top:0; left:0; right:0; bottom:0; z-index:0; pointer-events:none; display:none; opacity:0; transition:opacity .6s ease; }
+    #detail-hero-fixed-bg.visible { opacity:1; }
+    #detail-hero-fixed-bg img { width:100%; height:100%; object-fit:cover; filter:brightness(.38) saturate(1.3); transition:filter .6s ease; }
     #detail-hero-fixed-bg .hero-overlay-animated { position:absolute; inset:0; }
-    #detail-hero-fixed-bg::after { content:''; position:absolute; inset:0; background:linear-gradient(to bottom,rgba(5,8,15,.1) 0%,rgba(5,8,15,.7) 50%,rgba(5,8,15,.92) 100%); }
-    [data-theme="light"] #detail-hero-fixed-bg::after { background:linear-gradient(to bottom,rgba(240,244,255,.3) 0%,rgba(240,244,255,.75) 50%,rgba(240,244,255,.95) 100%); }
+    #detail-hero-fixed-bg::after { content:''; position:absolute; inset:0; background:linear-gradient(to bottom,rgba(5,8,15,.05) 0%,rgba(5,8,15,.55) 50%,rgba(5,8,15,.88) 100%); }
+    [data-theme="light"] #detail-hero-fixed-bg img { filter:brightness(.55) saturate(1.1); }
+    [data-theme="light"] #detail-hero-fixed-bg::after { background:linear-gradient(to bottom,rgba(240,244,255,.15) 0%,rgba(240,244,255,.6) 50%,rgba(240,244,255,.92) 100%); }
     #page-detail { position:relative; z-index:1; }
 
     /* Stay map link */
@@ -1064,7 +1066,10 @@ function showPage(name) {
     renderHome();
     stopFallingElements();
     const fixedBg = document.getElementById('detail-hero-fixed-bg');
-    if (fixedBg) fixedBg.style.display = 'none';
+    if (fixedBg) {
+      fixedBg.classList.remove('visible');
+      setTimeout(() => { fixedBg.style.display = 'none'; }, 650);
+    }
   }
 }
 
@@ -1271,8 +1276,10 @@ function openTrip(id) {
   const fixedBg = document.getElementById('detail-hero-fixed-bg');
   const fixedBgPhoto = document.getElementById('fixed-bg-photo');
   fixedBgPhoto.src = heroPhotoUrl;
-  fixedBg.style.display = 'block';
   fixedBg.style.background = getDestGradient(t.destination);
+  fixedBg.style.display = 'block';
+  fixedBg.classList.remove('visible');
+  requestAnimationFrame(() => requestAnimationFrame(() => fixedBg.classList.add('visible')));
 
   const days = tripDays(t), st = tripStatus(t);
   document.getElementById('d-meta').innerHTML =
