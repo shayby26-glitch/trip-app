@@ -100,9 +100,12 @@
       66% { transform:translate(-18px,16px) scale(0.94); }
     }
     .home-hero-content { position:relative; z-index:2; }
-    .home-hero-label { display:inline-flex; align-items:center; gap:6px; padding:6px 18px; border-radius:50px; background:rgba(124,58,237,.12); border:1px solid rgba(124,58,237,.3); font-size:.75rem; font-weight:700; color:var(--accent); letter-spacing:.08em; text-transform:uppercase; margin-bottom:22px; backdrop-filter:blur(8px); }
+    .home-hero-label { display:inline-flex; align-items:center; gap:6px; padding:6px 18px; border-radius:50px; background:rgba(124,58,237,.15); border:1px solid rgba(124,58,237,.4); font-size:.75rem; font-weight:700; color:var(--accent); letter-spacing:.08em; text-transform:uppercase; margin-bottom:22px; backdrop-filter:blur(8px); }
+    [data-theme="light"] .home-hero-label { background:rgba(124,58,237,.12); border-color:rgba(124,58,237,.5); color:#5b21b6; }
     .home-hero-title { font-family:var(--font-heading); font-size:clamp(2.6rem,6vw,4.2rem); font-weight:900; line-height:1.08; letter-spacing:-.03em; color:var(--text); margin-bottom:14px; }
+    [data-theme="light"] .home-hero-title { color:#0a0e1a; }
     .home-hero-sub { font-size:1.05rem; color:var(--muted); max-width:380px; margin:0 auto 36px; line-height:1.6; }
+    [data-theme="light"] .home-hero-sub { color:#1e2447; font-weight:500; }
     .home-hero-divider { width:60px; height:3px; background:var(--grad); border-radius:99px; margin:0 auto; opacity:.6; }
 
     /* DASHBOARD */
@@ -157,7 +160,8 @@
     .trip-card:nth-child(n+9) { animation-delay:.45s; }
 
     /* DETAIL */
-    .detail-page { max-width:900px; margin:0 auto; padding:28px 24px; }
+    .detail-page { max-width:900px; margin:0 auto; padding:28px 24px; position:relative; z-index:1; background:var(--bg); }
+    [data-theme="light"] .detail-page { background:rgba(240,244,255,.92); backdrop-filter:blur(4px); }
     .detail-header { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:24px; flex-wrap:wrap; }
     .detail-title { font-family:var(--font-heading); font-size:2rem; font-weight:800; letter-spacing:-.02em; }
     .detail-meta { display:flex; gap:14px; flex-wrap:wrap; margin-top:6px; font-size:.85rem; color:var(--muted); }
@@ -2220,10 +2224,10 @@ function startFallingElements(dest, tripEmoji) {
     document.body.appendChild(el);
     el.addEventListener('animationend', () => el.remove());
   }
-  // Initial burst (halved from 12)
-  for (let i = 0; i < 6; i++) setTimeout(createEl, i * 300);
-  // Ongoing (halved frequency)
-  fallingInterval = setInterval(createEl, 3000);
+  // Initial burst
+  for (let i = 0; i < 3; i++) setTimeout(createEl, i * 400);
+  // Ongoing (sparse)
+  fallingInterval = setInterval(createEl, 5000);
 }
 function stopFallingElements() {
   if (fallingInterval) { clearInterval(fallingInterval); fallingInterval = null; }
