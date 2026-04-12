@@ -386,8 +386,8 @@
     #page-detail { position:relative; z-index:1; }
 
     /* Stay map link */
-    .stay-map-link { display:inline-flex; align-items:center; gap:3px; font-size:.75rem; color:var(--accent); text-decoration:none; transition:color .2s; font-weight:500; }
-    .stay-map-link:hover { color:var(--accent2); }
+    .stay-map-link { display:inline-flex; align-items:center; gap:4px; font-size:.78rem; color:var(--accent); text-decoration:none; transition:all .2s; font-weight:600; margin-top:3px; padding:2px 8px 2px 4px; background:rgba(124,58,237,.08); border-radius:20px; border:1px solid rgba(124,58,237,.2); }
+    .stay-map-link:hover { color:#fff; background:var(--accent); border-color:var(--accent); }
 
     /* RESPONSIVE */
     @media(max-width:600px) {
@@ -1395,9 +1395,10 @@ function renderOverview() {
     return;
   }
 
-  // Build date→stay map
+  // Build date→stay map (normalise name/hotel field)
+  const normStays = (t.stays||[]).map(s => ({...s, name: s.name || s.hotel || ''}));
   const dayStay = {};
-  for (const stay of (t.stays||[])) {
+  for (const stay of normStays) {
     const end = new Date(stay.checkout + 'T00:00');
     for (let d = new Date(stay.checkin + 'T00:00'); d < end; d.setDate(d.getDate()+1)) {
       dayStay[d.toISOString().slice(0,10)] = stay;
@@ -1971,7 +1972,7 @@ function openEditStayModal(id) {
   if (!s) return;
   openStayModal();
   setTimeout(() => {
-    document.getElementById('stay-name').value     = s.name;
+    document.getElementById('stay-name').value     = s.name || s.hotel || '';
     document.getElementById('stay-checkin').value  = s.checkin;
     document.getElementById('stay-checkout').value = s.checkout;
     document.getElementById('stay-address').value  = s.address||'';
@@ -2037,7 +2038,9 @@ function removeStay(id) {
 
 function renderStay() {
   const t = getTrip();
-  const stays = (t.stays||[]).slice().sort((a,b) => a.checkin.localeCompare(b.checkin));
+  // Normalise stays: support both `name` and `hotel` field names
+  const stays = (t.stays||[]).map(s => ({...s, name: s.name || s.hotel || ''}))
+    .slice().sort((a,b) => a.checkin.localeCompare(b.checkin));
   const days = getDayList(t);
   const cur = currency(t);
   const wrap = document.getElementById('stay-table-wrap');
@@ -2078,7 +2081,7 @@ function renderStay() {
       </td>
       <td>
         <div class="stay-name">${escHtml(stay.name)}</div>
-        ${stay.city ? `<div class="stay-city">📍 ${escHtml(stay.city)}</div><a class="stay-map-link" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stay.name + ' ' + stay.city)}" target="_blank" rel="noopener">📍 Open in Maps</a>` : ''}
+        ${stay.city ? `<a class="stay-map-link" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stay.name + ' ' + stay.city)}" target="_blank" rel="noopener">📍 ${escHtml(stay.city)} — Open in Maps ↗</a>` : ''}
       </td>
       <td>${stay.address ? `<span style="font-size:.8rem;color:var(--muted)">${escHtml(stay.address)}</span>` : '—'}</td>
       <td>${stay.conf ? `<span class="stay-conf">${escHtml(stay.conf)}</span>` : '—'}</td>
@@ -2094,10 +2097,10 @@ function renderStay() {
     return `<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:8px">
       <div style="font-size:2rem">🏨</div>
       <div style="flex:1">
-        <div style="font-weight:700">${escHtml(stay.name)}</div>
+        ${stay.city ? `<a href="https://www.google.com/maps/search/?api=1&query=${mapsQuery}" target="_blank" rel="noopener" style="font-weight:700;color:var(--text);text-decoration:none;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text)'">${escHtml(stay.name)} <span style="font-size:.75rem;color:var(--accent);font-weight:500">📍</span></a>` : `<div style="font-weight:700">${escHtml(stay.name)}</div>`}
         <div style="font-size:.8rem;color:var(--muted)">${fmtDate(stay.checkin)} → ${fmtDate(stay.checkout)} · ${n} night${n!==1?'s':''}</div>
         ${stay.address ? `<div style="font-size:.78rem;color:var(--muted)">${escHtml(stay.address)}</div>` : ''}
-        ${stay.city ? `<a class="stay-map-link" href="https://www.google.com/maps/search/?api=1&query=${mapsQuery}" target="_blank" rel="noopener">📍 Open in Maps</a>` : ''}
+        ${stay.city ? `<a class="stay-map-link" href="https://www.google.com/maps/search/?api=1&query=${mapsQuery}" target="_blank" rel="noopener">📍 ${escHtml(stay.city)} — Open in Maps ↗</a>` : ''}
       </div>
       ${stay.conf ? `<span class="stay-conf">${escHtml(stay.conf)}</span>` : ''}
       ${stay.cost > 0 ? `<span style="font-weight:700;color:var(--green)">${cur}${Number(stay.cost).toFixed(2)}</span>` : ''}
