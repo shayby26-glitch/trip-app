@@ -74,15 +74,50 @@
     .page { display:none; }
     .page.active { display:block; }
 
+    /* HOME PAGE BACKGROUND */
+    #page-home { background:
+      radial-gradient(ellipse 70% 60% at 10% 0%, rgba(124,58,237,.18) 0%, transparent 55%),
+      radial-gradient(ellipse 55% 45% at 90% 100%, rgba(244,63,94,.12) 0%, transparent 50%),
+      radial-gradient(ellipse 40% 40% at 50% 50%, rgba(16,185,129,.06) 0%, transparent 60%),
+      var(--bg); }
+    [data-theme="light"] #page-home { background:
+      radial-gradient(ellipse 70% 60% at 10% 0%, rgba(124,58,237,.09) 0%, transparent 55%),
+      radial-gradient(ellipse 55% 45% at 90% 100%, rgba(244,63,94,.07) 0%, transparent 50%),
+      var(--bg); }
+
+    /* HOME HERO */
+    .home-hero { position:relative; overflow:hidden; padding:64px 24px 52px; text-align:center; }
+    .home-hero-orb { position:absolute; border-radius:50%; filter:blur(72px); pointer-events:none; animation:floatOrb 9s ease-in-out infinite; }
+    .home-hero-orb-1 { width:500px; height:500px; background:rgba(124,58,237,.22); top:-180px; left:-120px; animation-delay:0s; }
+    .home-hero-orb-2 { width:380px; height:380px; background:rgba(244,63,94,.18); top:-100px; right:-100px; animation-delay:-3.5s; }
+    .home-hero-orb-3 { width:280px; height:280px; background:rgba(16,185,129,.12); bottom:-80px; left:45%; animation-delay:-6s; }
+    [data-theme="light"] .home-hero-orb-1 { background:rgba(124,58,237,.11); }
+    [data-theme="light"] .home-hero-orb-2 { background:rgba(244,63,94,.09); }
+    [data-theme="light"] .home-hero-orb-3 { background:rgba(16,185,129,.07); }
+    @keyframes floatOrb {
+      0%,100% { transform:translate(0,0) scale(1); }
+      33% { transform:translate(24px,-22px) scale(1.06); }
+      66% { transform:translate(-18px,16px) scale(0.94); }
+    }
+    .home-hero-content { position:relative; z-index:2; }
+    .home-hero-label { display:inline-flex; align-items:center; gap:6px; padding:6px 18px; border-radius:50px; background:rgba(124,58,237,.12); border:1px solid rgba(124,58,237,.3); font-size:.75rem; font-weight:700; color:var(--accent); letter-spacing:.08em; text-transform:uppercase; margin-bottom:22px; backdrop-filter:blur(8px); }
+    .home-hero-title { font-family:var(--font-heading); font-size:clamp(2.6rem,6vw,4.2rem); font-weight:900; line-height:1.08; letter-spacing:-.03em; color:var(--text); margin-bottom:14px; }
+    .home-hero-sub { font-size:1.05rem; color:var(--muted); max-width:380px; margin:0 auto 36px; line-height:1.6; }
+    .home-hero-divider { width:60px; height:3px; background:var(--grad); border-radius:99px; margin:0 auto; opacity:.6; }
+
     /* DASHBOARD */
-    .dashboard { max-width:1100px; margin:0 auto; padding:32px 24px; }
+    .dashboard { max-width:1100px; margin:0 auto; padding:8px 24px 40px; }
     .stats-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:16px; margin-bottom:32px; }
-    .stat-card { background:rgba(14,21,37,.7); backdrop-filter:blur(10px); border:1px solid rgba(124,58,237,.15); border-radius:16px; padding:22px 20px; text-align:center; position:relative; overflow:hidden; transition:transform .25s ease, box-shadow .25s ease; }
-    .stat-card:hover { transform:translateY(-4px); box-shadow:0 12px 40px rgba(124,58,237,.2),0 0 60px rgba(244,63,94,.08); }
-    .stat-card::before { content:''; position:absolute; top:-20px; right:-20px; width:80px; height:80px; border-radius:50%; background:var(--grad); opacity:.12; filter:blur(10px); }
+    .stat-card { background:rgba(14,21,37,.65); backdrop-filter:blur(16px); border:1px solid rgba(124,58,237,.2); border-radius:20px; padding:26px 20px; text-align:center; position:relative; overflow:hidden; transition:transform .25s ease, box-shadow .25s ease; }
+    .stat-card:hover { transform:translateY(-5px); box-shadow:0 16px 48px rgba(124,58,237,.25),0 0 60px rgba(244,63,94,.08); border-color:rgba(124,58,237,.4); }
+    .stat-card::before { content:''; position:absolute; top:-24px; right:-24px; width:90px; height:90px; border-radius:50%; background:var(--grad); opacity:.14; filter:blur(12px); }
+    .stat-card::after { content:''; position:absolute; bottom:0; left:0; right:0; height:2px; background:var(--grad); opacity:0; transition:opacity .3s ease; }
+    .stat-card:hover::after { opacity:.6; }
+    [data-theme="light"] .stat-card { background:rgba(255,255,255,.75); border-color:rgba(124,58,237,.18); box-shadow:0 4px 24px rgba(124,58,237,.08); }
+    [data-theme="light"] .stat-card:hover { background:rgba(255,255,255,.95); box-shadow:0 16px 48px rgba(124,58,237,.18); }
     .stat-num { font-family:var(--font-heading); font-size:2.6rem; font-weight:900; background:var(--grad); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; letter-spacing:-.03em; }
     .stat-label { font-size:.72rem; color:var(--muted); margin-top:4px; text-transform:uppercase; letter-spacing:.06em; font-weight:600; }
-    [data-theme="light"] .stat-num { -webkit-text-fill-color:var(--accent); }
+    [data-theme="light"] .stat-num { background:var(--grad); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
     .section-title { font-family:var(--font-heading); font-size:1.2rem; font-weight:700; margin-bottom:16px; letter-spacing:-.01em; }
     .trips-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:24px; }
     .trip-card { background:rgba(14,21,37,.6); backdrop-filter:blur(10px); border:1px solid rgba(124,58,237,.1); border-radius:18px; overflow:hidden; transition:transform .3s cubic-bezier(.34,1.4,.64,1),box-shadow .3s ease; cursor:pointer; position:relative; }
@@ -424,6 +459,20 @@
 
 <!-- ═══ HOME ═══ -->
 <div id="page-home" class="page active">
+
+  <!-- HERO -->
+  <div class="home-hero">
+    <div class="home-hero-orb home-hero-orb-1"></div>
+    <div class="home-hero-orb home-hero-orb-2"></div>
+    <div class="home-hero-orb home-hero-orb-3"></div>
+    <div class="home-hero-content">
+      <div class="home-hero-label">✈️ Your Travel Hub</div>
+      <h1 class="home-hero-title">Plan. Explore.<br><span class="gradient-text">Remember.</span></h1>
+      <p class="home-hero-sub">All your adventures, perfectly organized in one place.</p>
+      <div class="home-hero-divider"></div>
+    </div>
+  </div>
+
   <div class="dashboard">
     <div class="stats-row">
       <div class="stat-card"><div class="stat-num" id="stat-total">0</div><div class="stat-label">Total Trips</div></div>
