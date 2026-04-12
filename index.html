@@ -765,7 +765,20 @@
 // ══════════════════════════════════════════════
 // CONSTANTS & STATE
 // ══════════════════════════════════════════════
-const EMOJIS = ['🌴','🗼','🏔️','🌊','🏖️','🏛️','🌸','🗽','🎌','🌅','🚂','🛳️','🎡','🌍','🏕️','🎿','🏜️','🌮','🍜','🍷'];
+const EMOJIS = [
+  // Nature & Landscapes
+  '🌴','🏔️','🌊','🏖️','🌅','🌋','🏕️','🏜️','🌿','❄️',
+  // Landmarks & Transport
+  '🗼','🏛️','🗽','🎌','🚂','🛳️','✈️','🚁','🏰','⛩️',
+  // Food & Drink
+  '🍕','🥐','🌶️','🌮','🍜','🍷','🍺','🧀','🥘','🍣','🥗','🫕','🧆','🍝','🥂',
+  // Activities & Culture
+  '🎿','🤿','🏄','🎭','🎡','🎪','🎨','🎸','🧳','🗺️',
+  // Animals
+  '🦁','🐘','🐬','🦒','🐧','🦅','🐠','🦜','🐪','🦩',
+  // Symbols & Vibes
+  '🌸','🌍','🌙','⭐','💎','🔥','🌈','🎊','🏆','💫'
+];
 const AVATAR_COLORS = ['#5b8dee','#7c5cbf','#3ecf8e','#f59e0b','#ef4444','#06b6d4','#ec4899','#84cc16'];
 
 // ══════════════════════════════════════════════
@@ -1303,8 +1316,8 @@ function openTrip(id) {
   renderJournal();
   document.getElementById('notes-editor').value = t.notes || '';
 
-  // Start falling elements
-  startFallingElements(t.destination);
+  // Start falling elements (prefer trip emoji over destination lookup)
+  startFallingElements(t.destination, t.emoji);
 
   showPage('detail');
 }
@@ -2142,9 +2155,10 @@ function getFallingEmoji(dest) {
   if (d.includes('tanzania') || d.includes('safari') || d.includes('serengeti') || d.includes('kenya') || d.includes('ספארי') || d.includes('טנזניה') || d.includes('africa') || d.includes('אפריקה')) return '🦁';
   return '✈️';
 }
-function startFallingElements(dest) {
+function startFallingElements(dest, tripEmoji) {
   stopFallingElements();
-  const emoji = getFallingEmoji(dest);
+  // Use the trip's chosen emoji if set, else fall back to destination lookup
+  const emoji = tripEmoji || getFallingEmoji(dest);
   function createEl() {
     const el = document.createElement('div');
     el.className = 'falling-el';
@@ -2157,10 +2171,10 @@ function startFallingElements(dest) {
     document.body.appendChild(el);
     el.addEventListener('animationend', () => el.remove());
   }
-  // Initial burst
-  for (let i = 0; i < 12; i++) setTimeout(createEl, i * 300);
-  // Ongoing
-  fallingInterval = setInterval(createEl, 1500);
+  // Initial burst (halved from 12)
+  for (let i = 0; i < 6; i++) setTimeout(createEl, i * 300);
+  // Ongoing (halved frequency)
+  fallingInterval = setInterval(createEl, 3000);
 }
 function stopFallingElements() {
   if (fallingInterval) { clearInterval(fallingInterval); fallingInterval = null; }
