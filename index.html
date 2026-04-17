@@ -350,6 +350,8 @@
     .ov-city-divider-inner:hover { box-shadow:0 0 40px rgba(124,58,237,.35); transform:scale(1.03); }
     .ov-city-divider-emoji { font-size:1.6rem; }
     .ov-city-divider-name { font-family:var(--font-heading); font-size:1.4rem; font-weight:700; }
+    .ov-city-divider-tagline { font-size:.72rem; color:var(--muted); margin-top:2px; font-style:italic; letter-spacing:.01em; }
+    [data-theme="light"] .ov-city-divider-tagline { color:#4a5280; }
     .ov-city-divider-dates { font-size:.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:1px; }
     .ov-day-card { position:relative; width:44%; margin-bottom:2.5rem; }
     .ov-day-card:nth-child(odd) { margin-left:4%; }
@@ -1556,11 +1558,13 @@ function renderOverview() {
   const html = cards.map(c => {
     if (c.type === 'divider') {
       const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.city)}`;
+      const tagline = getCityTagline(c.city);
       return `<div class="ov-city-divider">
         <a class="ov-city-divider-inner" href="${mapsUrl}" target="_blank" rel="noopener">
           <span class="ov-city-divider-emoji">📍</span>
           <div>
             <div class="ov-city-divider-name">${escHtml(c.city)}</div>
+            <div class="ov-city-divider-tagline">${escHtml(tagline)}</div>
           </div>
         </a>
       </div>`;
@@ -2201,6 +2205,111 @@ function renderStay() {
 // FALLING ELEMENTS
 // ══════════════════════════════════════════════
 let fallingInterval = null;
+function getCityTagline(city) {
+  const c = (city || '').toLowerCase();
+  // France
+  if (c.includes('aix-en-provence') || c.includes('aix en provence')) return 'Markets, fountains & Cézanne';
+  if (c.includes('gordes')) return 'Perched village in the Luberon';
+  if (c.includes('roussillon')) return 'Ochre cliffs & lavender fields';
+  if (c.includes('les baux')) return 'Dramatic hilltop fortress ruins';
+  if (c.includes('arles')) return 'Roman ruins & Van Gogh streets';
+  if (c.includes('paris')) return 'City of light & love';
+  if (c.includes('nice')) return 'Riviera sun & azure sea';
+  if (c.includes('lyon')) return 'Capital of French gastronomy';
+  if (c.includes('bordeaux')) return 'World-class wine & grand boulevards';
+  if (c.includes('marseille')) return 'Vibrant port city by the sea';
+  if (c.includes('mont-saint-michel')) return 'Tidal island abbey wonder';
+  if (c.includes('provence') || c.includes('luberon')) return 'Lavender, olive groves & villages';
+  if (c.includes('normandy') || c.includes('normandie')) return 'Cliffs, history & calvados';
+  // Spain
+  if (c.includes('san sebastián') || c.includes('sebastian') || c.includes('donostia')) return 'Pintxos capital of the world';
+  if (c.includes('bilbao')) return 'Industrial city reborn through art';
+  if (c.includes('barcelona')) return 'Gaudí, beaches & wild nightlife';
+  if (c.includes('madrid')) return 'Royal palaces & world-class tapas';
+  if (c.includes('seville') || c.includes('sevilla')) return 'Flamenco, oranges & the Giralda';
+  if (c.includes('granada')) return 'Alhambra & snow-capped peaks';
+  if (c.includes('toledo')) return 'Three cultures, one ancient city';
+  if (c.includes('basque')) return 'Wild coast, food & culture';
+  // Italy
+  if (c.includes('rome') || c.includes('roma')) return 'Eternal city, 2,800 years of history';
+  if (c.includes('venice') || c.includes('venezia')) return 'Floating city of canals & art';
+  if (c.includes('florence') || c.includes('firenze')) return 'Renaissance art & Tuscan wine';
+  if (c.includes('amalfi')) return 'Clifftop villages above turquoise sea';
+  if (c.includes('cinque terre')) return 'Five colorful villages on cliffs';
+  if (c.includes('dolomit')) return 'Jagged peaks & alpine meadows';
+  if (c.includes('milan') || c.includes('milano')) return 'Fashion, design & the Duomo';
+  if (c.includes('naples') || c.includes('napoli')) return 'Birthplace of pizza & chaos';
+  if (c.includes('sicily') || c.includes('sicilia') || c.includes('palermo')) return 'Ancient temples & street food';
+  if (c.includes('tuscany') || c.includes('toscana')) return 'Rolling hills, vines & cypress';
+  // UK & Ireland
+  if (c.includes('london')) return 'Royal heritage & global culture';
+  if (c.includes('edinburgh')) return 'Castle on a crag, whisky below';
+  if (c.includes('dublin')) return 'Craic, Guinness & Georgian squares';
+  if (c.includes('cotswolds')) return 'Honey-stone villages & meadows';
+  // Portugal
+  if (c.includes('lisbon') || c.includes('lisboa')) return 'Tiles, hills & Atlantic soul';
+  if (c.includes('porto') || c.includes('oporto')) return 'Port wine & azulejo-clad houses';
+  if (c.includes('algarve')) return 'Golden cliffs & turquoise coves';
+  // Germany & Austria
+  if (c.includes('munich') || c.includes('münchen')) return 'Beer halls, BMW & the Alps';
+  if (c.includes('berlin')) return 'History, art & non-stop energy';
+  if (c.includes('vienna') || c.includes('wien')) return 'Imperial grandeur & Sachertorte';
+  if (c.includes('salzburg')) return 'Mozart, mountains & music';
+  if (c.includes('hallstatt')) return 'Fairy-tale lakeside alpine village';
+  // Netherlands & Belgium
+  if (c.includes('amsterdam')) return 'Canals, bikes & Rijksmuseum';
+  if (c.includes('bruges') || c.includes('brugge')) return 'Medieval gem of chocolate & lace';
+  // Greece
+  if (c.includes('santorini')) return 'White domes & volcanic sunsets';
+  if (c.includes('athens') || c.includes('athina')) return 'Cradle of western civilization';
+  if (c.includes('mykonos')) return 'Windmills, beaches & nightlife';
+  if (c.includes('crete') || c.includes('heraklion')) return 'Minoans, gorges & raki';
+  // Japan
+  if (c.includes('tokyo')) return 'Neon megacity, ancient tradition';
+  if (c.includes('kyoto')) return 'Temples, geisha & cherry blossoms';
+  if (c.includes('osaka')) return 'Street food paradise of Japan';
+  if (c.includes('hiroshima')) return 'Peace, resilience & okonomiyaki';
+  if (c.includes('nara')) return 'Deer, giant Buddha & pagodas';
+  // USA
+  if (c.includes('new york') || c.includes('nyc')) return 'The city that never sleeps';
+  if (c.includes('los angeles') || c.includes(' la,') || c === 'la') return 'Sun, studios & Pacific coast';
+  if (c.includes('san francisco')) return 'Golden Gate, fog & sourdough';
+  if (c.includes('new orleans')) return 'Jazz, gumbo & Mardi Gras';
+  if (c.includes('miami')) return 'Art deco, beaches & Cuban coffee';
+  if (c.includes('chicago')) return 'Architecture, deep dish & the Blues';
+  // Africa & Safari
+  if (c.includes('serengeti')) return 'Greatest wildlife spectacle on earth';
+  if (c.includes('ngorongoro')) return 'Crater eden teeming with wildlife';
+  if (c.includes('zanzibar')) return 'Spice island with white-sand beaches';
+  if (c.includes('maasai mara') || c.includes('masai mara')) return 'Big Five on golden savannah';
+  if (c.includes('cape town')) return 'Table Mountain meets two oceans';
+  if (c.includes('marrakech') || c.includes('marrakesh')) return 'Spice souks & riads of the medina';
+  if (c.includes('nairobi')) return 'Safari gateway, city in the wild';
+  // Middle East
+  if (c.includes('dubai')) return 'Futuristic skyline in the desert';
+  if (c.includes('petra')) return 'Rose-red city carved in rock';
+  if (c.includes('jerusalem')) return 'Sacred to three faiths, one city';
+  // South America
+  if (c.includes('rio de janeiro') || c.includes('rio')) return 'Carnival, Copacabana & Christ';
+  if (c.includes('buenos aires')) return 'Tango, steak & European elegance';
+  if (c.includes('cusco') || c.includes('cuzco')) return 'Gateway to the Inca empire';
+  if (c.includes('machu picchu')) return 'Lost city above the clouds';
+  // SE Asia
+  if (c.includes('bangkok')) return 'Temple city with electrifying street food';
+  if (c.includes('bali')) return 'Gods, rice terraces & surf';
+  if (c.includes('hoi an')) return 'Lanterns, tailor shops & ancient port';
+  if (c.includes('singapore')) return 'Garden city of endless food hawkers';
+  // Generic fallbacks by country keyword
+  if (c.includes('france') || c.includes('french')) return 'Cuisine, culture & joie de vivre';
+  if (c.includes('italy') || c.includes('italian')) return 'Art, pasta & la dolce vita';
+  if (c.includes('spain') || c.includes('spanish')) return 'Sun, siesta & fiesta';
+  if (c.includes('japan') || c.includes('japanese')) return 'Ancient tradition meets neon future';
+  if (c.includes('africa') || c.includes('safari') || c.includes('tanzania') || c.includes('kenya')) return 'Wild skies & endless savannah';
+  if (c.includes('beach') || c.includes('island') || c.includes('coast')) return 'Sun, sea & salt air';
+  if (c.includes('mountain') || c.includes('alpine') || c.includes('alps')) return 'Peaks, fresh air & adventure';
+  return 'A destination worth discovering';
+}
+
 function getFallingEmoji(dest) {
   const d = (dest||'').toLowerCase();
   if (d.includes('japan') || d.includes('tokyo') || d.includes('kyoto') || d.includes('osaka') || d.includes('יפן')) return '🌸';
