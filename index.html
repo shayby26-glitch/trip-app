@@ -2687,8 +2687,10 @@ function showImportPreview(trip) {
 
 function confirmImport() {
   if (!pendingImport) return;
-  // Give it a fresh ID so it doesn't collide
-  const trip = JSON.parse(JSON.stringify(pendingImport));
+  // In shared mode, use the live in-memory trip so guest edits are included.
+  // Otherwise fall back to the original pendingImport snapshot.
+  const source = sharedMode ? (getTrip() || pendingImport) : pendingImport;
+  const trip = JSON.parse(JSON.stringify(source));
   trip.id = Date.now().toString();
   trip.archived = false;
 
