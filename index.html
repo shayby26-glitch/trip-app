@@ -877,7 +877,12 @@ let undoState = null;
 
 // Save to both localStorage (offline cache) and Firebase
 function save() {
-  if (sharedMode) return; // never persist a guest session
+  if (sharedMode) {
+    // Guest mode: write only the shared trip back to the owner's Firebase
+    const t = getTrip();
+    if (t) tripsRef.child(t.id).set(t).catch(err => console.warn('Guest save error:', err));
+    return;
+  }
   localStorage.setItem('trips', JSON.stringify(trips));
   if (firebaseReady && !suppressFirebaseSync) {
     pendingLocalSave = false;
