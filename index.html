@@ -346,7 +346,8 @@
     .ov-timeline { position:relative; padding:2rem 0; }
     .ov-timeline::before { content:''; position:absolute; left:50%; top:0; bottom:0; width:2px; background:linear-gradient(180deg, transparent, var(--accent), var(--accent2), var(--green), var(--accent), transparent); transform:translateX(-50%); }
     .ov-city-divider { position:relative; text-align:center; margin:3rem 0 2rem; z-index:2; }
-    .ov-city-divider-inner { display:inline-flex; align-items:center; gap:.8rem; padding:.8rem 2rem; background:var(--bg); border:2px solid var(--accent); border-radius:50px; box-shadow:0 0 30px rgba(124,58,237,.15); }
+    .ov-city-divider-inner { display:inline-flex; align-items:center; gap:.8rem; padding:.8rem 2rem; background:var(--bg); border:2px solid var(--accent); border-radius:50px; box-shadow:0 0 30px rgba(124,58,237,.15); text-decoration:none; color:inherit; transition:box-shadow .2s,transform .2s; cursor:pointer; }
+    .ov-city-divider-inner:hover { box-shadow:0 0 40px rgba(124,58,237,.35); transform:scale(1.03); }
     .ov-city-divider-emoji { font-size:1.6rem; }
     .ov-city-divider-name { font-family:var(--font-heading); font-size:1.4rem; font-weight:700; }
     .ov-city-divider-dates { font-size:.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:1px; }
@@ -1554,13 +1555,14 @@ function renderOverview() {
 
   const html = cards.map(c => {
     if (c.type === 'divider') {
+      const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.city)}`;
       return `<div class="ov-city-divider">
-        <div class="ov-city-divider-inner">
+        <a class="ov-city-divider-inner" href="${mapsUrl}" target="_blank" rel="noopener">
           <span class="ov-city-divider-emoji">📍</span>
           <div>
             <div class="ov-city-divider-name">${escHtml(c.city)}</div>
           </div>
-        </div>
+        </a>
       </div>`;
     }
     return c.html;
@@ -2212,22 +2214,24 @@ function startFallingElements(dest, tripEmoji) {
   stopFallingElements();
   // Use the trip's chosen emoji if set, else fall back to destination lookup
   const emoji = tripEmoji || getFallingEmoji(dest);
+  const MAX_FALLING = 4;
   function createEl() {
+    if (document.querySelectorAll('.falling-el').length >= MAX_FALLING) return;
     const el = document.createElement('div');
     el.className = 'falling-el';
     el.textContent = emoji;
     el.style.left = Math.random() * 100 + 'vw';
-    el.style.fontSize = (0.8 + Math.random() * 1.2) + 'rem';
-    el.style.animationDuration = (6 + Math.random() * 8) + 's';
-    el.style.animationDelay = Math.random() * 2 + 's';
-    el.style.opacity = 0.2 + Math.random() * 0.4;
+    el.style.fontSize = (0.9 + Math.random() * 1.0) + 'rem';
+    el.style.animationDuration = (7 + Math.random() * 6) + 's';
+    el.style.animationDelay = '0s';
+    el.style.opacity = 0.25 + Math.random() * 0.35;
     document.body.appendChild(el);
     el.addEventListener('animationend', () => el.remove());
   }
-  // Initial burst
-  for (let i = 0; i < 3; i++) setTimeout(createEl, i * 400);
-  // Ongoing (sparse)
-  fallingInterval = setInterval(createEl, 5000);
+  // Initial trickle (staggered, cap-aware)
+  for (let i = 0; i < 3; i++) setTimeout(createEl, i * 600);
+  // Ongoing — check cap every 3s
+  fallingInterval = setInterval(createEl, 3000);
 }
 function stopFallingElements() {
   if (fallingInterval) { clearInterval(fallingInterval); fallingInterval = null; }
