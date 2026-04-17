@@ -452,7 +452,8 @@
 
 <nav>
   <div class="nav-brand">✈️ Trip Planner</div>
-  <div style="display:flex;gap:8px;align-items:center">
+  <!-- Owner controls (hidden in guest/shared mode) -->
+  <div id="nav-owner-actions" style="display:flex;gap:8px;align-items:center">
     <span id="cloud-status" title="Cloud sync status" style="font-size:.75rem;padding:3px 8px;border-radius:12px;background:rgba(255,255,255,.08);color:var(--muted);display:flex;align-items:center;gap:4px">
       <span id="cloud-dot" style="width:6px;height:6px;border-radius:50%;background:#f59e0b;display:inline-block"></span> Connecting...
     </span>
@@ -461,6 +462,12 @@
     <button class="btn btn-ghost btn-sm" onclick="showPage('home')">My Trips</button>
     <button class="btn btn-primary btn-sm" onclick="openNewTripModal()">+ New Trip</button>
     <input type="file" id="import-file-input" accept=".json,.trip" style="display:none" onchange="handleImportFile(event)" />
+  </div>
+  <!-- Guest banner (shown only when opening a shared link) -->
+  <div id="nav-guest-banner" style="display:none;align-items:center;gap:10px">
+    <span style="font-size:.8rem;color:var(--muted);background:rgba(124,58,237,.12);border:1px solid rgba(124,58,237,.25);padding:4px 12px;border-radius:20px">👁 Shared view</span>
+    <button class="btn-icon" onclick="toggleTheme()" style="font-size:1.2rem;padding:6px 8px">🌙</button>
+    <button class="btn btn-primary btn-sm" onclick="confirmImport()" style="background:linear-gradient(135deg,#7c3aed,#f43f5e);border:none">📥 Save to My Trips</button>
   </div>
 </nav>
 
@@ -514,14 +521,14 @@
       <div id="d-title" style="font-family:var(--font-heading);font-size:2.5rem;font-weight:900;color:#fff;letter-spacing:-.03em;text-shadow:0 2px 20px rgba(0,0,0,.6)"></div>
       <div id="d-meta" style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:.85rem;color:rgba(255,255,255,.7)"></div>
     </div>
-    <div style="position:absolute;top:16px;right:20px;display:flex;gap:8px;flex-wrap:wrap">
+    <div id="detail-hero-actions" style="position:absolute;top:16px;right:20px;display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn btn-ghost btn-sm" onclick="showPage('home')" style="background:rgba(0,0,0,.4);backdrop-filter:blur(10px);border-color:rgba(255,255,255,.2);color:#fff">← Back</button>
-      <button class="btn btn-ghost btn-sm" onclick="openEditTripModal()" style="background:rgba(0,0,0,.4);backdrop-filter:blur(10px);border-color:rgba(255,255,255,.2);color:#fff">✏️</button>
-      <button class="btn btn-ghost btn-sm" onclick="duplicateCurrentTrip()" style="background:rgba(0,0,0,.4);backdrop-filter:blur(10px);border-color:rgba(255,255,255,.2);color:#fff">⧉</button>
-      <button class="btn btn-ghost btn-sm" onclick="archiveCurrentTrip()" style="background:rgba(0,0,0,.4);backdrop-filter:blur(10px);border-color:rgba(255,255,255,.2);color:#fff">📦</button>
-      <button class="btn btn-primary btn-sm" onclick="openShareModal()" style="background:linear-gradient(135deg,#7c3aed,#f43f5e);border:none">🔗 Share</button>
-      <button class="btn btn-ghost btn-sm" onclick="printTrip()" style="background:rgba(0,0,0,.4);backdrop-filter:blur(10px);border-color:rgba(255,255,255,.2);color:#fff">🖨</button>
-      <button class="btn btn-danger btn-sm" onclick="deleteCurrentTrip()" style="background:rgba(239,68,68,.3);backdrop-filter:blur(10px)">Delete</button>
+      <button id="btn-edit-trip" class="btn btn-ghost btn-sm" onclick="openEditTripModal()" style="background:rgba(0,0,0,.4);backdrop-filter:blur(10px);border-color:rgba(255,255,255,.2);color:#fff">✏️</button>
+      <button id="btn-dup-trip" class="btn btn-ghost btn-sm" onclick="duplicateCurrentTrip()" style="background:rgba(0,0,0,.4);backdrop-filter:blur(10px);border-color:rgba(255,255,255,.2);color:#fff">⧉</button>
+      <button id="btn-arch-trip" class="btn btn-ghost btn-sm" onclick="archiveCurrentTrip()" style="background:rgba(0,0,0,.4);backdrop-filter:blur(10px);border-color:rgba(255,255,255,.2);color:#fff">📦</button>
+      <button id="btn-share-trip" class="btn btn-primary btn-sm" onclick="openShareModal()" style="background:linear-gradient(135deg,#7c3aed,#f43f5e);border:none">🔗 Share</button>
+      <button id="btn-print-trip" class="btn btn-ghost btn-sm" onclick="printTrip()" style="background:rgba(0,0,0,.4);backdrop-filter:blur(10px);border-color:rgba(255,255,255,.2);color:#fff">🖨</button>
+      <button id="btn-del-trip" class="btn btn-danger btn-sm" onclick="deleteCurrentTrip()" style="background:rgba(239,68,68,.3);backdrop-filter:blur(10px)">Delete</button>
     </div>
   </div>
 
@@ -855,6 +862,7 @@ const db = firebase.database();
 const tripsRef = db.ref('trips');
 let firebaseReady = false;
 let suppressFirebaseSync = false;
+let sharedMode = false; // true when viewing a shared trip link
 
 let trips = JSON.parse(localStorage.getItem('trips') || '[]');
 let currentTripId = null;
@@ -869,6 +877,7 @@ let undoState = null;
 
 // Save to both localStorage (offline cache) and Firebase
 function save() {
+  if (sharedMode) return; // never persist a guest session
   localStorage.setItem('trips', JSON.stringify(trips));
   if (firebaseReady && !suppressFirebaseSync) {
     const tripsObj = {};
@@ -911,6 +920,7 @@ db.ref('.info/connected').on('value', (snap) => {
 
 // ── Firebase real-time listener ──
 tripsRef.on('value', (snapshot) => {
+  if (sharedMode) return; // guest sees only the shared trip
   firebaseReady = true;
   setCloudStatus('connected');
   if (suppressFirebaseSync) return;
@@ -1374,6 +1384,13 @@ function openTrip(id) {
 
   // Start falling elements (prefer trip emoji over destination lookup)
   startFallingElements(t.destination, t.emoji);
+
+  // In shared/guest mode, hide owner-only action buttons
+  const ownerBtns = ['btn-edit-trip','btn-dup-trip','btn-arch-trip','btn-share-trip','btn-del-trip'];
+  ownerBtns.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = sharedMode ? 'none' : '';
+  });
 
   showPage('detail');
 }
@@ -2666,6 +2683,16 @@ function confirmImport() {
   const trip = JSON.parse(JSON.stringify(pendingImport));
   trip.id = Date.now().toString();
   trip.archived = false;
+
+  // Exit shared mode — restore owner UI before loading real trips
+  if (sharedMode) {
+    sharedMode = false;
+    trips = JSON.parse(localStorage.getItem('trips') || '[]');
+    document.getElementById('nav-owner-actions').style.display = 'flex';
+    document.getElementById('nav-guest-banner').style.display = 'none';
+    document.getElementById('cloud-status').style.display = '';
+  }
+
   // Don't duplicate if same destination+dates already exist
   const dupe = trips.find(t =>
     t.destination === trip.destination && t.start === trip.start && t.end === trip.end
@@ -2688,17 +2715,26 @@ function confirmImport() {
 // Check URL hash on page load for shared trip
 function checkUrlForSharedTrip() {
   const hash = window.location.hash;
-  if (!hash.startsWith('#trip=')) return;
-  const encoded = hash.slice(6); // remove '#trip='
+  if (!hash.startsWith('#trip=')) return false;
+  const encoded = hash.slice(6);
   const trip = decompressTrip(encoded);
   if (!trip || !trip.destination) {
     toast('Invalid share link');
-    return;
+    return false;
   }
-  // Clean the URL
   history.replaceState(null, '', window.location.pathname);
+  // Enter guest/shared mode
+  sharedMode = true;
+  trip.id = trip.id || 'shared-' + Date.now();
+  trips = [trip];
   pendingImport = trip;
-  showImportPreview(trip);
+  // Show guest banner, hide owner nav controls
+  document.getElementById('nav-owner-actions').style.display = 'none';
+  document.getElementById('nav-guest-banner').style.display = 'flex';
+  document.getElementById('cloud-status').style.display = 'none';
+  // Go straight to trip detail
+  openTrip(trip.id);
+  return true;
 }
 
 // KEYBOARD / OVERLAY
@@ -3084,6 +3120,7 @@ function archiveCurrentTrip() {
 // FIREBASE INITIAL SYNC — pull cloud data on first load
 // ══════════════════════════════════════════════
 (async function initialFirebaseSync() {
+  if (sharedMode) return; // skip for guests
   try {
     const snapshot = await tripsRef.once('value');
     const data = snapshot.val();
@@ -3117,8 +3154,10 @@ function archiveCurrentTrip() {
   }
 })();
 
-renderHome();
-checkUrlForSharedTrip();
+// If opening a shared link, guest mode takes over — skip home render
+if (!checkUrlForSharedTrip()) {
+  renderHome();
+}
 </script>
 </body>
 </html>
