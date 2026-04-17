@@ -522,7 +522,7 @@
       <div id="d-meta" style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:.85rem;color:rgba(255,255,255,.7)"></div>
     </div>
     <div id="detail-hero-actions" style="position:absolute;top:16px;right:20px;display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn btn-ghost btn-sm" onclick="showPage('home')" style="background:rgba(0,0,0,.4);backdrop-filter:blur(10px);border-color:rgba(255,255,255,.2);color:#fff">← Back</button>
+      <button id="btn-back-trip" class="btn btn-ghost btn-sm" onclick="showPage('home')" style="background:rgba(0,0,0,.4);backdrop-filter:blur(10px);border-color:rgba(255,255,255,.2);color:#fff">← Back</button>
       <button id="btn-edit-trip" class="btn btn-ghost btn-sm" onclick="openEditTripModal()" style="background:rgba(0,0,0,.4);backdrop-filter:blur(10px);border-color:rgba(255,255,255,.2);color:#fff">✏️</button>
       <button id="btn-dup-trip" class="btn btn-ghost btn-sm" onclick="duplicateCurrentTrip()" style="background:rgba(0,0,0,.4);backdrop-filter:blur(10px);border-color:rgba(255,255,255,.2);color:#fff">⧉</button>
       <button id="btn-arch-trip" class="btn btn-ghost btn-sm" onclick="archiveCurrentTrip()" style="background:rgba(0,0,0,.4);backdrop-filter:blur(10px);border-color:rgba(255,255,255,.2);color:#fff">📦</button>
@@ -1385,8 +1385,8 @@ function openTrip(id) {
   // Start falling elements (prefer trip emoji over destination lookup)
   startFallingElements(t.destination, t.emoji);
 
-  // In shared/guest mode hide all action buttons except Back
-  ['btn-edit-trip','btn-dup-trip','btn-arch-trip','btn-share-trip','btn-print-trip','btn-del-trip'].forEach(id => {
+  // In shared/guest mode hide all action buttons
+  ['btn-back-trip','btn-edit-trip','btn-dup-trip','btn-arch-trip','btn-share-trip','btn-print-trip','btn-del-trip'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = sharedMode ? 'none' : '';
   });
