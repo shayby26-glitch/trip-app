@@ -1385,16 +1385,10 @@ function openTrip(id) {
   // Start falling elements (prefer trip emoji over destination lookup)
   startFallingElements(t.destination, t.emoji);
 
-  // In shared/guest mode, hide only delete + re-share (guests can edit freely)
-  const guestHide = ['btn-share-trip','btn-del-trip'];
-  guestHide.forEach(id => {
+  // In shared/guest mode hide all action buttons except Back
+  ['btn-edit-trip','btn-dup-trip','btn-arch-trip','btn-share-trip','btn-print-trip','btn-del-trip'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = sharedMode ? 'none' : '';
-  });
-  // Restore buttons that should always show
-  ['btn-edit-trip','btn-dup-trip','btn-arch-trip','btn-print-trip'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.style.display = '';
   });
 
   showPage('detail');
