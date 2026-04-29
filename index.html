@@ -1154,7 +1154,7 @@ function getDayList(t) {
   const days = [];
   const end = new Date(t.end + 'T00:00');
   for (let d = new Date(t.start + 'T00:00'); d <= end; d.setDate(d.getDate()+1))
-    days.push(d.toISOString().slice(0,10));
+    days.push([d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-'));
   return days;
 }
 function fmtDate(d) {
@@ -1526,7 +1526,7 @@ function renderOverview() {
   for (const stay of normStays) {
     const end = new Date(stay.checkout + 'T00:00');
     for (let d = new Date(stay.checkin + 'T00:00'); d < end; d.setDate(d.getDate()+1)) {
-      dayStay[d.toISOString().slice(0,10)] = stay;
+      dayStay[[d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-')] = stay;
     }
   }
 
@@ -2094,11 +2094,11 @@ function removePack(id) {
 // STAY
 // ══════════════════════════════════════════════
 function openEditStayModal(id) {
-  editingStayId = id;
   const t = getTrip();
   const s = (t.stays||[]).find(x => x.id === id);
   if (!s) return;
   openStayModal();
+  editingStayId = id;
   setTimeout(() => {
     document.getElementById('stay-name').value     = s.name || s.hotel || '';
     document.getElementById('stay-checkin').value  = s.checkin;
@@ -2183,7 +2183,7 @@ function renderStay() {
   for (const stay of stays) {
     const end = new Date(stay.checkout + 'T00:00');
     for (let d = new Date(stay.checkin + 'T00:00'); d < end; d.setDate(d.getDate()+1)) {
-      dayStay[d.toISOString().slice(0,10)] = stay;
+      dayStay[[d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-')] = stay;
     }
   }
 
