@@ -1856,9 +1856,14 @@ function renderExpenses() {
   const cur = currency(t);
   const balSection = document.getElementById('balance-section');
 
+  const expenses = t.expenses || [];
+  const expList = document.getElementById('expense-list');
+  const summaryEl = document.getElementById('expense-summary');
+
   if (!(t.people||[]).length) {
-    balSection.innerHTML = `<div style="color:var(--muted);font-size:.875rem;margin-bottom:20px">Add people to the trip first to track expenses.</div>`;
-    document.getElementById('expense-list').innerHTML = '';
+    balSection.innerHTML = `<div style="color:var(--muted);font-size:.875rem;margin-bottom:20px">Add people to the trip first to track balances.</div>`;
+    renderExpenseSummary(expenses, cur, summaryEl);
+    renderExpenseList(t, expenses, cur, expList);
     return;
   }
 
@@ -1924,20 +1929,15 @@ function renderExpenses() {
     <div class="settlement-list">${settHtml}</div>
     <div class="divider"></div>`;
 
-  // Expense list
-  const expenses = t.expenses || [];
-  const expList = document.getElementById('expense-list');
-  const summaryEl = document.getElementById('expense-summary');
+  renderExpenseSummary(expenses, cur, summaryEl);
+  renderExpenseList(t, expenses, cur, expList);
+}
 
-  if (!expenses.length) {
-    summaryEl.innerHTML = '';
-    expList.innerHTML = `<div class="empty-state" style="padding:30px 0"><div class="ei">💳</div><p>No expenses yet.</p></div>`;
-    return;
-  }
+const EXP_CAT_LABELS = { food:'Food & Drink', transport:'Transport', hotel:'Accommodation', activity:'Activity', other:'Other' };
+const EXP_CAT_ORDER  = ['food','transport','hotel','activity','other'];
 
-  // Summary table
-  const CAT_LABELS = { food:'Food & Drink', transport:'Transport', hotel:'Accommodation', activity:'Activity', other:'Other' };
-  const CAT_ORDER  = ['food','transport','hotel','activity','other'];
+function renderExpenseSummary(expenses, cur, summaryEl) {
+  if (!expenses.length) { summaryEl.innerHTML = ''; return; }
   const byCategory = {};
   for (const exp of expenses) {
     const c = exp.category || 'other';
@@ -1946,12 +1946,12 @@ function renderExpenses() {
     byCategory[c].total += exp.amount;
   }
   const grandTotal = expenses.reduce((s,e) => s + e.amount, 0);
-  const catRows = CAT_ORDER.filter(c => byCategory[c]).map(c => {
+  const catRows = EXP_CAT_ORDER.filter(c => byCategory[c]).map(c => {
     const { count, total } = byCategory[c];
     const pct = grandTotal > 0 ? Math.round(total / grandTotal * 100) : 0;
     return `<tr>
       <td style="padding:9px 12px;white-space:nowrap">
-        <span class="cat-pill cat-${c}">${getCatIcon(c)} ${CAT_LABELS[c]}</span>
+        <span class="cat-pill cat-${c}">${getCatIcon(c)} ${EXP_CAT_LABELS[c]}</span>
       </td>
       <td style="padding:9px 12px;color:var(--muted);font-size:.82rem;text-align:center">${count}</td>
       <td style="padding:9px 12px;font-weight:700;text-align:right">${cur}${total.toFixed(2)}</td>
@@ -1983,9 +1983,15 @@ function renderExpenses() {
         <tbody>${catRows}</tbody>
       </table>
     </div>`;
+}
 
+function renderExpenseList(t, expenses, cur, expList) {
+  if (!expenses.length) {
+    expList.innerHTML = `<div class="empty-state" style="padding:30px 0"><div class="ei">💳</div><p>No expenses yet.</p></div>`;
+    return;
+  }
   expList.innerHTML = [...expenses].reverse().map(exp => {
-    const paidBy = personById(t, exp.paidBy);
+    const paidBy  = personById(t, exp.paidBy);
     const paidIdx = (t.people||[]).findIndex(p=>p.id===exp.paidBy);
     const splitNames = (exp.splitAmong||[]).map(id => personById(t,id)?.name||'?').join(', ');
     const cat = exp.category || 'other';
@@ -1995,7 +2001,7 @@ function renderExpenses() {
         <div class="exp-desc">${escHtml(exp.desc)}</div>
         <div class="exp-meta">Paid by ${escHtml(paidBy?.name||'?')} · Split: ${escHtml(splitNames)} · ${exp.date||''}</div>
       </div>
-      <span class="cat-pill cat-${cat}" style="flex-shrink:0">${getCatIcon(cat)} ${CAT_LABELS[cat]}</span>
+      <span class="cat-pill cat-${cat}" style="flex-shrink:0">${getCatIcon(cat)} ${EXP_CAT_LABELS[cat]}</span>
       <div style="text-align:right">
         <div class="exp-amount">${cur}${Number(exp.amount).toFixed(2)}</div>
         <div class="exp-paid">${cur}${(exp.amount/(exp.splitAmong||[1]).length).toFixed(2)}/person</div>
