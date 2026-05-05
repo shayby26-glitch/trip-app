@@ -1151,8 +1151,12 @@ function undoDelete() {
   document.getElementById('toast').classList.remove('show');
   toast('Restored ✓');
 }
+function localDate(d) {
+  d = d || new Date();
+  return [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-');
+}
 function tripStatus(t) {
-  const today = new Date().toISOString().slice(0,10);
+  const today = localDate();
   if (t.end < today) return 'past';
   if (t.start <= today && t.end >= today) return 'ongoing';
   return 'upcoming';
@@ -1199,7 +1203,7 @@ function showPage(name) {
 // HOME
 // ══════════════════════════════════════════════
 function renderHome() {
-  const today = new Date().toISOString().slice(0,10);
+  const today = localDate();
   document.getElementById('stat-total').textContent = trips.length;
   document.getElementById('stat-upcoming').textContent = trips.filter(t=>tripStatus(t)==='upcoming').length;
   document.getElementById('stat-dest').textContent = new Set(trips.map(t=>t.destination)).size;
@@ -1491,7 +1495,7 @@ function saveEditPerson(id) {
   const p = t.people.find(x => x.id === id);
   if (p) p.name = name;
   editingPersonId = null;
-  save(); renderPeople(); renderExpenses(); renderOverview(); renderStays(); renderItinerary();
+  save(); renderPeople(); renderExpenses(); renderOverview(); renderStay(); renderItinerary();
 }
 function addPerson() {
   const name = document.getElementById('new-person-name').value.trim();
@@ -1521,7 +1525,7 @@ function getCatIcon(cat) {
 function renderOverview() {
   const t = getTrip();
   const days = getDayList(t);
-  const today = new Date().toISOString().slice(0,10);
+  const today = localDate();
   const cur = currency(t);
   const wrap = document.getElementById('overview-table-wrap');
 
@@ -2043,7 +2047,7 @@ function openExpenseModal() {
   ).join('');
   document.getElementById('exp-desc').value = '';
   document.getElementById('exp-amount').value = '';
-  document.getElementById('exp-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('exp-date').value = localDate();
   document.getElementById('exp-cat').value = 'other';
   document.getElementById('modal-expense').classList.add('open');
   setTimeout(() => document.getElementById('exp-desc').focus(), 100);
@@ -2509,7 +2513,7 @@ function addJournalEntry() {
         t.journal.push({
           id: Date.now().toString(),
           text, image: compressed, author,
-          date: new Date().toISOString().slice(0,10)
+          date: localDate()
         });
         save(); renderJournal();
         document.getElementById('journal-text').value = '';
@@ -2526,7 +2530,7 @@ function addJournalEntry() {
       text: text,
       image: null,
       author: author,
-      date: new Date().toISOString().slice(0,10)
+      date: localDate()
     });
     save(); renderJournal();
     document.getElementById('journal-text').value = '';
