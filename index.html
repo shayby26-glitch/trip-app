@@ -2215,6 +2215,14 @@ function submitStay() {
   if (checkout < checkin) return toast('Check-out must be after check-in');
   const t = getTrip();
   if (!t.stays) t.stays = [];
+  const overlapping = (t.stays||[]).filter(s => {
+    if (editingStayId && s.id === editingStayId) return false;
+    return checkin < s.checkout && checkout > s.checkin;
+  });
+  if (overlapping.length) {
+    const names = overlapping.map(s => s.name).join(', ');
+    return toast(`Dates overlap with: ${names}`);
+  }
   if (editingStayId) {
     const s = t.stays.find(x => x.id === editingStayId);
     if (s) { Object.assign(s, {name,checkin,checkout,address,city,conf,cost,notes}); }
