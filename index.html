@@ -2320,18 +2320,28 @@ function renderExpenseList(t, expenses, cur, expList) {
   expList.innerHTML = [...expenses].reverse().map(exp => {
     const paidBy  = personById(t, exp.paidBy);
     const paidIdx = (t.people||[]).findIndex(p=>p.id===exp.paidBy);
-    const splitNames = (exp.splitAmong||[]).map(id => personById(t,id)?.name||'?').join(', ');
     const cat = exp.category || 'other';
+    const splitCount = (exp.splitAmong||[]).length;
+    const label = exp.desc || EXP_CAT_LABELS[cat];
+    // Short date: "26 Apr" or blank
+    let shortDate = '';
+    if (exp.date) {
+      const d = new Date(exp.date + 'T00:00');
+      shortDate = d.toLocaleDateString('en-GB', { day:'numeric', month:'short' });
+    }
+    const perPerson = splitCount > 1
+      ? `<div style="font-size:.7rem;color:var(--muted)">÷${splitCount} · ${exp.currency||cur} ${(exp.amount/splitCount).toFixed(2)} ea</div>`
+      : '';
     return `<div class="expense-item">
-      <div class="avatar" style="background:${avatarColor(paidIdx)}">${initials(paidBy?.name||'?')}</div>
-      <div style="flex:1">
-        <div class="exp-desc">${escHtml(exp.desc)}</div>
-        <div class="exp-meta">Paid by ${escHtml(paidBy?.name||'?')} · Split: ${escHtml(splitNames)} · ${exp.date||''}</div>
+      <div class="avatar" style="flex-shrink:0;background:${avatarColor(paidIdx)}" title="${escHtml(paidBy?.name||'?')}">${initials(paidBy?.name||'?')}</div>
+      <div style="flex:1;min-width:0">
+        <div class="exp-desc" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(label)}</div>
+        <div class="exp-meta">${shortDate}</div>
       </div>
-      <span class="cat-pill cat-${cat}" style="flex-shrink:0">${getCatIcon(cat)} ${EXP_CAT_LABELS[cat]}</span>
-      <div style="text-align:right">
+      <span class="cat-pill cat-${cat}" style="flex-shrink:0" title="${EXP_CAT_LABELS[cat]}">${getCatIcon(cat)}</span>
+      <div style="text-align:right;flex-shrink:0">
         <div class="exp-amount">${exp.currency||cur} ${Number(exp.amount).toFixed(2)}</div>
-        <div class="exp-paid">${exp.currency||cur} ${(exp.amount/(exp.splitAmong||[1]).length).toFixed(2)}/person</div>
+        ${perPerson}
       </div>
       <button class="btn-icon" onclick="openEditExpenseModal('${exp.id}')" title="Edit">✏️</button>
       <button class="btn-icon" onclick="removeExpense('${exp.id}')" title="Delete">✕</button>
