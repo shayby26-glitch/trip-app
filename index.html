@@ -474,6 +474,7 @@
   <!-- Firebase SDK (compat) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 </head>
 <body>
 
@@ -924,6 +925,16 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const tripsRef = db.ref('trips');
+const auth = firebase.auth();
+// Resolves as soon as an anonymous session is ready (instant on repeat visits)
+const authReady = new Promise(resolve => {
+  auth.onAuthStateChanged(user => {
+    if (user) { resolve(user); return; }
+    auth.signInAnonymously()
+      .then(cred => resolve(cred.user))
+      .catch(err => { console.warn('Anonymous auth failed:', err); resolve(null); });
+  });
+});
 let firebaseReady = false;
 let suppressFirebaseSync = false;
 let sharedMode = false; // true when viewing a shared trip link
@@ -1000,50 +1011,7 @@ db.ref('.info/connected').on('value', (snap) => {
   setCloudStatus(snap.val() ? 'connected' : 'offline');
 });
 
-// ── Firebase real-time listener ──
-tripsRef.on('value', (snapshot) => {
-  if (sharedMode) return; // guest sees only the shared trip
-  firebaseReady = true;
-  setCloudStatus('connected');
-  // If local edits were made while offline, push them up first
-  if (pendingLocalSave) {
-    pendingLocalSave = false;
-    const tripsObj = {};
-    trips.forEach(t => { tripsObj[t.id] = t; });
-    tripsRef.set(tripsObj).catch(err => console.warn('Firebase flush error:', err));
-    return; // listener will fire again with the flushed data
-  }
-  if (suppressFirebaseSync) return;
-  const data = snapshot.val();
-  if (!data) return;
-  const firebaseTrips = Object.values(data);
-  // Only update if data actually changed
-  const localJSON = JSON.stringify(trips);
-  const remoteJSON = JSON.stringify(firebaseTrips);
-  if (localJSON === remoteJSON) return;
-  // Don't overwrite local data if a write is in-flight or pending
-  if (pendingLocalSave) return;
-  // Don't overwrite if local has more trips than Firebase (local is ahead)
-  if (trips.length > firebaseTrips.length) return;
-  // Merge: use Firebase as source of truth
-  trips = firebaseTrips;
-  localStorage.setItem('trips', JSON.stringify(trips));
-  // Re-render current view
-  const activePage = document.querySelector('.page.active');
-  if (activePage && activePage.id === 'page-home') {
-    renderHome();
-  } else if (activePage && activePage.id === 'page-detail' && currentTripId) {
-    const activeTab = document.querySelector('.tab.active');
-    const tabName = activeTab ? activeTab.dataset.tab : 'overview';
-    renderAllTabs();
-    // Show sync indicator
-    toast('🔄 Synced from cloud');
-  }
-}, (err) => {
-  console.warn('Firebase read error:', err);
-  firebaseReady = false;
-  setCloudStatus('offline');
-});
+// Real-time listener is set up inside initialFirebaseSync after auth resolves
 
 // Helper to re-render all active tab content
 function renderAllTabs() {
@@ -3199,8 +3167,8 @@ function checkUrlForSharedTrip() {
   document.getElementById('nav-owner-actions').style.display = 'none';
   document.getElementById('nav-guest-banner').style.display = 'flex';
 
-  // Fetch the trip from Firebase by ID
-  tripsRef.child(sharedId).once('value').then(snapshot => {
+  // Fetch the trip from Firebase by ID (wait for auth first)
+  authReady.then(() => tripsRef.child(sharedId).once('value')).then(snapshot => {
     const trip = snapshot.val();
     if (!trip) {
       toast('Trip not found or link has expired');
@@ -3609,9 +3577,9 @@ function archiveCurrentTrip() {
 })();
 
 // ══════════════════════════════════════════════
-// FIREBASE INITIAL SYNC — pull cloud data on first load
+// FIREBASE INITIAL SYNC — runs after anonymous auth is ready
 // ══════════════════════════════════════════════
-(async function initialFirebaseSync() {
+async function initialFirebaseSync() {
   if (sharedMode) return; // skip for guests
   try {
     const snapshot = await tripsRef.once('value');
@@ -3625,10 +3593,7 @@ function archiveCurrentTrip() {
       trips.forEach(t => { tripsObj[t.id] = t; });
       await tripsRef.set(tripsObj);
       renderHome();
-      return;
-    }
-
-    if (data) {
+    } else if (data) {
       // Firebase has data — merge: Firebase is source of truth for existing trips
       // but preserve any local-only trips not yet in Firebase
       const fbTrips = Object.values(data);
@@ -3642,24 +3607,61 @@ function archiveCurrentTrip() {
           localStorage.setItem('trips', JSON.stringify(trips));
         }
         renderHome();
-        return;
       }
-    }
-    // Firebase is empty — push local data up
-    if (trips.length > 0) {
+    } else if (trips.length > 0) {
+      // Firebase is empty — push local data up
       const tripsObj = {};
       trips.forEach(t => { tripsObj[t.id] = t; });
       await tripsRef.set(tripsObj);
     }
+
+    // Set up real-time listener now that auth is established
+    tripsRef.on('value', (snapshot) => {
+      if (sharedMode) return;
+      firebaseReady = true;
+      setCloudStatus('connected');
+      if (pendingLocalSave) {
+        pendingLocalSave = false;
+        const tripsObj = {};
+        trips.forEach(t => { tripsObj[t.id] = t; });
+        tripsRef.set(tripsObj).catch(err => console.warn('Firebase flush error:', err));
+        return;
+      }
+      if (suppressFirebaseSync) return;
+      const data = snapshot.val();
+      if (!data) return;
+      const firebaseTrips = Object.values(data);
+      const localJSON = JSON.stringify(trips);
+      const remoteJSON = JSON.stringify(firebaseTrips);
+      if (localJSON === remoteJSON) return;
+      if (pendingLocalSave) return;
+      if (trips.length > firebaseTrips.length) return;
+      trips = firebaseTrips;
+      localStorage.setItem('trips', JSON.stringify(trips));
+      const activePage = document.querySelector('.page.active');
+      if (activePage && activePage.id === 'page-home') {
+        renderHome();
+      } else if (activePage && activePage.id === 'page-detail' && currentTripId) {
+        renderAllTabs();
+        toast('🔄 Synced from cloud');
+      }
+    }, (err) => {
+      console.warn('Firebase read error:', err);
+      firebaseReady = false;
+      setCloudStatus('offline');
+    });
   } catch (err) {
     console.warn('Initial Firebase sync failed (offline mode):', err);
   }
-})();
+}
 
-// If opening a shared link, guest mode takes over — skip home render
+// Render from localStorage immediately (no auth needed), then sync with Firebase
 if (!checkUrlForSharedTrip()) {
   renderHome();
 }
+authReady.then(() => {
+  if (!sharedMode) initialFirebaseSync();
+});
 </script>
 <div id="lightbox" onclick="closeLightbox()">
   <button id="lightbox-close" onclick="closeLightbox()">✕</button>
