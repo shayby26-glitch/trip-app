@@ -826,6 +826,18 @@
   </div>
 </div>
 
+<!-- ═══ MODAL: DATE CONFLICT ═══ -->
+<div class="overlay" id="modal-date-conflict">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-title">⚠️ Items Outside New Dates</div>
+    <div id="date-conflict-body" style="font-size:.875rem;color:var(--muted);margin-bottom:18px;line-height:1.6"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="resolveDateConflict('keep')">Keep &amp; Fix Manually</button>
+      <button class="btn btn-danger" onclick="resolveDateConflict('remove')">Remove Out-of-Range</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ MODAL: ADD STAY ═══ -->
 <div class="overlay" id="modal-stay">
   <div class="modal">
@@ -1337,6 +1349,8 @@ function openEditTripModal() {
     `<button class="emoji-opt${e===t.emoji?' selected':''}" onclick="selectEmoji(this)">${e}</button>`).join('');
   document.getElementById('modal-edit-trip').classList.add('open');
 }
+let pendingTripEdit = null;
+
 function saveEditTrip() {
   const t = getTrip();
   const dest  = document.getElementById('et-dest').value.trim();
@@ -1345,17 +1359,56 @@ function saveEditTrip() {
   if (!dest)  return toast('Enter a destination');
   if (!start || !end) return toast('Set both dates');
   if (end < start) return toast('End must be after start');
+
+  const desc     = document.getElementById('et-desc').value.trim();
+  const currency = document.getElementById('et-currency').value.trim() || '$';
+  const budget   = parseFloat(document.getElementById('et-budget').value) || 0;
+  const sel      = document.querySelector('#et-emoji-picker .emoji-opt.selected');
+  const emoji    = sel ? sel.textContent : t.emoji;
+
+  // Detect conflicts only when dates actually changed
+  if (start !== t.start || end !== t.end) {
+    const badStays = (t.stays||[]).filter(s => s.checkin < start || s.checkout > end);
+    const badItems = (t.itinerary||[]).filter(a => a.day < start || a.day > end);
+    if (badStays.length || badItems.length) {
+      pendingTripEdit = { t, dest, start, end, desc, currency, budget, emoji, badStays, badItems };
+      const stayList  = badStays.map(s => `🏨 <strong>${escHtml(s.name)}</strong> (${fmtDate(s.checkin)} → ${fmtDate(s.checkout)})`).join('<br>');
+      const itemList  = badItems.map(a => `🗓 <strong>${escHtml(a.name)}</strong> (${fmtDateShort(a.day)})`).join('<br>');
+      document.getElementById('date-conflict-body').innerHTML =
+        `The new trip dates are <strong>${fmtDate(start)} → ${fmtDate(end)}</strong>.<br><br>` +
+        `The following items fall outside that range:<br><br>${[stayList, itemList].filter(Boolean).join('<br>')}` +
+        `<br><br>Remove them automatically, or keep and fix manually?`;
+      document.getElementById('modal-date-conflict').classList.add('open');
+      return;
+    }
+  }
+  applyTripEdit({ t, dest, start, end, desc, currency, budget, emoji });
+}
+
+function resolveDateConflict(action) {
+  if (!pendingTripEdit) return;
+  const { t, badStays, badItems } = pendingTripEdit;
+  if (action === 'remove') {
+    const badStayIds = new Set(badStays.map(s => s.id));
+    const badItemIds = new Set(badItems.map(a => a.id));
+    t.stays     = (t.stays||[]).filter(s => !badStayIds.has(s.id));
+    t.itinerary = (t.itinerary||[]).filter(a => !badItemIds.has(a.id));
+  }
+  closeModal('modal-date-conflict');
+  applyTripEdit(pendingTripEdit);
+  pendingTripEdit = null;
+}
+
+function applyTripEdit({ t, dest, start, end, desc, currency, budget, emoji }) {
   t.destination = dest;
   t.start       = start;
   t.end         = end;
-  t.description = document.getElementById('et-desc').value.trim();
-  t.currency    = document.getElementById('et-currency').value.trim() || '$';
-  t.budget      = parseFloat(document.getElementById('et-budget').value) || 0;
-  const sel = document.querySelector('#et-emoji-picker .emoji-opt.selected');
-  if (sel) t.emoji = sel.textContent;
+  t.description = desc;
+  t.currency    = currency;
+  t.budget      = budget;
+  t.emoji       = emoji;
   save();
   closeModal('modal-edit-trip');
-  // refresh header
   document.getElementById('d-title').textContent = t.destination;
   document.getElementById('d-banner').textContent = t.emoji;
   renderOverview(); renderItinerary(); renderStay();
