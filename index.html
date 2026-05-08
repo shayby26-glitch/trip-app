@@ -914,6 +914,7 @@ let editingDestId     = null;
 let editingPackItemId = null;
 let editingExpenseId  = null;
 let editingStayId     = null;
+let editingStayOriginalDates = null; // {checkin, checkout} of the stay before editing
 // Undo delete
 let undoState = null;
 
@@ -2230,6 +2231,7 @@ function openEditStayModal(id) {
   if (!s) return;
   openStayModal();
   editingStayId = id;
+  editingStayOriginalDates = { checkin: s.checkin, checkout: s.checkout };
   setTimeout(() => {
     document.getElementById('stay-name').value     = s.name || s.hotel || '';
     document.getElementById('stay-checkin').value  = s.checkin;
@@ -2244,6 +2246,7 @@ function openEditStayModal(id) {
 }
 function openStayModal() {
   editingStayId = null;
+  editingStayOriginalDates = null;
   ['stay-name','stay-address','stay-city','stay-conf','stay-notes'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('stay-cost').value = '';
   const t = getTrip();
@@ -2268,12 +2271,13 @@ function submitStay() {
   if (checkout < checkin) return toast('Check-out must be after check-in');
   const t = getTrip();
   if (!t.stays) t.stays = [];
-  const orig = editingStayId ? (t.stays||[]).find(s => s.id === editingStayId) : null;
   const overlapping = (t.stays||[]).filter(s => {
     if (editingStayId && s.id === editingStayId) return false;
     if (!(checkin < s.checkout && checkout > s.checkin)) return false;
-    // When editing, ignore overlaps that already existed before this edit
-    if (orig && orig.checkin < s.checkout && orig.checkout > s.checkin) return false;
+    // When editing, ignore overlaps that already existed with the original dates
+    if (editingStayOriginalDates &&
+        editingStayOriginalDates.checkin < s.checkout &&
+        editingStayOriginalDates.checkout > s.checkin) return false;
     return true;
   });
   if (overlapping.length) {
