@@ -1418,6 +1418,11 @@ function applyTripEdit({ t, dest, start, end, desc, currency, budget, emoji }) {
   closeModal('modal-edit-trip');
   document.getElementById('d-title').textContent = t.destination;
   document.getElementById('d-banner').textContent = t.emoji;
+  const days = tripDays(t), st = tripStatus(t);
+  document.getElementById('d-meta').innerHTML =
+    `<span>📅 ${fmtDate(t.start)} → ${fmtDate(t.end)}</span>
+     <span>🕐 ${days} day${days>1?'s':''}</span>
+     <span class="badge badge-${st}" style="margin-left:4px">${st}</span>`;
   renderOverview(); renderItinerary(); renderStay();
   toast('Trip updated ✓');
 }
