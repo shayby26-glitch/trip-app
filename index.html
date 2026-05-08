@@ -605,6 +605,9 @@
         <button class="btn btn-primary btn-sm" onclick="openExpenseModal()">+ Add Expense</button>
       </div>
       <div id="expense-list"></div>
+      <div id="bulk-load-wrap" style="display:none;text-align:center;padding:10px 0 20px">
+        <button class="btn btn-primary" onclick="forceSeedTokyoExpenses()">📥 Load pre-entered expenses</button>
+      </div>
     </div>
 
     <!-- PACKING -->
@@ -2259,10 +2262,13 @@ function renderExpenseSummary(expenses, cur, summaryEl) {
 }
 
 function renderExpenseList(t, expenses, cur, expList) {
+  const bulkWrap = document.getElementById('bulk-load-wrap');
   if (!expenses.length) {
-    expList.innerHTML = `<div class="empty-state" style="padding:30px 0"><div class="ei">💳</div><p>No expenses yet.</p><button class="btn btn-primary" style="margin-top:14px" onclick="forceSeedTokyoExpenses()">📥 Load pre-entered expenses</button></div>`;
+    expList.innerHTML = `<div class="empty-state" style="padding:30px 0"><div class="ei">💳</div><p>No expenses yet.</p></div>`;
+    if (bulkWrap) bulkWrap.style.display = 'block';
     return;
   }
+  if (bulkWrap) bulkWrap.style.display = 'none';
   expList.innerHTML = [...expenses].reverse().map(exp => {
     const paidBy  = personById(t, exp.paidBy);
     const paidIdx = (t.people||[]).findIndex(p=>p.id===exp.paidBy);
