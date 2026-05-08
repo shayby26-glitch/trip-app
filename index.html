@@ -940,6 +940,7 @@ let editingStayId     = null;
 let editingStayOriginalDates = null; // {checkin, checkout} of the stay before editing
 // Undo delete
 let undoState = null;
+let _summaryCurrency = null; // user-selected display currency for the summary table
 // Exchange rate cache for multi-currency settlement conversion
 let _ratesCache = {}; // { base: { rates: {...}, ts: timestamp } }
 
@@ -2212,28 +2213,39 @@ function renderExpenses() {
 const EXP_CAT_LABELS = { food:'Food & Drink', transport:'Transport', hotel:'Accommodation', activity:'Activity', other:'Other' };
 const EXP_CAT_ORDER  = ['food','transport','hotel','activity','other'];
 
+const SUMMARY_CURRENCIES = ['GBP','USD','EUR','JPY','ILS','AUD','CAD','CHF','SGD','HKD','INR','KRW','THB'];
+
 function renderExpenseSummary(expenses, cur, summaryEl, rates, baseCur) {
   if (!expenses.length) { summaryEl.innerHTML = ''; return; }
-  const displayCur = (baseCur || cur).toUpperCase();
+  const displayCur = (_summaryCurrency || baseCur || cur).toUpperCase();
+  const hasRates = !!(rates);
   const byCategory = {};
   for (const exp of expenses) {
     const c = exp.category || 'other';
     if (!byCategory[c]) byCategory[c] = { count: 0, total: 0 };
     byCategory[c].count++;
     let amount = exp.amount;
-    if (rates && baseCur) {
-      const expCur = (exp.currency || baseCur).toUpperCase();
-      if (expCur !== baseCur.toUpperCase() && rates[expCur]) {
+    if (rates) {
+      const expCur = (exp.currency || displayCur).toUpperCase();
+      if (expCur !== displayCur && rates[expCur]) {
         amount = amount / rates[expCur];
       }
     }
     byCategory[c].total += amount;
   }
   const grandTotal = Object.values(byCategory).reduce((s, v) => s + v.total, 0);
-  const multiCurrency = expenses.some(e => (e.currency||cur).toUpperCase() !== displayCur);
-  const convNote = (rates && multiCurrency)
-    ? ` <span style="font-size:.72rem;font-weight:400;color:var(--muted)">(converted to ${displayCur})</span>`
-    : '';
+  const multiCurrency = expenses.some(e => (e.currency || cur).toUpperCase() !== displayCur);
+  const convNote = (hasRates && multiCurrency)
+    ? `<span style="font-size:.7rem;font-weight:400;color:var(--muted);margin-left:6px">converted to ${displayCur}</span>`
+    : (!hasRates && multiCurrency ? `<span style="font-size:.7rem;font-weight:400;color:var(--muted);margin-left:6px">loading rates…</span>` : '');
+
+  const allCurOptions = [...new Set([...SUMMARY_CURRENCIES, (baseCur||cur).toUpperCase(), displayCur])];
+  const selHtml = `<select onchange="changeSummaryCurrency(this.value)"
+    style="font-size:.78rem;font-weight:700;background:var(--surface2);border:1px solid var(--border);
+           border-radius:6px;padding:3px 6px;color:var(--text);cursor:pointer">
+    ${allCurOptions.map(c => `<option value="${c}"${c===displayCur?' selected':''}>${c}</option>`).join('')}
+  </select>`;
+
   const catRows = EXP_CAT_ORDER.filter(c => byCategory[c]).map(c => {
     const { count, total } = byCategory[c];
     const pct = grandTotal > 0 ? Math.round(total / grandTotal * 100) : 0;
@@ -2255,9 +2267,13 @@ function renderExpenseSummary(expenses, cur, summaryEl, rates, baseCur) {
   }).join('');
   summaryEl.innerHTML = `
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px">
-      <div style="padding:12px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)">Summary${convNote}</span>
-        <span style="font-weight:700;font-size:1rem">${displayCur} ${grandTotal.toFixed(2)} total</span>
+      <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)">Summary</span>
+          ${selHtml}
+          ${convNote}
+        </div>
+        <span style="font-weight:700;font-size:1rem;white-space:nowrap">${displayCur} ${grandTotal.toFixed(2)}</span>
       </div>
       <table style="width:100%;border-collapse:collapse">
         <thead>
@@ -2271,6 +2287,22 @@ function renderExpenseSummary(expenses, cur, summaryEl, rates, baseCur) {
         <tbody>${catRows}</tbody>
       </table>
     </div>`;
+}
+
+function changeSummaryCurrency(newCur) {
+  newCur = newCur.toUpperCase();
+  _summaryCurrency = newCur;
+  const t = getTrip();
+  const expenses = t.expenses || [];
+  const cur = currency(t);
+  const summaryEl = document.getElementById('expense-summary');
+  // Show loading state immediately with current data (no rates yet)
+  renderExpenseSummary(expenses, cur, summaryEl, null, newCur);
+  // Fetch rates for the new base currency and re-render
+  fetchRates(newCur).then(rates => {
+    if (_summaryCurrency !== newCur) return; // user changed again
+    renderExpenseSummary(expenses, cur, summaryEl, rates, newCur);
+  });
 }
 
 function renderExpenseList(t, expenses, cur, expList) {
