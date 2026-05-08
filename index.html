@@ -2191,19 +2191,21 @@ function renderExpenses() {
   // Determine if multiple currencies are in use
   const currencies = [...new Set((expenses).map(e => (e.currency || cur).toUpperCase()))];
   const multiCurrency = currencies.length > 1;
-  const baseCur = cur.toUpperCase();
+  // Use user-selected summary currency if set, otherwise trip default
+  const baseCur = (_summaryCurrency || cur).toUpperCase();
 
   // Render with no conversion first (instant)
-  renderBalanceSection(t, null, null);
+  renderBalanceSection(t, null, baseCur);
 
-  renderExpenseSummary(expenses, cur, summaryEl);
+  renderExpenseSummary(expenses, cur, summaryEl, null, baseCur);
   renderExpenseList(t, expenses, cur, expList);
 
-  // If multiple currencies, fetch rates and re-render summary + settlements with conversion
-  if (multiCurrency) {
+  // Fetch rates and re-render summary + balance with conversion
+  if (multiCurrency || _summaryCurrency) {
     fetchRates(baseCur).then(rates => {
       if (!rates) return;
       if (getTrip().id !== t.id) return;
+      if (_summaryCurrency && _summaryCurrency !== baseCur) return; // user changed mid-flight
       renderExpenseSummary(expenses, cur, summaryEl, rates, baseCur);
       renderBalanceSection(t, rates, baseCur);
     });
@@ -2296,12 +2298,14 @@ function changeSummaryCurrency(newCur) {
   const expenses = t.expenses || [];
   const cur = currency(t);
   const summaryEl = document.getElementById('expense-summary');
-  // Show loading state immediately with current data (no rates yet)
+  // Immediately re-render both sections without rates (shows unconverted while loading)
   renderExpenseSummary(expenses, cur, summaryEl, null, newCur);
-  // Fetch rates for the new base currency and re-render
+  renderBalanceSection(t, null, newCur);
+  // Fetch rates for the selected currency and re-render both
   fetchRates(newCur).then(rates => {
     if (_summaryCurrency !== newCur) return; // user changed again
     renderExpenseSummary(expenses, cur, summaryEl, rates, newCur);
+    renderBalanceSection(t, rates, newCur);
   });
 }
 
