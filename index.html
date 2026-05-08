@@ -491,7 +491,7 @@
   </div>
   <!-- Guest banner (shown only when opening a shared link) -->
   <div id="nav-guest-banner" style="display:none;align-items:center;gap:10px">
-    <span style="font-size:.8rem;color:var(--muted);background:rgba(124,58,237,.12);border:1px solid rgba(124,58,237,.25);padding:4px 12px;border-radius:20px">👁 Shared view</span>
+    <span style="font-size:.8rem;color:var(--accent);background:rgba(168,85,247,.12);border:1px solid rgba(168,85,247,.3);padding:4px 12px;border-radius:20px">✈️ Shared trip · you can edit</span>
     <button class="btn-icon" onclick="toggleTheme()" style="font-size:1.2rem;padding:6px 8px">🌙</button>
   </div>
 </nav>
@@ -734,7 +734,7 @@
   <div class="modal" style="max-width:540px">
     <div class="modal-title">🔗 Share This Trip</div>
     <div style="font-size:.85rem;color:var(--muted);margin-bottom:20px;line-height:1.6">
-      Share this trip with friends. They can <strong>import it</strong> into their own Trip Planner and edit everything — itinerary, packing list, expenses, and more.
+      Share this link with friends. Anyone with the link can <strong>view and edit</strong> this trip in real time — expenses, itinerary, packing and more. They won't see your other trips.
     </div>
 
     <!-- Option 1: Copy Link -->
@@ -3017,12 +3017,9 @@ function decompressTrip(str) {
 function openShareModal() {
   const t = getTrip();
   if (!t) return;
-
-  // Generate shareable link
-  const encoded = compressTrip(t);
+  // Share by Firebase trip ID — no trip data in URL, guests fetch live from Firebase
   const baseUrl = window.location.origin + window.location.pathname;
-  const shareUrl = baseUrl + '#trip=' + encoded;
-
+  const shareUrl = baseUrl + '?shared=' + t.id;
   document.getElementById('share-link-input').value = shareUrl;
   document.getElementById('modal-share').classList.add('open');
 }
@@ -3181,26 +3178,45 @@ function confirmImport() {
 
 // Check URL hash on page load for shared trip
 function checkUrlForSharedTrip() {
-  const hash = window.location.hash;
-  if (!hash.startsWith('#trip=')) return false;
-  const encoded = hash.slice(6);
-  const trip = decompressTrip(encoded);
-  if (!trip || !trip.destination) {
-    toast('Invalid share link');
-    return false;
-  }
+  const params = new URLSearchParams(window.location.search);
+  const sharedId = params.get('shared');
+  if (!sharedId) return false;
+
+  // Clean URL immediately so refresh doesn't re-trigger
   history.replaceState(null, '', window.location.pathname);
-  // Enter guest/shared mode
+
+  // Enter shared mode — guests see only this trip and can edit it
   sharedMode = true;
-  trip.id = trip.id || 'shared-' + Date.now();
-  trips = [trip];
-  pendingImport = trip;
-  // Show guest banner, hide owner nav controls
   document.getElementById('nav-owner-actions').style.display = 'none';
   document.getElementById('nav-guest-banner').style.display = 'flex';
-  document.getElementById('cloud-status').style.display = 'none';
-  // Go straight to trip detail
-  openTrip(trip.id);
+
+  // Fetch the trip from Firebase by ID
+  tripsRef.child(sharedId).once('value').then(snapshot => {
+    const trip = snapshot.val();
+    if (!trip) {
+      toast('Trip not found or link has expired');
+      sharedMode = false;
+      document.getElementById('nav-owner-actions').style.display = '';
+      document.getElementById('nav-guest-banner').style.display = 'none';
+      return;
+    }
+    trips = [trip];
+    // Subscribe to live updates for this trip so edits from others appear instantly
+    tripsRef.child(sharedId).on('value', snap => {
+      if (!sharedMode) return;
+      const updated = snap.val();
+      if (!updated) return;
+      trips = [updated];
+      if (currentTripId === updated.id) renderAllTabs();
+    });
+    openTrip(trip.id);
+  }).catch(() => {
+    toast('Could not load shared trip — check your connection');
+    sharedMode = false;
+    document.getElementById('nav-owner-actions').style.display = '';
+    document.getElementById('nav-guest-banner').style.display = 'none';
+  });
+
   return true;
 }
 
