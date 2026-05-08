@@ -1054,19 +1054,12 @@ function renderAllTabs() {
 }
 
 // ══════════════════════════════════════════════
-// ONE-TIME TOKYO EXPENSE SEED
+// TOKYO EXPENSE LOADER
 // ══════════════════════════════════════════════
-function seedTokyoExpenses() {
-  if (localStorage.getItem('seed-tokyo-exp-v2')) return;
-  const trip = trips.find(t => (t.dest||'').toLowerCase().includes('tokyo') || (t.dest||'').toLowerCase().includes('japan'));
-  if (!trip) return;
-  const people = trip.people || [];
-  if (!people.length) return;
-  const payer = people.find(p => /nir|shay/i.test(p.name)) || people[0];
-  const allIds = people.map(p => p.id);
+function _tokyoRaw() {
   function d(s) { if (!s) return ''; const [dd,mm,yyyy]=s.split('/'); return `${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`; }
-  function c(s) { return ({meals:'food',transportation:'transport',accommodation:'hotel',miscellaneous:'other',shopping:'other',activity:'activity'})[s.toLowerCase().split('/')[0]] || 'other'; }
-  const RAW = [
+  function c(s) { return ({meals:'food',transportation:'transport',accommodation:'hotel',miscellaneous:'other',shopping:'other',activity:'activity'})[s.toLowerCase().split('/')[0]]||'other'; }
+  return [
     ['27/04/2026',94,'GBP','miscellaneous','Osaka tickets'],
     ['11/01/2026',1352.99,'GBP','transportation','Flights – ref 40-780017146 PIN 9507'],
     ['02/05/2026',185460,'JPY','transportation','Car rental – res 26010500283 (return 10/05 Nikko)'],
@@ -1136,23 +1129,37 @@ function seedTokyoExpenses() {
     ['07/05/2026',1800,'JPY','meals',''],
     ['',5600,'JPY','meals',''],
     ['',2639,'JPY','meals',''],
-  ];
-  if (!trip.expenses) trip.expenses = [];
+  ].map(([dt,amt,cur,cat,desc]) => ({ rawDate: dt, amount: amt, currency: cur, category: c(cat), desc: desc||'', date: d(dt) }));
+}
+
+function forceSeedTokyoExpenses() {
+  const t = getTrip();
+  if (!t) return;
+  const people = t.people || [];
+  if (!people.length) { alert('Add people to the trip first.'); return; }
+  const payer = people.find(p => /nir|shay/i.test(p.name)) || people[0];
+  const allIds = people.map(p => p.id);
+  if (!t.expenses) t.expenses = [];
   let ts = Date.now();
-  for (const [dt, amt, cur, cat, desc] of RAW) {
-    if (!amt) continue;
-    trip.expenses.push({ id: String(ts++), desc: desc||'', amount: amt, currency: cur, paidBy: payer.id, date: d(dt), category: c(cat), splitAmong: allIds });
+  let added = 0;
+  for (const row of _tokyoRaw()) {
+    if (!row.amount) continue;
+    t.expenses.push({ id: String(ts++), desc: row.desc, amount: row.amount, currency: row.currency, paidBy: payer.id, date: row.date, category: row.category, splitAmong: allIds });
+    added++;
   }
-  // Mark done and persist directly to localStorage
   localStorage.setItem('seed-tokyo-exp-v2', '1');
-  localStorage.setItem('trips', JSON.stringify(trips));
-  // Push to Firebase without going through save() to avoid timing issues
-  try { tripsRef.child(trip.id).set(trip).catch(()=>{}); } catch(e) {}
-  // Re-render UI if we are currently viewing this trip
-  if (currentTripId === trip.id) {
-    renderExpenses();
-    renderOverview();
-  }
+  suppressFirebaseSync = true;
+  save();
+  // Keep Firebase sync suppressed long enough for its async callback to fire,
+  // preventing it from overwriting our freshly-seeded local data
+  setTimeout(() => { suppressFirebaseSync = false; }, 5000);
+  renderExpenses();
+  renderOverview();
+  toast(`✓ ${added} expenses loaded`);
+}
+
+function seedTokyoExpenses() {
+  // Auto-seed is superseded by the manual button; kept as no-op
 }
 
 // ══════════════════════════════════════════════
@@ -2253,7 +2260,11 @@ function renderExpenseSummary(expenses, cur, summaryEl) {
 
 function renderExpenseList(t, expenses, cur, expList) {
   if (!expenses.length) {
-    expList.innerHTML = `<div class="empty-state" style="padding:30px 0"><div class="ei">💳</div><p>No expenses yet.</p></div>`;
+    const isTokyo = (t.dest||'').toLowerCase().includes('tokyo') || (t.dest||'').toLowerCase().includes('japan');
+    const seedBtn = isTokyo
+      ? `<button class="btn btn-primary" style="margin-top:14px" onclick="forceSeedTokyoExpenses()">📥 Load pre-entered expenses</button>`
+      : '';
+    expList.innerHTML = `<div class="empty-state" style="padding:30px 0"><div class="ei">💳</div><p>No expenses yet.</p>${seedBtn}</div>`;
     return;
   }
   expList.innerHTML = [...expenses].reverse().map(exp => {
