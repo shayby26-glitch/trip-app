@@ -1011,17 +1011,15 @@ tripsRef.on('value', (snapshot) => {
   // Only update if data actually changed
   const localJSON = JSON.stringify(trips);
   const remoteJSON = JSON.stringify(firebaseTrips);
-  // Always try the one-time seed regardless of whether data changed
-  if (!localStorage.getItem('seed-tokyo-exp-v1')) {
-    trips = firebaseTrips;
-    localStorage.setItem('trips', JSON.stringify(trips));
+  if (localJSON === remoteJSON) {
+    // Data unchanged — still attempt seed in case it hasn't run yet
     seedTokyoExpenses();
     return;
   }
-  if (localJSON === remoteJSON) return;
   // Merge: use Firebase as source of truth
   trips = firebaseTrips;
   localStorage.setItem('trips', JSON.stringify(trips));
+  seedTokyoExpenses();
   // Re-render current view
   const activePage = document.querySelector('.page.active');
   if (activePage && activePage.id === 'page-home') {
@@ -1038,6 +1036,9 @@ tripsRef.on('value', (snapshot) => {
   firebaseReady = false;
   setCloudStatus('offline');
 });
+
+// Fallback: run seed 4 s after page load in case Firebase early-returned
+window.addEventListener('load', () => setTimeout(seedTokyoExpenses, 4000));
 
 // Helper to re-render all active tab content
 function renderAllTabs() {
@@ -1056,12 +1057,12 @@ function renderAllTabs() {
 // ONE-TIME TOKYO EXPENSE SEED
 // ══════════════════════════════════════════════
 function seedTokyoExpenses() {
-  if (localStorage.getItem('seed-tokyo-exp-v1')) return;
+  if (localStorage.getItem('seed-tokyo-exp-v2')) return;
   const trip = trips.find(t => (t.dest||'').toLowerCase().includes('tokyo') || (t.dest||'').toLowerCase().includes('japan'));
   if (!trip) return;
   const people = trip.people || [];
+  if (!people.length) return;
   const payer = people.find(p => /nir|shay/i.test(p.name)) || people[0];
-  if (!payer) return;
   const allIds = people.map(p => p.id);
   function d(s) { if (!s) return ''; const [dd,mm,yyyy]=s.split('/'); return `${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`; }
   function c(s) { return ({meals:'food',transportation:'transport',accommodation:'hotel',miscellaneous:'other',shopping:'other',activity:'activity'})[s.toLowerCase().split('/')[0]] || 'other'; }
@@ -1142,8 +1143,16 @@ function seedTokyoExpenses() {
     if (!amt) continue;
     trip.expenses.push({ id: String(ts++), desc: desc||'', amount: amt, currency: cur, paidBy: payer.id, date: d(dt), category: c(cat), splitAmong: allIds });
   }
-  localStorage.setItem('seed-tokyo-exp-v1', '1');
-  save();
+  // Mark done and persist directly to localStorage
+  localStorage.setItem('seed-tokyo-exp-v2', '1');
+  localStorage.setItem('trips', JSON.stringify(trips));
+  // Push to Firebase without going through save() to avoid timing issues
+  try { tripsRef.child(trip.id).set(trip).catch(()=>{}); } catch(e) {}
+  // Re-render UI if we are currently viewing this trip
+  if (currentTripId === trip.id) {
+    renderExpenses();
+    renderOverview();
+  }
 }
 
 // ══════════════════════════════════════════════
