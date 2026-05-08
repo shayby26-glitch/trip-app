@@ -1011,11 +1011,17 @@ tripsRef.on('value', (snapshot) => {
   // Only update if data actually changed
   const localJSON = JSON.stringify(trips);
   const remoteJSON = JSON.stringify(firebaseTrips);
+  // Always try the one-time seed regardless of whether data changed
+  if (!localStorage.getItem('seed-tokyo-exp-v1')) {
+    trips = firebaseTrips;
+    localStorage.setItem('trips', JSON.stringify(trips));
+    seedTokyoExpenses();
+    return;
+  }
   if (localJSON === remoteJSON) return;
   // Merge: use Firebase as source of truth
   trips = firebaseTrips;
   localStorage.setItem('trips', JSON.stringify(trips));
-  seedTokyoExpenses();
   // Re-render current view
   const activePage = document.querySelector('.page.active');
   if (activePage && activePage.id === 'page-home') {
