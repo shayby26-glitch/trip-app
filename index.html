@@ -2198,12 +2198,12 @@ function renderExpenses() {
   renderExpenseSummary(expenses, cur, summaryEl);
   renderExpenseList(t, expenses, cur, expList);
 
-  // If multiple currencies, fetch rates and re-render settlements
+  // If multiple currencies, fetch rates and re-render summary + settlements with conversion
   if (multiCurrency) {
     fetchRates(baseCur).then(rates => {
-      if (!rates) return; // leave as-is if fetch failed
-      // confirm we're still on the same trip
+      if (!rates) return;
       if (getTrip().id !== t.id) return;
+      renderExpenseSummary(expenses, cur, summaryEl, rates, baseCur);
       renderBalanceSection(t, rates, baseCur);
     });
   }
@@ -2212,16 +2212,28 @@ function renderExpenses() {
 const EXP_CAT_LABELS = { food:'Food & Drink', transport:'Transport', hotel:'Accommodation', activity:'Activity', other:'Other' };
 const EXP_CAT_ORDER  = ['food','transport','hotel','activity','other'];
 
-function renderExpenseSummary(expenses, cur, summaryEl) {
+function renderExpenseSummary(expenses, cur, summaryEl, rates, baseCur) {
   if (!expenses.length) { summaryEl.innerHTML = ''; return; }
+  const displayCur = (baseCur || cur).toUpperCase();
   const byCategory = {};
   for (const exp of expenses) {
     const c = exp.category || 'other';
     if (!byCategory[c]) byCategory[c] = { count: 0, total: 0 };
     byCategory[c].count++;
-    byCategory[c].total += exp.amount;
+    let amount = exp.amount;
+    if (rates && baseCur) {
+      const expCur = (exp.currency || baseCur).toUpperCase();
+      if (expCur !== baseCur.toUpperCase() && rates[expCur]) {
+        amount = amount / rates[expCur];
+      }
+    }
+    byCategory[c].total += amount;
   }
-  const grandTotal = expenses.reduce((s,e) => s + e.amount, 0);
+  const grandTotal = Object.values(byCategory).reduce((s, v) => s + v.total, 0);
+  const multiCurrency = expenses.some(e => (e.currency||cur).toUpperCase() !== displayCur);
+  const convNote = (rates && multiCurrency)
+    ? ` <span style="font-size:.72rem;font-weight:400;color:var(--muted)">(converted to ${displayCur})</span>`
+    : '';
   const catRows = EXP_CAT_ORDER.filter(c => byCategory[c]).map(c => {
     const { count, total } = byCategory[c];
     const pct = grandTotal > 0 ? Math.round(total / grandTotal * 100) : 0;
@@ -2230,7 +2242,7 @@ function renderExpenseSummary(expenses, cur, summaryEl) {
         <span class="cat-pill cat-${c}">${getCatIcon(c)} ${EXP_CAT_LABELS[c]}</span>
       </td>
       <td style="padding:9px 12px;color:var(--muted);font-size:.82rem;text-align:center">${count}</td>
-      <td style="padding:9px 12px;font-weight:700;text-align:right">${cur}${total.toFixed(2)}</td>
+      <td style="padding:9px 12px;font-weight:700;text-align:right">${displayCur} ${total.toFixed(2)}</td>
       <td style="padding:9px 12px;width:120px">
         <div style="display:flex;align-items:center;gap:6px">
           <div style="flex:1;height:6px;background:var(--surface2);border-radius:3px;overflow:hidden">
@@ -2244,8 +2256,8 @@ function renderExpenseSummary(expenses, cur, summaryEl) {
   summaryEl.innerHTML = `
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px">
       <div style="padding:12px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)">Summary</span>
-        <span style="font-weight:700;font-size:1rem">${cur}${grandTotal.toFixed(2)} total</span>
+        <span style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)">Summary${convNote}</span>
+        <span style="font-weight:700;font-size:1rem">${displayCur} ${grandTotal.toFixed(2)} total</span>
       </div>
       <table style="width:100%;border-collapse:collapse">
         <thead>
