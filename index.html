@@ -954,10 +954,15 @@ function save() {
   }
   localStorage.setItem('trips', JSON.stringify(trips));
   if (firebaseReady && !suppressFirebaseSync) {
-    pendingLocalSave = false;
+    pendingLocalSave = true; // mark as pending until write confirms
     const tripsObj = {};
     trips.forEach(t => { tripsObj[t.id] = t; });
-    tripsRef.set(tripsObj).catch(err => console.warn('Firebase save error:', err));
+    tripsRef.set(tripsObj)
+      .then(() => { pendingLocalSave = false; })
+      .catch(err => {
+        pendingLocalSave = true; // keep pending so listener won't overwrite
+        console.warn('Firebase save error:', err);
+      });
   } else if (!firebaseReady) {
     pendingLocalSave = true; // will be flushed when Firebase connects
   }
@@ -1016,6 +1021,10 @@ tripsRef.on('value', (snapshot) => {
   const localJSON = JSON.stringify(trips);
   const remoteJSON = JSON.stringify(firebaseTrips);
   if (localJSON === remoteJSON) return;
+  // Don't overwrite local data if a write is in-flight or pending
+  if (pendingLocalSave) return;
+  // Don't overwrite if local has more trips than Firebase (local is ahead)
+  if (trips.length > firebaseTrips.length) return;
   // Merge: use Firebase as source of truth
   trips = firebaseTrips;
   localStorage.setItem('trips', JSON.stringify(trips));
