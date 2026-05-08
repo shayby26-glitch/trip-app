@@ -937,6 +937,8 @@ let editingStayId     = null;
 let editingStayOriginalDates = null; // {checkin, checkout} of the stay before editing
 // Undo delete
 let undoState = null;
+// Exchange rate cache for multi-currency settlement conversion
+let _ratesCache = {}; // { base: { rates: {...}, ts: timestamp } }
 
 // Save to both localStorage (offline cache) and Firebase
 function save() {
@@ -1918,14 +1920,37 @@ function removeActivity(id) {
 // ══════════════════════════════════════════════
 // EXPENSES
 // ══════════════════════════════════════════════
-function calculateBalances(t) {
+async function fetchRates(base) {
+  base = (base || 'USD').toUpperCase();
+  const cached = _ratesCache[base];
+  if (cached && (Date.now() - cached.ts) < 3600000) return cached.rates;
+  try {
+    const res = await fetch(`https://api.exchangerate-api.com/v4/latest/${base}`);
+    if (!res.ok) throw new Error('rate fetch failed');
+    const data = await res.json();
+    _ratesCache[base] = { rates: data.rates, ts: Date.now() };
+    return data.rates;
+  } catch(e) {
+    return null;
+  }
+}
+
+function calculateBalances(t, rates, baseCur) {
   const bal = {};
   (t.people||[]).forEach(p => bal[p.id] = 0);
   for (const exp of (t.expenses||[])) {
     const split = exp.splitAmong || [];
     if (!split.length) continue;
-    const share = Math.round((exp.amount / split.length) * 100) / 100;
-    bal[exp.paidBy] = Math.round(((bal[exp.paidBy]||0) + exp.amount) * 100) / 100;
+    let amount = exp.amount;
+    if (rates && baseCur) {
+      const expCur = (exp.currency || baseCur).toUpperCase();
+      if (expCur !== baseCur.toUpperCase() && rates[expCur]) {
+        // convert: expCur amount → baseCur amount
+        amount = amount / rates[expCur];
+      }
+    }
+    const share = Math.round((amount / split.length) * 100) / 100;
+    bal[exp.paidBy] = Math.round(((bal[exp.paidBy]||0) + amount) * 100) / 100;
     split.forEach(pid => { bal[pid] = Math.round(((bal[pid]||0) - share) * 100) / 100; });
   }
   return bal;
@@ -1950,6 +1975,59 @@ function simplifyDebts(balances) {
   return settlements;
 }
 
+function renderBalanceSection(t, rates, baseCur) {
+  const cur = currency(t);
+  const balSection = document.getElementById('balance-section');
+  if (!balSection) return;
+
+  const balances = calculateBalances(t, rates, baseCur);
+  const settlements = simplifyDebts(balances);
+  const displayCur = (baseCur || cur).toUpperCase();
+  const multiCurrency = rates && baseCur;
+
+  // Balance cards
+  const balCards = (t.people||[]).map((p,i) => {
+    const b = balances[p.id] || 0;
+    const cls = b > 0.005 ? 'balance-pos' : b < -0.005 ? 'balance-neg' : 'balance-zero';
+    const sign = b > 0.005 ? '+' : '';
+    const label = b > 0.005 ? 'gets back' : b < -0.005 ? 'owes' : 'settled';
+    return `<div class="balance-card">
+      <div class="balance-person"><div class="avatar" style="width:24px;height:24px;font-size:.65rem;background:${avatarColor(i)}">${initials(p.name)}</div>${escHtml(p.name)}</div>
+      <div class="balance-amount ${cls}">${sign}${displayCur} ${Math.abs(b).toFixed(2)}</div>
+      <div style="font-size:.72rem;color:var(--muted);margin-top:2px">${label}</div>
+    </div>`;
+  }).join('');
+
+  // Settlements
+  const settHtml = settlements.length
+    ? settlements.map(s => {
+        const from = personById(t, s.from), to = personById(t, s.to);
+        const fi = (t.people||[]).findIndex(p=>p.id===s.from);
+        const ti = (t.people||[]).findIndex(p=>p.id===s.to);
+        return `<div class="settlement-item">
+          <div class="avatar" style="width:28px;height:28px;font-size:.7rem;background:${avatarColor(fi)}">${initials(from?.name||'?')}</div>
+          <span style="font-weight:600">${escHtml(from?.name||'?')}</span>
+          <span class="arrow">→</span>
+          <div class="avatar" style="width:28px;height:28px;font-size:.7rem;background:${avatarColor(ti)}">${initials(to?.name||'?')}</div>
+          <span style="font-weight:600">${escHtml(to?.name||'?')}</span>
+          <span class="settlement-amount">${displayCur} ${s.amount.toFixed(2)}</span>
+        </div>`;
+      }).join('')
+    : `<div style="color:var(--muted);font-size:.875rem">Everyone is settled up ✓</div>`;
+
+  const convNote = multiCurrency
+    ? `<div style="font-size:.72rem;color:var(--muted);margin-top:4px">Amounts converted to ${displayCur} at live rates</div>`
+    : '';
+
+  balSection.innerHTML = `
+    <div class="balance-header">Balances</div>
+    <div class="balance-grid">${balCards}</div>
+    <div class="balance-header">Settlements${multiCurrency ? ` <span style="font-size:.72rem;font-weight:400;color:var(--muted)">(in ${displayCur})</span>` : ''}</div>
+    ${convNote}
+    <div class="settlement-list">${settHtml}</div>
+    <div class="divider"></div>`;
+}
+
 function renderExpenses() {
   const t = getTrip();
   const cur = currency(t);
@@ -1969,6 +2047,7 @@ function renderExpenses() {
   // Budget meter
   const totalSpent = (t.expenses||[]).reduce((s,e)=>s+e.amount,0);
   const budget = t.budget || 0;
+  balSection.innerHTML = '';
   if (budget > 0) {
     const pct = Math.min(100, Math.round(totalSpent/budget*100));
     const barColor = pct < 70 ? 'var(--green)' : pct < 90 ? 'var(--yellow)' : 'var(--red)';
@@ -1988,48 +2067,26 @@ function renderExpenses() {
       </div>`);
   }
 
-  const balances = calculateBalances(t);
-  const settlements = simplifyDebts(balances);
+  // Determine if multiple currencies are in use
+  const currencies = [...new Set((expenses).map(e => (e.currency || cur).toUpperCase()))];
+  const multiCurrency = currencies.length > 1;
+  const baseCur = cur.toUpperCase();
 
-  // Balance cards
-  const balCards = (t.people||[]).map((p,i) => {
-    const b = balances[p.id] || 0;
-    const cls = b > 0.005 ? 'balance-pos' : b < -0.005 ? 'balance-neg' : 'balance-zero';
-    const sign = b > 0.005 ? '+' : '';
-    const label = b > 0.005 ? 'gets back' : b < -0.005 ? 'owes' : 'settled';
-    return `<div class="balance-card">
-      <div class="balance-person"><div class="avatar" style="width:24px;height:24px;font-size:.65rem;background:${avatarColor(i)}">${initials(p.name)}</div>${escHtml(p.name)}</div>
-      <div class="balance-amount ${cls}">${sign}${cur}${Math.abs(b).toFixed(2)}</div>
-      <div style="font-size:.72rem;color:var(--muted);margin-top:2px">${label}</div>
-    </div>`;
-  }).join('');
-
-  // Settlements
-  const settHtml = settlements.length
-    ? settlements.map(s => {
-        const from = personById(t, s.from), to = personById(t, s.to);
-        const fi = (t.people||[]).findIndex(p=>p.id===s.from);
-        const ti = (t.people||[]).findIndex(p=>p.id===s.to);
-        return `<div class="settlement-item">
-          <div class="avatar" style="width:28px;height:28px;font-size:.7rem;background:${avatarColor(fi)}">${initials(from?.name||'?')}</div>
-          <span style="font-weight:600">${escHtml(from?.name||'?')}</span>
-          <span class="arrow">→</span>
-          <div class="avatar" style="width:28px;height:28px;font-size:.7rem;background:${avatarColor(ti)}">${initials(to?.name||'?')}</div>
-          <span style="font-weight:600">${escHtml(to?.name||'?')}</span>
-          <span class="settlement-amount">${cur}${s.amount.toFixed(2)}</span>
-        </div>`;
-      }).join('')
-    : `<div style="color:var(--muted);font-size:.875rem">Everyone is settled up ✓</div>`;
-
-  balSection.innerHTML = `
-    <div class="balance-header">Balances</div>
-    <div class="balance-grid">${balCards}</div>
-    <div class="balance-header">Settlements</div>
-    <div class="settlement-list">${settHtml}</div>
-    <div class="divider"></div>`;
+  // Render with no conversion first (instant)
+  renderBalanceSection(t, null, null);
 
   renderExpenseSummary(expenses, cur, summaryEl);
   renderExpenseList(t, expenses, cur, expList);
+
+  // If multiple currencies, fetch rates and re-render settlements
+  if (multiCurrency) {
+    fetchRates(baseCur).then(rates => {
+      if (!rates) return; // leave as-is if fetch failed
+      // confirm we're still on the same trip
+      if (getTrip().id !== t.id) return;
+      renderBalanceSection(t, rates, baseCur);
+    });
+  }
 }
 
 const EXP_CAT_LABELS = { food:'Food & Drink', transport:'Transport', hotel:'Accommodation', activity:'Activity', other:'Other' };
