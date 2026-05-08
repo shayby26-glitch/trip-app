@@ -2432,7 +2432,7 @@ function renderExpenseList(t, expenses, cur, expList) {
       <div class="avatar" style="flex-shrink:0;background:${avatarColor(paidIdx)}" title="${escHtml(paidBy?.name||'?')}">${initials(paidBy?.name||'?')}</div>
       <div style="flex:1;min-width:0">
         <div class="exp-desc" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(label)}</div>
-        <div class="exp-meta">${shortDate}</div>
+        <div class="exp-meta" style="color:var(--accent);font-size:.75rem;margin-top:3px">${shortDate ? '📅 ' + shortDate : ''}</div>
       </div>
       <span class="cat-pill cat-${cat}" style="flex-shrink:0" title="${EXP_CAT_LABELS[cat]}">${getCatIcon(cat)}</span>
       <div style="text-align:right;flex-shrink:0">
