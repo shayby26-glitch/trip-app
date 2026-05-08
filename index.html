@@ -692,6 +692,19 @@
     </div>
     <div class="form-row">
       <div class="form-group"><label>Date</label><input type="date" id="exp-date" /></div>
+      <div class="form-group"><label>Currency</label>
+        <input type="text" id="exp-currency" list="currency-list" maxlength="3" placeholder="USD" oninput="this.value=this.value.toUpperCase()" />
+        <datalist id="currency-list">
+          <option value="USD"><option value="EUR"><option value="GBP"><option value="ILS">
+          <option value="JPY"><option value="AUD"><option value="CAD"><option value="CHF">
+          <option value="CNY"><option value="SEK"><option value="NOK"><option value="DKK">
+          <option value="NZD"><option value="SGD"><option value="HKD"><option value="KRW">
+          <option value="TRY"><option value="INR"><option value="BRL"><option value="ZAR">
+          <option value="AED"><option value="THB"><option value="MXN"><option value="PLN">
+        </datalist>
+      </div>
+    </div>
+    <div class="form-row">
       <div class="form-group"><label>Category</label>
         <select id="exp-cat">
           <option value="food">🍽️ Food &amp; Drink</option>
@@ -2089,8 +2102,8 @@ function renderExpenseList(t, expenses, cur, expList) {
       </div>
       <span class="cat-pill cat-${cat}" style="flex-shrink:0">${getCatIcon(cat)} ${EXP_CAT_LABELS[cat]}</span>
       <div style="text-align:right">
-        <div class="exp-amount">${cur}${Number(exp.amount).toFixed(2)}</div>
-        <div class="exp-paid">${cur}${(exp.amount/(exp.splitAmong||[1]).length).toFixed(2)}/person</div>
+        <div class="exp-amount">${exp.currency||cur} ${Number(exp.amount).toFixed(2)}</div>
+        <div class="exp-paid">${exp.currency||cur} ${(exp.amount/(exp.splitAmong||[1]).length).toFixed(2)}/person</div>
       </div>
       <button class="btn-icon" onclick="openEditExpenseModal('${exp.id}')" title="Edit">✏️</button>
       <button class="btn-icon" onclick="removeExpense('${exp.id}')" title="Delete">✕</button>
@@ -2106,11 +2119,12 @@ function openEditExpenseModal(id) {
   editingExpenseId = id;
   // pre-fill after modal is open (fields now exist)
   setTimeout(() => {
-    document.getElementById('exp-desc').value    = exp.desc;
-    document.getElementById('exp-amount').value  = exp.amount;
-    document.getElementById('exp-date').value    = exp.date || '';
-    document.getElementById('exp-cat').value     = exp.category || 'other';
-    document.getElementById('exp-paid-by').value = exp.paidBy;
+    document.getElementById('exp-desc').value     = exp.desc;
+    document.getElementById('exp-amount').value   = exp.amount;
+    document.getElementById('exp-date').value     = exp.date || '';
+    document.getElementById('exp-cat').value      = exp.category || 'other';
+    document.getElementById('exp-currency').value = (exp.currency || '').toUpperCase();
+    document.getElementById('exp-paid-by').value  = exp.paidBy;
     document.querySelectorAll('.split-chip').forEach(el => {
       el.classList.toggle('on', (exp.splitAmong||[]).includes(el.dataset.id));
     });
@@ -2133,6 +2147,9 @@ function openExpenseModal() {
   document.getElementById('exp-amount').value = '';
   document.getElementById('exp-date').value = localDate();
   document.getElementById('exp-cat').value = 'other';
+  // Default currency to last used expense currency, then trip currency, then empty
+  const lastCur = [...(t.expenses||[])].reverse().find(e => e.currency)?.currency || currency(t);
+  document.getElementById('exp-currency').value = (lastCur || '').toUpperCase();
   document.getElementById('modal-expense').classList.add('open');
   setTimeout(() => document.getElementById('exp-desc').focus(), 100);
 }
@@ -2143,6 +2160,7 @@ function submitExpense() {
   const paidBy   = document.getElementById('exp-paid-by').value;
   const date     = document.getElementById('exp-date').value;
   const category = document.getElementById('exp-cat').value || 'other';
+  const expCur   = document.getElementById('exp-currency').value.trim().toUpperCase() || currency(getTrip());
   const splitAmong = [...document.querySelectorAll('.split-chip.on')].map(el=>el.dataset.id);
   if (!desc)   return toast('Enter a description');
   if (!amount || amount <= 0) return toast('Enter a valid amount');
@@ -2151,11 +2169,11 @@ function submitExpense() {
   if (!t.expenses) t.expenses = [];
   if (editingExpenseId) {
     const exp = t.expenses.find(e => e.id === editingExpenseId);
-    if (exp) { exp.desc = desc; exp.amount = amount; exp.paidBy = paidBy; exp.date = date; exp.category = category; exp.splitAmong = splitAmong; }
+    if (exp) { exp.desc = desc; exp.amount = amount; exp.paidBy = paidBy; exp.date = date; exp.category = category; exp.currency = expCur; exp.splitAmong = splitAmong; }
     editingExpenseId = null;
     toast('Expense updated ✓');
   } else {
-    t.expenses.push({ id: Date.now().toString(), desc, amount, paidBy, date, category, splitAmong });
+    t.expenses.push({ id: Date.now().toString(), desc, amount, paidBy, date, category, currency: expCur, splitAmong });
     toast('Expense added ✓');
   }
   save(); closeModal('modal-expense'); renderExpenses();
