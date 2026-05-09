@@ -3576,8 +3576,134 @@ function archiveCurrentTrip() {
 })();
 
 // ══════════════════════════════════════════════
-// FIREBASE INITIAL SYNC — runs after anonymous auth is ready
+// TOKYO EXPENSE SEED — runs once after Firebase sync
 // ══════════════════════════════════════════════
+function seedTokyoExpensesIfNeeded() {
+  const SEED_KEY = 'tokyo-expenses-v1';
+  if (localStorage.getItem(SEED_KEY)) return;
+
+  const trip = trips.find(t => {
+    const dest = (t.destination || t.dest || t.name || '').toLowerCase();
+    return dest.includes('tokyo') || dest.includes('japan');
+  });
+  if (!trip) return;
+  if ((trip.expenses || []).length > 0) {
+    localStorage.setItem(SEED_KEY, '1'); // already has expenses, mark done
+    return;
+  }
+
+  const payer = (trip.people || [])[0];
+  if (!payer) return;
+  const allPeopleIds = (trip.people || []).map(p => p.id);
+
+  function dd(str) {
+    if (!str || !str.trim()) return '';
+    const parts = str.trim().split('/');
+    if (parts.length !== 3) return '';
+    const [d, m, y] = parts;
+    return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+  }
+  function catMap(c) {
+    return ({ meals:'food', transportation:'transport', accommodation:'hotel',
+              activity:'activity' })[(c||'').toLowerCase()] || 'other';
+  }
+
+  const RAW = [
+    ['27/04/2026', 94.00,    'GBP', 'miscellaneous/incidental', 'Osaka tickets'],
+    ['11/01/2026', 1352.99,  'GBP', 'transportation',           'Flights – ref 40-780017146 PIN 9507'],
+    ['02/05/2026', 185460,   'JPY', 'transportation',           'Car rental – res 26010500283 (return 10/05 Nikko)'],
+    ['11/01/2026', 3195.00,  'GBP', 'accommodation',            ''],
+    ['25/04/2026', 10110,    'JPY', 'miscellaneous/incidental', ''],
+    ['25/04/2026', 20220,    'JPY', 'miscellaneous/incidental', ''],
+    ['26/04/2026', 12309,    'JPY', 'meals',                    ''],
+    ['28/04/2026', 38,       'JPY', 'meals',                    ''],
+    ['24/04/2026', 15.50,    'GBP', 'transportation',           ''],
+    ['25/04/2026', 9.95,     'GBP', 'transportation',           ''],
+    ['25/04/2026', 150,      'JPY', 'transportation',           ''],
+    ['26/04/2026', 530,      'JPY', 'transportation',           ''],
+    ['26/04/2026', 800,      'JPY', 'transportation',           ''],
+    ['26/04/2026', 520,      'JPY', 'transportation',           ''],
+    ['26/04/2026', 2000,     'JPY', 'transportation',           ''],
+    ['28/04/2026', 500,      'JPY', 'transportation',           ''],
+    ['29/04/2026', 100,      'JPY', 'transportation',           ''],
+    ['29/04/2026', 7.14,     'GBP', 'miscellaneous/incidental', ''],
+    ['29/04/2026', 56.62,    'GBP', 'accommodation',            ''],
+    ['29/04/2026', 12.60,    'GBP', 'shopping',                 ''],
+    ['29/04/2026', 38.02,    'GBP', 'meals',                    ''],
+    ['29/04/2026', 22.28,    'GBP', 'meals',                    ''],
+    ['30/04/2026', 9.98,     'GBP', 'meals',                    ''],
+    ['27/04/2026', 3640,     'JPY', 'meals',                    ''],
+    ['27/04/2026', 520,      'JPY', 'meals',                    ''],
+    ['26/04/2026', 11600,    'JPY', 'meals',                    ''],
+    ['26/04/2026', 606,      'JPY', 'miscellaneous/incidental', ''],
+    ['26/04/2026', 500,      'JPY', 'miscellaneous/incidental', ''],
+    ['30/04/2026', 9.98,     'GBP', 'meals',                    ''],
+    ['29/04/2026', 121.37,   'GBP', 'shopping',                 ''],
+    ['28/04/2026', 19.49,    'GBP', 'accommodation',            ''],
+    ['01/05/2026', 2000,     'JPY', 'meals',                    ''],
+    ['01/05/2026', 420,      'JPY', 'meals',                    ''],
+    ['01/05/2026', 406,      'JPY', 'meals',                    ''],
+    ['01/05/2026', 4720,     'JPY', 'meals',                    ''],
+    ['01/05/2026', 20062,    'JPY', 'shopping',                 ''],
+    ['01/05/2026', 1246,     'JPY', 'meals',                    ''],
+    ['01/05/2026', 40000,    'JPY', 'shopping',                 ''],
+    ['01/05/2026', 9.10,     'GBP', 'shopping',                 ''],
+    ['01/05/2026', 33000,    'JPY', 'shopping',                 ''],
+    ['02/05/2026', 30000,    'JPY', 'miscellaneous/incidental', ''],
+    ['02/05/2026', 2000,     'JPY', 'transportation',           ''],
+    ['02/05/2026', 8040,     'JPY', 'meals',                    ''],
+    ['02/05/2026', 720,      'JPY', 'meals',                    ''],
+    ['03/05/2026', 1400,     'JPY', 'meals',                    ''],
+    ['03/05/2026', 4580,     'JPY', 'shopping',                 ''],
+    ['03/05/2026', 6600,     'JPY', 'meals',                    ''],
+    ['03/05/2026', 770,      'JPY', 'shopping',                 ''],
+    ['03/05/2026', 1800,     'JPY', 'transportation',           ''],
+    ['03/05/2026', 3210,     'JPY', 'transportation',           ''],
+    ['03/05/2026', 1240,     'JPY', 'transportation',           ''],
+    ['03/05/2026', 8510,     'JPY', 'meals',                    ''],
+    ['03/05/2026', 660,      'JPY', 'shopping',                 ''],
+    ['04/05/2026', 2300,     'JPY', 'meals',                    ''],
+    ['04/05/2026', 550,      'JPY', 'meals',                    ''],
+    ['04/05/2026', 4192,     'JPY', 'meals',                    ''],
+    ['05/05/2026', 5600,     'JPY', 'transportation',           ''],
+    ['05/05/2026', 7.10,     'GBP', 'meals',                    ''],
+    ['05/05/2026', 600,      'JPY', 'transportation',           ''],
+    ['05/05/2026', 3750,     'JPY', 'meals',                    ''],
+    ['05/05/2026', 3533,     'JPY', 'meals',                    ''],
+    ['06/05/2026', 6700,     'JPY', 'miscellaneous/incidental', ''],
+    ['06/05/2026', 2860,     'JPY', 'transportation',           ''],
+    ['06/05/2026', 10046,    'JPY', 'transportation',           ''],
+    ['07/05/2026', 997,      'JPY', 'meals',                    ''],
+    ['07/05/2026', 1930,     'JPY', 'transportation',           ''],
+    ['07/05/2026', 1800,     'JPY', 'meals',                    ''],
+    ['',           5600,     'JPY', 'meals',                    ''],
+    ['',           2639,     'JPY', 'meals',                    ''],
+  ];
+
+  if (!trip.expenses) trip.expenses = [];
+  let ts = Date.now();
+  for (const [rawDate, amount, cur, rawCat, desc] of RAW) {
+    if (!amount) continue;
+    trip.expenses.push({
+      id: String(ts++),
+      desc: desc || '',
+      amount,
+      currency: cur,
+      paidBy: payer.id,
+      date: dd(rawDate),
+      category: catMap(rawCat),
+      splitAmong: allPeopleIds,
+    });
+  }
+
+  const idx = trips.findIndex(t => t.id === trip.id);
+  if (idx !== -1) trips[idx] = trip;
+  save(); // writes to Firebase since firebaseReady=true at this point
+  localStorage.setItem(SEED_KEY, '1');
+  console.log(`Seeded ${trip.expenses.length} expenses into "${trip.destination || trip.dest}"`);
+}
+
+
 async function initialFirebaseSync() {
   if (sharedMode) return; // skip for guests
   try {
@@ -3652,6 +3778,8 @@ async function initialFirebaseSync() {
       firebaseReady = false;
       setCloudStatus('offline');
     });
+    // Add Tokyo expenses once if the trip exists but has none
+    seedTokyoExpensesIfNeeded();
   } catch (err) {
     console.warn('Initial Firebase sync failed (offline mode):', err);
   }
