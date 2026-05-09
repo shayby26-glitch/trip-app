@@ -3586,8 +3586,14 @@ async function initialFirebaseSync() {
     const data = snapshot.val();
     firebaseReady = true;
 
-    // If local edits were made before Firebase connected, push them up first
+    // If local edits were made before Firebase connected, merge then push
     if (pendingLocalSave) {
+      // Preserve Firebase-only trips (e.g. added from another device)
+      const fbTrips = data ? Object.values(data) : [];
+      const localIds = new Set(trips.map(t => t.id));
+      const fbOnly = fbTrips.filter(t => !localIds.has(t.id));
+      trips = [...trips, ...fbOnly];
+      localStorage.setItem('trips', JSON.stringify(trips));
       pendingLocalSave = false;
       const tripsObj = {};
       trips.forEach(t => { tripsObj[t.id] = t; });
