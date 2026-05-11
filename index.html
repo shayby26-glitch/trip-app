@@ -1867,7 +1867,7 @@ function addActivity(day) {
   save();
   document.getElementById(`new-act-${day}`).value = '';
   document.getElementById(`new-time-${day}`).value = '';
-  renderItinerary();
+  renderItinerary(); renderOverview();
 }
 function startEditActivity(id)  { editingActivityId = id; renderItinerary(); }
 function cancelEditActivity()   { editingActivityId = null; renderItinerary(); }
