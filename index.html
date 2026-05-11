@@ -1660,7 +1660,7 @@ function renderOverview() {
     // Hotel box
     let hotelBox = '';
     if (stay) {
-      const mapsQ = encodeURIComponent(stay.name + (stay.city ? ' ' + stay.city : ''));
+      const mapsQ = encodeURIComponent(stay.address || (stay.name + (stay.city ? ' ' + stay.city : '')));
       hotelBox = `<a class="ov-card-hotel" href="https://www.google.com/maps/search/?api=1&query=${mapsQ}" target="_blank" rel="noopener">
         <div class="ov-card-hotel-label">🏨 ${isCheckin ? 'Check-in' : 'Staying at'}</div>
         <div class="ov-card-hotel-name">${escHtml(stay.name)}</div>
@@ -2591,7 +2591,7 @@ function renderStay() {
       </td>
       <td>
         <div class="stay-name">${escHtml(stay.name)}</div>
-        ${stay.city ? `<a class="stay-map-link" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stay.name + ' ' + stay.city)}" target="_blank" rel="noopener">📍 ${escHtml(stay.city)} — Open in Maps ↗</a>` : ''}
+        ${(stay.city || stay.address) ? `<a class="stay-map-link" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stay.address || (stay.name + ' ' + stay.city))}" target="_blank" rel="noopener">📍 ${escHtml(stay.city || stay.address)} — Open in Maps ↗</a>` : ''}
       </td>
       <td>${stay.address ? `<span style="font-size:.8rem;color:var(--muted)">${escHtml(stay.address)}</span>` : '—'}</td>
       <td>${stay.conf ? `<span class="stay-conf">${escHtml(stay.conf)}</span>` : '—'}</td>
@@ -2603,14 +2603,14 @@ function renderStay() {
   // Stays summary cards
   const cards = stays.map(stay => {
     const n = nights(stay);
-    const mapsQuery = encodeURIComponent(stay.name + (stay.city ? ' ' + stay.city : ''));
+    const mapsQuery = encodeURIComponent(stay.address || (stay.name + (stay.city ? ' ' + stay.city : '')));
     return `<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:8px">
       <div style="font-size:2rem">🏨</div>
       <div style="flex:1">
-        ${stay.city ? `<a href="https://www.google.com/maps/search/?api=1&query=${mapsQuery}" target="_blank" rel="noopener" style="font-weight:700;color:var(--text);text-decoration:none;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text)'">${escHtml(stay.name)} <span style="font-size:.75rem;color:var(--accent);font-weight:500">📍</span></a>` : `<div style="font-weight:700">${escHtml(stay.name)}</div>`}
+        ${(stay.city || stay.address) ? `<a href="https://www.google.com/maps/search/?api=1&query=${mapsQuery}" target="_blank" rel="noopener" style="font-weight:700;color:var(--text);text-decoration:none;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text)'">${escHtml(stay.name)} <span style="font-size:.75rem;color:var(--accent);font-weight:500">📍</span></a>` : `<div style="font-weight:700">${escHtml(stay.name)}</div>`}
         <div style="font-size:.8rem;color:var(--muted)">${fmtDate(stay.checkin)} → ${fmtDate(stay.checkout)} · ${n} night${n!==1?'s':''}</div>
         ${stay.address ? `<div style="font-size:.78rem;color:var(--muted)">${escHtml(stay.address)}</div>` : ''}
-        ${stay.city ? `<a class="stay-map-link" href="https://www.google.com/maps/search/?api=1&query=${mapsQuery}" target="_blank" rel="noopener">📍 ${escHtml(stay.city)} — Open in Maps ↗</a>` : ''}
+        ${(stay.city || stay.address) ? `<a class="stay-map-link" href="https://www.google.com/maps/search/?api=1&query=${mapsQuery}" target="_blank" rel="noopener">📍 ${escHtml(stay.city || stay.address)} — Open in Maps ↗</a>` : ''}
       </div>
       ${stay.conf ? `<span class="stay-conf">${escHtml(stay.conf)}</span>` : ''}
       ${stay.cost > 0 ? `<span style="font-weight:700;color:var(--green)">${cur}${Number(stay.cost).toFixed(2)}</span>` : ''}
