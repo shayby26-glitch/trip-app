@@ -2083,6 +2083,7 @@ function renderBalanceSection(t, rates, baseCur) {
   const cur = currency(t);
   const balSection = document.getElementById('balance-section');
   if (!balSection) return;
+  if ((t.people||[]).length <= 1) { balSection.innerHTML = ''; return; }
 
   const balances = calculateBalances(t, rates, baseCur);
   const settlements = simplifyDebts(balances);
