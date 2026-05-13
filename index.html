@@ -689,7 +689,7 @@
     <!-- STAY -->
     <div id="tab-stay" class="tab-content">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <div style="font-size:.85rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)">Accommodation Overview</div>
+        <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)">🏨 Accommodation</div>
         <button class="btn btn-primary btn-sm" onclick="openStayModal()">+ Add Stay</button>
       </div>
       <div id="stay-table-wrap"></div>
@@ -2769,10 +2769,8 @@ function removeStay(id) {
 
 function renderStay() {
   const t = getTrip();
-  // Normalise stays: support both `name` and `hotel` field names
   const stays = (t.stays||[]).map(s => ({...s, name: s.name || s.hotel || ''}))
     .slice().sort((a,b) => a.checkin.localeCompare(b.checkin));
-  const days = getDayList(t);
   const cur = currency(t);
   const wrap = document.getElementById('stay-table-wrap');
 
@@ -2781,76 +2779,44 @@ function renderStay() {
     return;
   }
 
-  // Build a map: date → stay
-  const dayStay = {};
-  for (const stay of stays) {
-    const end = new Date(stay.checkout + 'T00:00');
-    for (let d = new Date(stay.checkin + 'T00:00'); d < end; d.setDate(d.getDate()+1)) {
-      dayStay[[d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-')] = stay;
-    }
-  }
+  const nights = s => Math.max(0, Math.round((new Date(s.checkout) - new Date(s.checkin)) / 86400000));
+  const shortDate = d => new Date(d+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
 
-  const nights = d => Math.max(0, Math.round((new Date(d.checkout) - new Date(d.checkin)) / 86400000));
-
-  // Per-date table
-  const rows = days.map((day, idx) => {
-    const stay = dayStay[day];
-    const isCheckin  = stay && stay.checkin  === day;
-    const isCheckout = stay && stay.checkout === day;
-    if (!stay) {
-      return `<tr>
-        <td style="color:var(--muted);font-size:.8rem">${fmtDate(day)}</td>
-        <td style="color:var(--muted)">—</td>
-        <td></td><td></td><td></td><td></td>
-      </tr>`;
-    }
-    return `<tr>
-      <td class="stay-dates">
-        <div>${fmtDate(day)}</div>
-        ${isCheckin  ? `<span style="font-size:.7rem;color:var(--green);font-weight:700">CHECK-IN</span>` : ''}
-        ${isCheckout ? `<span style="font-size:.7rem;color:var(--yellow);font-weight:700">CHECK-OUT</span>` : ''}
-      </td>
-      <td>
-        <div class="stay-name">${escHtml(stay.name)}</div>
-        ${(stay.city || stay.address) ? `<a class="stay-map-link" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stay.address || (stay.name + ' ' + stay.city))}" target="_blank" rel="noopener">📍 ${escHtml(stay.city || stay.address)} — Open in Maps ↗</a>` : ''}
-      </td>
-      <td>${stay.address ? `<span style="font-size:.8rem;color:var(--muted)">${escHtml(stay.address)}</span>` : '—'}</td>
-      <td>${stay.conf ? `<span class="stay-conf">${escHtml(stay.conf)}</span>` : '—'}</td>
-      <td>${stay.cost > 0 ? `<span class="stay-cost-val">${cur}${Number(stay.cost).toFixed(2)}</span><div class="stay-nights">${nights(stay)} night${nights(stay)!==1?'s':''}</div>` : '—'}</td>
-      <td>${stay.notes ? `<div class="stay-note">${escHtml(stay.notes)}</div>` : '—'}</td>
-    </tr>`;
-  }).join('');
-
-  // Stays summary cards
-  const cards = stays.map(stay => {
+  wrap.innerHTML = stays.map(stay => {
     const n = nights(stay);
     const mapsQuery = encodeURIComponent(stay.address || (stay.name + (stay.city ? ' ' + stay.city : '')));
-    return `<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:8px">
-      <div style="font-size:2rem">🏨</div>
-      <div style="flex:1">
-        ${(stay.city || stay.address) ? `<a href="https://www.google.com/maps/search/?api=1&query=${mapsQuery}" target="_blank" rel="noopener" style="font-weight:700;color:var(--text);text-decoration:none;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text)'">${escHtml(stay.name)} <span style="font-size:.75rem;color:var(--accent);font-weight:500">📍</span></a>` : `<div style="font-weight:700">${escHtml(stay.name)}</div>`}
-        <div style="font-size:.8rem;color:var(--muted)">${fmtDate(stay.checkin)} → ${fmtDate(stay.checkout)} · ${n} night${n!==1?'s':''}</div>
-        ${stay.address ? `<div style="font-size:.78rem;color:var(--muted)">${escHtml(stay.address)}</div>` : ''}
-        ${(stay.city || stay.address) ? `<a class="stay-map-link" href="https://www.google.com/maps/search/?api=1&query=${mapsQuery}" target="_blank" rel="noopener">📍 ${escHtml(stay.city || stay.address)} — Open in Maps ↗</a>` : ''}
+    const hasLocation = stay.address || stay.city;
+
+    return `<div class="day-block">
+      <div class="day-header" style="justify-content:space-between">
+        <div style="display:flex;align-items:center;gap:12px;min-width:0">
+          <div class="act-icon-wrap" style="font-size:1.2rem;flex-shrink:0">🏨</div>
+          <div style="min-width:0">
+            <div style="font-weight:700;font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(stay.name)}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px">
+              <span style="font-size:.68rem;font-weight:800;letter-spacing:.06em;color:var(--green);background:rgba(16,185,129,.13);border:1px solid rgba(16,185,129,.2);padding:2px 9px;border-radius:8px">✈ In · ${shortDate(stay.checkin)}</span>
+              <span style="font-size:.68rem;font-weight:800;letter-spacing:.06em;color:var(--yellow);background:rgba(245,158,11,.13);border:1px solid rgba(245,158,11,.2);padding:2px 9px;border-radius:8px">↩ Out · ${shortDate(stay.checkout)}</span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:2px;flex-shrink:0;align-self:flex-start;margin-top:2px">
+          <button class="btn-icon" onclick="openEditStayModal('${stay.id}')" title="Edit">✏️</button>
+          <button class="btn-icon" onclick="removeStay('${stay.id}')" title="Remove">✕</button>
+        </div>
       </div>
-      ${stay.conf ? `<span class="stay-conf">${escHtml(stay.conf)}</span>` : ''}
-      ${stay.cost > 0 ? `<span style="font-weight:700;color:var(--green)">${cur}${Number(stay.cost).toFixed(2)}</span>` : ''}
-      <button class="btn-icon" onclick="openEditStayModal('${stay.id}')" title="Edit">✏️</button>
-      <button class="btn-icon" onclick="removeStay('${stay.id}')" title="Remove">✕</button>
+      <div class="day-body" style="gap:10px">
+        <div style="display:flex;flex-wrap:wrap;gap:7px">
+          <span style="display:inline-flex;align-items:center;gap:5px;font-size:.82rem;background:var(--surface2);border:1px solid var(--border);padding:5px 12px;border-radius:10px">
+            📅 <strong>${n} night${n!==1?'s':''}</strong> · ${fmtDate(stay.checkin)} → ${fmtDate(stay.checkout)}
+          </span>
+          ${stay.cost > 0 ? `<span style="display:inline-flex;align-items:center;gap:5px;font-size:.82rem;font-weight:700;color:var(--green);background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);padding:5px 12px;border-radius:10px">💰 ${cur}${Number(stay.cost).toFixed(2)}</span>` : ''}
+          ${stay.conf ? `<span style="display:inline-flex;align-items:center;gap:5px;font-size:.78rem;font-family:monospace;font-weight:700;color:var(--accent);background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.2);padding:5px 12px;border-radius:10px">🔑 ${escHtml(stay.conf)}</span>` : ''}
+        </div>
+        ${hasLocation ? `<a class="stay-map-link" href="https://www.google.com/maps/search/?api=1&query=${mapsQuery}" target="_blank" rel="noopener" style="align-self:flex-start">📍 ${escHtml(stay.address || stay.city)} — Open in Maps ↗</a>` : ''}
+        ${stay.notes ? `<div style="font-size:.82rem;color:var(--muted);padding:8px 12px;background:var(--surface2);border-radius:8px;border-left:3px solid rgba(124,58,237,.3)">📝 ${escHtml(stay.notes)}</div>` : ''}
+      </div>
     </div>`;
   }).join('');
-
-  wrap.innerHTML = `
-    <div style="margin-bottom:20px">${cards}</div>
-    <div style="font-size:.85rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:10px">Day-by-Day Overview</div>
-    <div class="stay-table-wrap">
-      <table class="stay-table">
-        <thead><tr>
-          <th>Date</th><th>Property</th><th>Address</th><th>Confirmation</th><th>Cost</th><th>Notes</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>`;
 }
 
 // ══════════════════════════════════════════════
