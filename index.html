@@ -2582,6 +2582,8 @@ function submitExpense() {
 function removeExpense(id) {
   const t = getTrip();
   const item = (t.expenses||[]).find(e => e.id === id);
+  const label = item ? (item.desc || EXP_CAT_LABELS[item.category] || 'this expense') : 'this expense';
+  if (!confirm(`Delete "${label}"?\nThis cannot be undone.`)) return;
   deleteWithUndo('Expense', item, () => {
     t.expenses = (t.expenses||[]).filter(e => e.id !== id);
     save(); renderExpenses();
