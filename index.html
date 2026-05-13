@@ -369,18 +369,22 @@
     .ov-day-card::before { content:attr(data-day-num); position:absolute; top:1.5rem; width:34px; height:34px; background:var(--accent); border:3px solid var(--bg); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:.7rem; font-weight:700; z-index:3; color:#fff; box-shadow:0 0 12px rgba(124,58,237,.4); }
     .ov-day-card:nth-child(odd)::before { right:-55px; }
     .ov-day-card:nth-child(even)::before { left:-55px; }
-    .ov-card-inner { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; transition:all .3s cubic-bezier(.4,0,.2,1); }
-    .ov-card-inner:hover { border-color:var(--accent); box-shadow:0 25px 50px -12px rgba(0,0,0,.6), 0 0 30px rgba(124,58,237,.15); transform:translateY(-4px); }
-    .ov-card-body { padding:1.2rem 1.4rem; }
-    .ov-card-date-header { font-family:var(--font-heading); font-size:1.1rem; font-weight:700; margin-bottom:.6rem; display:flex; align-items:center; gap:.5rem; }
-    .ov-card-date-header .ov-badge { margin-left:auto; }
-    .ov-dest-pills { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:.8rem; }
-    .ov-card-activities { list-style:none; margin-bottom:.8rem; }
-    .ov-card-activities li { padding:.4rem 0; border-bottom:1px solid rgba(255,255,255,.05); font-size:.85rem; color:var(--muted); display:flex; align-items:center; gap:.5rem; }
-    [data-theme="light"] .ov-card-activities li { border-bottom-color:rgba(0,0,0,.06); color:var(--text); }
-    .ov-card-activities li:last-child { border-bottom:none; }
-    .ov-activity-icon { flex-shrink:0; width:22px; height:22px; background:rgba(124,58,237,.1); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:.7rem; }
-    .ov-activity-time { font-size:.72rem; color:var(--muted); min-width:40px; }
+    .ov-card-inner { background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; transition:all .3s cubic-bezier(.4,0,.2,1); }
+    .ov-card-inner:hover { border-color:var(--accent); box-shadow:0 20px 40px -12px rgba(0,0,0,.5), 0 0 24px rgba(124,58,237,.12); transform:translateY(-3px); }
+    .ov-card-body { padding:1.2rem 1.3rem; }
+    .ov-card-date-header { margin-bottom:.75rem; }
+    .ov-card-day-badge { font-size:.68rem; font-weight:800; text-transform:uppercase; letter-spacing:.1em; color:var(--accent); background:rgba(124,58,237,.18); padding:3px 10px; border-radius:10px; display:inline-block; margin-bottom:5px; }
+    .ov-card-date-str { font-size:1rem; font-weight:700; line-height:1.2; display:flex; align-items:center; gap:8px; }
+    .ov-dest-pills { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:.85rem; }
+    .ov-dest-pill { display:inline-flex; align-items:center; gap:4px; background:rgba(124,58,237,.1); border:1px solid rgba(124,58,237,.2); border-radius:20px; padding:5px 12px; font-size:.82rem; font-weight:500; white-space:nowrap; }
+    .ov-card-activities { list-style:none; margin-bottom:.85rem; display:flex; flex-direction:column; gap:7px; }
+    .ov-card-activities li { display:flex; align-items:flex-start; gap:10px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.05); border-radius:10px; padding:9px 10px; }
+    [data-theme="light"] .ov-card-activities li { background:rgba(0,0,0,.02); border-color:rgba(0,0,0,.06); }
+    .ov-activity-icon { flex-shrink:0; width:30px; height:30px; background:rgba(124,58,237,.12); border:1px solid rgba(124,58,237,.15); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:.85rem; margin-top:1px; }
+    .ov-act-info { flex:1; min-width:0; }
+    .ov-act-name { font-size:.85rem; font-weight:600; color:var(--text); line-height:1.35; word-break:break-word; }
+    .ov-act-meta { display:flex; align-items:center; gap:5px; margin-top:4px; flex-wrap:wrap; }
+    .ov-activity-time { font-size:.7rem; color:var(--accent); background:rgba(124,58,237,.12); padding:2px 8px; border-radius:7px; font-weight:700; }
     .ov-card-hotel { display:block; background:rgba(245,158,11,.06); border:1px solid rgba(245,158,11,.15); border-radius:10px; padding:.7rem .9rem; margin-top:.5rem; text-decoration:none; color:inherit; transition:all .3s ease; }
     .ov-card-hotel:hover { background:rgba(245,158,11,.12); border-color:var(--yellow); transform:translateX(3px); }
     .ov-card-hotel-label { font-size:.65rem; text-transform:uppercase; letter-spacing:2px; color:var(--yellow); margin-bottom:.2rem; display:flex; align-items:center; gap:.4rem; }
@@ -1808,10 +1812,14 @@ function renderOverview() {
     // Activity list items
     const actList = acts.map(a =>
       `<li>
-        <span class="ov-activity-icon">${getCatIcon(a.category)}</span>
-        ${a.time ? `<span class="ov-activity-time">${escHtml(a.time)}</span>` : ''}
-        <span>${escHtml(a.name)}</span>
-        <span class="cat-pill cat-${a.category}" style="margin-left:auto">${a.category}</span>
+        <div class="ov-activity-icon">${getCatIcon(a.category)}</div>
+        <div class="ov-act-info">
+          <div class="ov-act-name">${escHtml(a.name)}</div>
+          <div class="ov-act-meta">
+            ${a.time ? `<span class="ov-activity-time">🕐 ${escHtml(a.time)}</span>` : ''}
+            <span class="cat-pill cat-${a.category}">${EXP_CAT_LABELS[a.category]||a.category}</span>
+          </div>
+        </div>
       </li>`
     ).join('');
 
@@ -1842,8 +1850,8 @@ function renderOverview() {
         <div class="ov-card-inner">
           <div class="ov-card-body">
             <div class="ov-card-date-header">
-              <span>Day ${globalIdx+1} — ${dateStr}</span>
-              ${todayBadge}
+              <span class="ov-card-day-badge">Day ${globalIdx+1}</span>
+              <div class="ov-card-date-str">${dateStr}${todayBadge}</div>
             </div>
             ${destPills ? `<div class="ov-dest-pills">${destPills}</div>` : ''}
             ${actList ? `<ul class="ov-card-activities">${actList}</ul>` : ''}
