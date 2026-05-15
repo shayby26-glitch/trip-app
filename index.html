@@ -401,6 +401,7 @@
     .ov-card-hotel-address { font-size:.72rem; color:var(--muted); margin-top:.2rem; }
     .ov-card-cost { display:inline-flex; align-items:center; gap:.3rem; padding:.2rem .7rem; background:rgba(16,185,129,.08); border:1px solid rgba(16,185,129,.2); border-radius:50px; font-size:.75rem; font-weight:600; color:var(--green); margin-top:.6rem; }
     /* ═══ JOURNAL DAY GROUPS ═══ */
+    #journal-day-chips::-webkit-scrollbar { display:none; }
     .jday-section { margin-bottom:24px; }
     .jday-header { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
     .jday-badge { font-size:.68rem; font-weight:800; text-transform:uppercase; letter-spacing:.1em; color:var(--accent); background:rgba(124,58,237,.18); padding:3px 10px; border-radius:10px; }
@@ -749,9 +750,9 @@
     <div id="tab-notes" class="tab-content">
       <div class="journal-form">
         <div style="font-family:var(--font-heading);font-size:1.1rem;font-weight:700;margin-bottom:.3rem">Add to Journal</div>
-        <select id="journal-day" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .7rem;color:var(--text);font-family:inherit;font-size:.85rem;width:100%">
-          <option value="">📅 Select day…</option>
-        </select>
+        <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:5px">📅 Day</div>
+        <div id="journal-day-chips" style="display:flex;gap:6px;overflow-x:auto;padding:2px 0 6px;scrollbar-width:none"></div>
+        <input type="hidden" id="journal-day" value="" />
         <textarea class="journal-note-input" id="journal-text" placeholder="Write a note, memory, or tip..."></textarea>
         <label class="journal-file-label">
           <span style="font-size:1.3rem">📷</span>
@@ -1718,6 +1719,7 @@ function switchTab(name, btn) {
   document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById('tab-'+name).classList.add('active');
+  if (name === 'notes') populateJournalDaySelect();
 }
 
 // ══════════════════════════════════════════════
@@ -3066,17 +3068,39 @@ function previewJournalFile(input) {
   if (file) { label.textContent = file.name; }
   else { label.textContent = 'Add a photo (optional)'; }
 }
+function selectJournalDay(day) {
+  document.getElementById('journal-day').value = day;
+  document.querySelectorAll('.jday-chip').forEach(el => {
+    el.style.background    = el.dataset.day === day ? 'var(--grad)'        : 'var(--surface2)';
+    el.style.color         = el.dataset.day === day ? '#fff'               : 'var(--text)';
+    el.style.borderColor   = el.dataset.day === day ? 'transparent'        : 'var(--border)';
+    el.style.boxShadow     = el.dataset.day === day ? '0 3px 10px rgba(124,58,237,.35)' : 'none';
+  });
+}
 function populateJournalDaySelect() {
   const t = getTrip(); if (!t) return;
-  const sel = document.getElementById('journal-day'); if (!sel) return;
+  const wrap = document.getElementById('journal-day-chips'); if (!wrap) return;
   const days = getDayList(t);
   const today = localDate();
-  sel.innerHTML = '<option value="">📅 Select day…</option>' +
-    days.map((d, idx) => {
-      const label = new Date(d+'T00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
-      const sel2 = d === today ? ' selected' : '';
-      return `<option value="${d}"${sel2}>Day ${idx+1} · ${label}</option>`;
-    }).join('');
+  const current = document.getElementById('journal-day').value;
+  const autoDay = days.includes(today) ? today : (days[0] || '');
+
+  wrap.innerHTML = days.map((d, idx) => {
+    const date = new Date(d+'T00:00');
+    const monthDay = date.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    const weekday  = date.toLocaleDateString('en-US',{weekday:'short'});
+    const isToday  = d === today;
+    return `<button type="button" class="jday-chip" data-day="${d}" onclick="selectJournalDay('${d}')"
+      style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:2px;padding:7px 11px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);cursor:pointer;transition:all .2s;min-width:52px">
+      <span style="font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)">Day&nbsp;${idx+1}</span>
+      <span style="font-size:.82rem;font-weight:700">${monthDay}</span>
+      <span style="font-size:.62rem;color:var(--muted)">${weekday}${isToday?' 📍':''}</span>
+    </button>`;
+  }).join('');
+
+  // Select current day, or auto-select today/first day
+  const dayToSelect = days.includes(current) ? current : autoDay;
+  if (dayToSelect) selectJournalDay(dayToSelect);
 }
 
 function addJournalEntry() {
