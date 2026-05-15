@@ -710,6 +710,7 @@
           <div style="font-size:.85rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)">All Expenses</div>
         </div>
         <div style="display:flex;gap:8px" onclick="event.stopPropagation()">
+          <button class="btn btn-ghost btn-sm" onclick="openCopyExpensesModal()" title="Copy from another trip">📋 From trip</button>
           <button class="btn btn-ghost btn-sm" onclick="exportExpensesToExcel()" title="Export to Excel">⬇ Excel</button>
           <button class="btn btn-primary btn-sm" onclick="openExpenseModal()">+ Add</button>
         </div>
@@ -860,6 +861,24 @@
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('modal-expense')">Cancel</button>
       <button class="btn btn-primary" onclick="submitExpense()">Add Expense</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: COPY EXPENSES FROM TRIP ═══ -->
+<div class="overlay" id="modal-copy-expenses">
+  <div class="modal" style="max-width:540px">
+    <div class="modal-title">📋 Copy Expenses From Another Trip</div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label>Source trip</label>
+      <select id="copy-exp-trip-select" onchange="previewCopyExpenses()">
+        <option value="">Select a trip…</option>
+      </select>
+    </div>
+    <div id="copy-exp-preview" style="max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:14px"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-copy-expenses')">Cancel</button>
+      <button class="btn btn-primary" onclick="applyCopyExpenses()">Copy Selected</button>
     </div>
   </div>
 </div>
@@ -2592,6 +2611,57 @@ function removeExpense(id) {
     t.expenses.push(item);
     save(); renderExpenses();
   });
+}
+
+function openCopyExpensesModal() {
+  const t = getTrip();
+  const sel = document.getElementById('copy-exp-trip-select');
+  sel.innerHTML = '<option value="">Select a trip…</option>' +
+    trips.filter(tr => tr.id !== t.id && (tr.expenses||[]).length > 0)
+      .map(tr => `<option value="${escHtml(tr.id)}">${escHtml(tr.destination)} (${(tr.expenses||[]).length} expense${(tr.expenses||[]).length!==1?'s':''})</option>`)
+      .join('');
+  document.getElementById('copy-exp-preview').innerHTML = '';
+  document.getElementById('modal-copy-expenses').classList.add('open');
+}
+function previewCopyExpenses() {
+  const srcId = document.getElementById('copy-exp-trip-select').value;
+  const src = trips.find(tr => tr.id === srcId);
+  const preview = document.getElementById('copy-exp-preview');
+  if (!src) { preview.innerHTML = ''; return; }
+  const cur = currency(src);
+  preview.innerHTML = (src.expenses||[]).map(e => `
+    <label style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);cursor:pointer">
+      <input type="checkbox" value="${escHtml(e.id)}" checked style="flex-shrink:0;width:16px;height:16px" />
+      <div class="act-icon-wrap" style="flex-shrink:0">${getCatIcon(e.category||'other')}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.88rem;font-weight:600;word-break:break-word">${escHtml(e.desc||EXP_CAT_LABELS[e.category||'other'])}</div>
+        <div style="font-size:.75rem;color:var(--muted);margin-top:2px">${e.currency||cur} ${Number(e.amount).toFixed(2)} · ${EXP_CAT_LABELS[e.category||'other']}${e.date?' · '+e.date:''}</div>
+      </div>
+    </label>`).join('');
+}
+function applyCopyExpenses() {
+  const srcId = document.getElementById('copy-exp-trip-select').value;
+  const src = trips.find(tr => tr.id === srcId);
+  if (!src) return toast('Select a trip first');
+  const checked = new Set([...document.querySelectorAll('#copy-exp-preview input[type=checkbox]:checked')].map(el => el.value));
+  if (!checked.size) return toast('Select at least one expense');
+  const t = getTrip();
+  if (!t.expenses) t.expenses = [];
+  const people = (t.people||[]).map(p => p.id);
+  let added = 0;
+  (src.expenses||[]).filter(e => checked.has(e.id)).forEach(e => {
+    t.expenses.push({
+      ...e,
+      id: Date.now().toString() + Math.random().toString(36).slice(2),
+      paidBy: people[0] || e.paidBy,
+      splitAmong: people.length ? people : (e.splitAmong||[]),
+    });
+    added++;
+  });
+  save();
+  closeModal('modal-copy-expenses');
+  renderExpenses();
+  toast(`${added} expense${added!==1?'s':''} copied ✓`);
 }
 
 // ══════════════════════════════════════════════
