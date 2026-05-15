@@ -352,25 +352,34 @@
     .hero-photo { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; filter:brightness(.7) saturate(1.3); transition:transform .5s ease; }
     .hero-overlay-animated { position:absolute; inset:0; background:linear-gradient(135deg,rgba(124,58,237,.12),rgba(244,63,94,.08),rgba(124,58,237,.1)); background-size:300% 300%; animation:gradientShift 8s ease infinite; pointer-events:none; }
 
-    /* ═══ TIMELINE OVERVIEW ═══ */
-    .ov-timeline { position:relative; padding:2rem 0; }
-    .ov-timeline::before { content:''; position:absolute; left:50%; top:0; bottom:0; width:2px; background:linear-gradient(180deg, transparent, var(--accent), var(--accent2), var(--green), var(--accent), transparent); transform:translateX(-50%); }
-    .ov-city-divider { position:relative; text-align:center; margin:3rem 0 2rem; z-index:2; }
-    .ov-city-divider-inner { display:inline-flex; align-items:center; gap:.8rem; padding:.8rem 2rem; background:var(--bg); border:2px solid var(--accent); border-radius:50px; box-shadow:0 0 30px rgba(124,58,237,.15); text-decoration:none; color:inherit; transition:box-shadow .2s,transform .2s; cursor:pointer; }
-    .ov-city-divider-inner:hover { box-shadow:0 0 40px rgba(124,58,237,.35); transform:scale(1.03); }
-    .ov-city-divider-emoji { font-size:1.6rem; }
-    .ov-city-divider-name { font-family:var(--font-heading); font-size:1.4rem; font-weight:700; }
-    .ov-city-divider-tagline { font-size:.72rem; color:var(--muted); margin-top:2px; font-style:italic; letter-spacing:.01em; }
-    [data-theme="light"] .ov-city-divider-tagline { color:#4a5280; }
-    .ov-city-divider-dates { font-size:.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:1px; }
-    .ov-day-card { position:relative; width:44%; margin-bottom:2.5rem; }
-    .ov-day-card:nth-child(odd) { margin-left:4%; }
-    .ov-day-card:nth-child(even) { margin-left:52%; }
-    .ov-day-card::before { content:attr(data-day-num); position:absolute; top:1.5rem; width:34px; height:34px; background:var(--accent); border:3px solid var(--bg); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:.7rem; font-weight:700; z-index:3; color:#fff; box-shadow:0 0 12px rgba(124,58,237,.4); }
-    .ov-day-card:nth-child(odd)::before { right:-55px; }
-    .ov-day-card:nth-child(even)::before { left:-55px; }
-    .ov-card-inner { background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; transition:all .3s cubic-bezier(.4,0,.2,1); }
-    .ov-card-inner:hover { border-color:var(--accent); box-shadow:0 20px 40px -12px rgba(0,0,0,.5), 0 0 24px rgba(124,58,237,.12); transform:translateY(-3px); }
+    /* ═══ OVERVIEW TIME DIAL ═══ */
+    .ov-dial-wrap { margin-bottom:16px; }
+    .ov-dial-strip { display:flex; gap:7px; overflow-x:auto; padding:6px 2px 10px; scrollbar-width:none; -ms-overflow-style:none; }
+    .ov-dial-strip::-webkit-scrollbar { display:none; }
+    .ov-dial-day { flex-shrink:0; width:54px; text-align:center; cursor:pointer; user-select:none; }
+    .ov-dial-circle { width:46px; height:46px; border-radius:50%; border:2px solid var(--border); display:flex; align-items:center; justify-content:center; margin:0 auto 4px; transition:all .2s; background:var(--surface); }
+    .ov-dial-day.today .ov-dial-circle { border-color:var(--accent); }
+    .ov-dial-day.selected .ov-dial-circle { background:var(--grad); border-color:transparent; box-shadow:0 4px 16px rgba(124,58,237,.4); }
+    .ov-dial-day-num { font-size:.78rem; font-weight:800; color:var(--muted); transition:color .2s; }
+    .ov-dial-day.today:not(.selected) .ov-dial-day-num { color:var(--accent); }
+    .ov-dial-day.selected .ov-dial-day-num { color:#fff; }
+    .ov-dial-day-lbl { font-size:.6rem; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:clip; }
+    .ov-dial-day.selected .ov-dial-day-lbl { color:var(--accent); font-weight:700; }
+    .ov-dial-nav { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+    .ov-dial-nav button { background:var(--surface); border:1px solid var(--border); border-radius:8px; color:var(--text); padding:5px 12px; cursor:pointer; font-size:.85rem; transition:all .2s; }
+    .ov-dial-nav button:hover { border-color:var(--accent); color:var(--accent); }
+    .ov-dial-nav button:disabled { opacity:.3; cursor:default; }
+    .ov-day-detail { animation:fadeIn .2s ease; }
+    .ov-journal-thumbs { display:flex; flex-wrap:wrap; gap:8px; margin-top:.6rem; }
+    .ov-journal-thumb { width:72px; height:72px; object-fit:cover; border-radius:8px; cursor:pointer; border:2px solid var(--border); transition:all .2s; }
+    .ov-journal-thumb:hover { border-color:var(--accent); transform:scale(1.05); }
+    .ov-journal-note { background:rgba(245,158,11,.07); border:1px solid rgba(245,158,11,.15); border-radius:8px; padding:7px 11px; font-size:.82rem; color:var(--text); font-style:italic; margin-top:4px; }
+    .ov-city-divider { text-align:center; margin:0 0 16px; }
+    .ov-city-divider-inner { display:inline-flex; align-items:center; gap:.6rem; padding:.5rem 1.4rem; background:var(--surface); border:1px solid var(--accent); border-radius:50px; text-decoration:none; color:inherit; transition:all .2s; }
+    .ov-city-divider-inner:hover { box-shadow:0 0 20px rgba(124,58,237,.25); }
+    .ov-city-divider-name { font-size:.9rem; font-weight:700; }
+    .ov-city-divider-tagline { font-size:.7rem; color:var(--muted); }
+    .ov-card-inner { background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; }
     .ov-card-body { padding:1.2rem 1.3rem; }
     .ov-card-date-header { margin-bottom:.75rem; }
     .ov-card-day-badge { font-size:.68rem; font-weight:800; text-transform:uppercase; letter-spacing:.1em; color:var(--accent); background:rgba(124,58,237,.18); padding:3px 10px; border-radius:10px; display:inline-block; margin-bottom:5px; }
@@ -386,16 +395,16 @@
     .ov-act-meta { display:flex; align-items:center; gap:5px; margin-top:4px; flex-wrap:wrap; }
     .ov-activity-time { font-size:.7rem; color:var(--accent); background:rgba(124,58,237,.12); padding:2px 8px; border-radius:7px; font-weight:700; }
     .ov-card-hotel { display:block; background:rgba(245,158,11,.06); border:1px solid rgba(245,158,11,.15); border-radius:10px; padding:.7rem .9rem; margin-top:.5rem; text-decoration:none; color:inherit; transition:all .3s ease; }
-    .ov-card-hotel:hover { background:rgba(245,158,11,.12); border-color:var(--yellow); transform:translateX(3px); }
+    .ov-card-hotel:hover { background:rgba(245,158,11,.12); border-color:var(--yellow); }
     .ov-card-hotel-label { font-size:.65rem; text-transform:uppercase; letter-spacing:2px; color:var(--yellow); margin-bottom:.2rem; display:flex; align-items:center; gap:.4rem; }
     .ov-card-hotel-name { font-size:.82rem; color:var(--text); line-height:1.4; font-weight:600; }
     .ov-card-hotel-address { font-size:.72rem; color:var(--muted); margin-top:.2rem; }
     .ov-card-cost { display:inline-flex; align-items:center; gap:.3rem; padding:.2rem .7rem; background:rgba(16,185,129,.08); border:1px solid rgba(16,185,129,.2); border-radius:50px; font-size:.75rem; font-weight:600; color:var(--green); margin-top:.6rem; }
-    @media(max-width:900px) {
-      .ov-timeline::before { left:28px; }
-      .ov-day-card { width:calc(100% - 56px); margin-left:56px !important; }
-      .ov-day-card::before { left:-44px !important; right:auto !important; }
-    }
+    /* ═══ JOURNAL DAY GROUPS ═══ */
+    .jday-section { margin-bottom:24px; }
+    .jday-header { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+    .jday-badge { font-size:.68rem; font-weight:800; text-transform:uppercase; letter-spacing:.1em; color:var(--accent); background:rgba(124,58,237,.18); padding:3px 10px; border-radius:10px; }
+    .jday-date { font-size:.88rem; font-weight:700; }
 
     /* ═══ FALLING ELEMENTS ═══ */
     .falling-el { position:fixed; top:-20px; z-index:1; pointer-events:none; animation:fallingAnim linear infinite; opacity:.5; }
@@ -740,6 +749,9 @@
     <div id="tab-notes" class="tab-content">
       <div class="journal-form">
         <div style="font-family:var(--font-heading);font-size:1.1rem;font-weight:700;margin-bottom:.3rem">Add to Journal</div>
+        <select id="journal-day" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .7rem;color:var(--text);font-family:inherit;font-size:.85rem;width:100%">
+          <option value="">📅 Select day…</option>
+        </select>
         <textarea class="journal-note-input" id="journal-text" placeholder="Write a note, memory, or tip..."></textarea>
         <label class="journal-file-label">
           <span style="font-size:1.3rem">📷</span>
@@ -1100,8 +1112,9 @@ let editingDestId     = null;
 let editingPackItemId = null;
 let editingExpenseId  = null;
 let expListCollapsed  = true; // expense list collapsed by default
-let ovTimeFilter      = null; // null = auto-detect from trip status
+let ovTimeFilter      = null;
 let itinTimeFilter    = null;
+let ovSelectedDay     = null;
 let editingStayId     = null;
 let editingStayOriginalDates = null; // {checkin, checkout} of the stay before editing
 // Undo delete
@@ -1178,6 +1191,7 @@ function renderAllTabs() {
   renderPacking();
   renderOverview();
   renderJournal();
+  populateJournalDaySelect();
   document.getElementById('notes-editor').value = getTrip()?.notes || '';
 }
 
@@ -1638,6 +1652,7 @@ function openTrip(id) {
   currentTripId = id;
   ovTimeFilter   = null;
   itinTimeFilter = null;
+  ovSelectedDay  = null;
   const t = getTrip();
   document.getElementById('d-banner').textContent = t.emoji;
   document.getElementById('d-title').textContent  = t.destination;
@@ -1775,6 +1790,8 @@ function getCatIcon(cat) {
   const icons = { food:'🍽️', activity:'🎯', hotel:'🏨', transport:'🚗', shopping:'🛍️', attraction:'🎡', other:'📌' };
   return icons[cat] || '📌';
 }
+function selectOvDay(day) { ovSelectedDay = day; renderOverview(); }
+
 function renderOverview() {
   const t = getTrip();
   const allDays = getDayList(t);
@@ -1787,13 +1804,15 @@ function renderOverview() {
     return;
   }
 
-  if (!ovTimeFilter) ovTimeFilter = defaultTimeFilter(t);
-  const days = allDays.filter(d =>
-    ovTimeFilter === 'past'    ? d < today :
-    ovTimeFilter === 'present' ? d === today : d > today
-  );
+  // Auto-select: today if in trip, else nearest future day, else last day
+  if (!ovSelectedDay || !allDays.includes(ovSelectedDay)) {
+    ovSelectedDay = allDays.includes(today) ? today
+      : (allDays.find(d => d >= today) || allDays[allDays.length - 1]);
+  }
+  const day = ovSelectedDay;
+  const selIdx = allDays.indexOf(day);
 
-  // Build date→stay map (normalise name/hotel field)
+  // Build date→stay map
   const normStays = (t.stays||[]).map(s => ({...s, name: s.name || s.hotel || ''}));
   const dayStay = {};
   for (const stay of normStays) {
@@ -1803,111 +1822,112 @@ function renderOverview() {
     }
   }
 
-  // Determine city groupings from destinations for city dividers
-  let lastCity = null;
-  const cards = [];
-
-  days.forEach((day) => {
-    const globalIdx = allDays.indexOf(day);
-    const isToday = day === today;
-    const stay = dayStay[day] || null;
-    const isCheckin  = stay && stay.checkin === day;
-    const isCheckout = (t.stays||[]).some(s => s.checkout === day);
-    const dests = (t.destinations||[]).filter(d => d.day === day);
-    const acts  = (t.itinerary||[]).filter(a => a.day === day).sort((a,b) => (a.time||'').localeCompare(b.time||''));
-
-    // City divider logic
-    const cityName = stay ? (stay.city || stay.name) : (dests.length ? dests[0].name : null);
-    if (cityName && cityName !== lastCity) {
-      cards.push({ type:'divider', city:cityName });
-      lastCity = cityName;
-    }
-
-    // Dest pills
-    const destPills = dests.map(d =>
-      `<span class="ov-dest-pill">📍 ${escHtml(d.name)}</span>`
-    ).join('');
-
-    // Activity list items
-    const actList = acts.map(a =>
-      `<li>
-        <div class="ov-activity-icon">${getCatIcon(a.category)}</div>
-        <div class="ov-act-info">
-          <div class="ov-act-name">${escHtml(a.name)}</div>
-          <div class="ov-act-meta">
-            ${a.time ? `<span class="ov-activity-time">🕐 ${escHtml(a.time)}</span>` : ''}
-            <span class="cat-pill cat-${a.category}">${EXP_CAT_LABELS[a.category]||a.category}</span>
-          </div>
-        </div>
-      </li>`
-    ).join('');
-
-    // Hotel box
-    let hotelBox = '';
-    if (stay) {
-      const mapsQ = encodeURIComponent(stay.address || (stay.name + (stay.city ? ' ' + stay.city : '')));
-      hotelBox = `<a class="ov-card-hotel" href="https://www.google.com/maps/search/?api=1&query=${mapsQ}" target="_blank" rel="noopener">
-        <div class="ov-card-hotel-label">🏨 ${isCheckin ? 'Check-in' : 'Staying at'}</div>
-        <div class="ov-card-hotel-name">${escHtml(stay.name)}</div>
-        ${stay.city ? `<div class="ov-card-hotel-address">📍 ${escHtml(stay.city)}</div>` : ''}
-        ${stay.conf ? `<div style="margin-top:.3rem"><span class="ov-conf">${escHtml(stay.conf)}</span></div>` : ''}
-      </a>`;
-    } else if (isCheckout) {
-      hotelBox = `<div style="margin-top:.5rem"><span class="ov-event ov-checkout">Check-out day</span></div>`;
-    }
-
-    // Cost
-    const costHtml = stay && stay.cost > 0
-      ? `<div class="ov-card-cost">💰 ${cur}${Number(stay.cost).toFixed(2)} total</div>` : '';
-
-    const dayDate = new Date(day+'T00:00');
-    const dateStr = dayDate.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
-    const todayBadge = isToday ? `<span class="ov-badge ov-badge-today">Today</span>` : '';
-
-    cards.push({ type:'day', html:`
-      <div class="ov-day-card" data-day-num="${globalIdx+1}">
-        <div class="ov-card-inner">
-          <div class="ov-card-body">
-            <div class="ov-card-date-header">
-              <span class="ov-card-day-badge">Day ${globalIdx+1}</span>
-              <div class="ov-card-date-str">${dateStr}${todayBadge}</div>
-            </div>
-            ${destPills ? `<div class="ov-dest-pills">${destPills}</div>` : ''}
-            ${actList ? `<ul class="ov-card-activities">${actList}</ul>` : ''}
-            ${hotelBox}
-            ${costHtml}
-          </div>
-        </div>
-      </div>`
-    });
-  });
-
-  const html = cards.map(c => {
-    if (c.type === 'divider') {
-      const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.city)}`;
-      const tagline = getCityTagline(c.city);
-      return `<div class="ov-city-divider">
-        <a class="ov-city-divider-inner" href="${mapsUrl}" target="_blank" rel="noopener">
-          <span class="ov-city-divider-emoji">📍</span>
-          <div>
-            <div class="ov-city-divider-name">${escHtml(c.city)}</div>
-            <div class="ov-city-divider-tagline">${escHtml(tagline)}</div>
-          </div>
-        </a>
+  // ── Dial strip ──────────────────────────────
+  const dialHtml = `<div class="ov-dial-wrap">
+    <div class="ov-dial-strip" id="ov-dial-strip">${allDays.map((d, idx) => {
+      const isSel = d === day, isToday2 = d === today;
+      const lbl = new Date(d+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
+      return `<div class="ov-dial-day${isSel?' selected':''}${isToday2?' today':''}" onclick="selectOvDay('${d}')">
+        <div class="ov-dial-circle"><span class="ov-dial-day-num">${idx+1}</span></div>
+        <div class="ov-dial-day-lbl">${lbl}</div>
       </div>`;
-    }
-    return c.html;
-  }).join('');
+    }).join('')}</div>
+  </div>`;
 
-  const emptyMsg = days.length === 0
-    ? `<div class="empty-state"><div class="ei">${ovTimeFilter==='past'?'⏮':ovTimeFilter==='present'?'📍':'✈️'}</div><p>No ${ovTimeFilter} days in this trip.</p></div>`
-    : '';
+  // ── Selected day data ──────────────────────
+  const isToday = day === today;
+  const stay     = dayStay[day] || null;
+  const isCheckin  = stay && stay.checkin === day;
+  const isCheckout = (t.stays||[]).some(s => s.checkout === day);
+  const dests = (t.destinations||[]).filter(d => d.day === day);
+  const acts  = (t.itinerary||[]).filter(a => a.day === day).sort((a,b) => (a.time||'').localeCompare(b.time||''));
+  const journalForDay = (t.journal||[]).filter(e => (e.day || e.date) === day);
 
-  wrap.innerHTML = timeFilterBar('ov', ovTimeFilter) + `
-    <div style="font-size:.78rem;color:var(--muted);margin-bottom:10px">
-      Tip: add destinations in the <strong>Itinerary</strong> tab and hotels in the <strong>Stay</strong> tab — they'll appear here automatically.
+  const cityName = stay ? (stay.city || stay.name) : (dests.length ? dests[0].name : null);
+  const cityBar = cityName ? (() => {
+    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(cityName)}`;
+    return `<div class="ov-city-divider"><a class="ov-city-divider-inner" href="${mapsUrl}" target="_blank" rel="noopener">
+      <span>📍</span><div>
+        <div class="ov-city-divider-name">${escHtml(cityName)}</div>
+        <div class="ov-city-divider-tagline">${escHtml(getCityTagline(cityName))}</div>
+      </div></a></div>`;
+  })() : '';
+
+  const destPills = dests.map(d => `<span class="ov-dest-pill">📍 ${escHtml(d.name)}</span>`).join('');
+
+  const actList = acts.map(a => `<li>
+    <div class="ov-activity-icon">${getCatIcon(a.category)}</div>
+    <div class="ov-act-info">
+      <div class="ov-act-name">${escHtml(a.name)}</div>
+      <div class="ov-act-meta">
+        ${a.time ? `<span class="ov-activity-time">🕐 ${escHtml(a.time)}</span>` : ''}
+        <span class="cat-pill cat-${a.category}">${EXP_CAT_LABELS[a.category]||a.category}</span>
+      </div>
+    </div></li>`).join('');
+
+  let hotelBox = '';
+  if (stay) {
+    const mapsQ = encodeURIComponent(stay.address || (stay.name + (stay.city ? ' ' + stay.city : '')));
+    hotelBox = `<a class="ov-card-hotel" href="https://www.google.com/maps/search/?api=1&query=${mapsQ}" target="_blank" rel="noopener">
+      <div class="ov-card-hotel-label">🏨 ${isCheckin ? 'Check-in' : 'Staying at'}</div>
+      <div class="ov-card-hotel-name">${escHtml(stay.name)}</div>
+      ${stay.city ? `<div class="ov-card-hotel-address">📍 ${escHtml(stay.city)}</div>` : ''}
+      ${stay.conf ? `<div style="margin-top:.3rem"><span class="ov-conf">${escHtml(stay.conf)}</span></div>` : ''}
+    </a>`;
+  } else if (isCheckout) {
+    hotelBox = `<div style="margin-top:.5rem"><span class="ov-event ov-checkout">Check-out day</span></div>`;
+  }
+
+  const costHtml = stay && stay.cost > 0 ? `<div class="ov-card-cost">💰 ${cur}${Number(stay.cost).toFixed(2)} total</div>` : '';
+
+  const journalHtml = journalForDay.length ? `
+    <div style="margin-top:.85rem">
+      <div class="sub-label" style="margin-bottom:8px">📸 Memories</div>
+      <div class="ov-journal-thumbs">
+        ${journalForDay.map(e => e.image
+          ? `<img class="ov-journal-thumb" src="${e.image}" onclick="openLightbox(this.src)" title="${escHtml(e.text||'')}" />`
+          : `<div class="ov-journal-note">${escHtml(e.text)}</div>`
+        ).join('')}
+      </div>
+    </div>` : '';
+
+  const todayBadge = isToday ? `<span class="ov-badge ov-badge-today">Today</span>` : '';
+  const dateStr = new Date(day+'T00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+
+  const prevDay = allDays[selIdx - 1] || null;
+  const nextDay = allDays[selIdx + 1] || null;
+
+  const detailHtml = `<div class="ov-day-detail">
+    ${cityBar}
+    <div class="ov-card-inner">
+      <div class="ov-card-body">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:.75rem">
+          <div>
+            <span class="ov-card-day-badge">Day ${selIdx+1}</span>
+            <div class="ov-card-date-str" style="margin-top:5px">${dateStr} ${todayBadge}</div>
+          </div>
+          <div style="display:flex;gap:5px">
+            <button onclick="selectOvDay('${prevDay}')" ${!prevDay?'disabled':''} style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:5px 10px;cursor:pointer;font-size:.85rem;color:var(--text)">◀</button>
+            <button onclick="selectOvDay('${nextDay}')" ${!nextDay?'disabled':''} style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:5px 10px;cursor:pointer;font-size:.85rem;color:var(--text)">▶</button>
+          </div>
+        </div>
+        ${destPills ? `<div class="ov-dest-pills">${destPills}</div>` : ''}
+        ${actList ? `<ul class="ov-card-activities">${actList}</ul>` : ''}
+        ${hotelBox}
+        ${costHtml}
+        ${journalHtml}
+      </div>
     </div>
-    ${emptyMsg || `<div class="ov-timeline">${html}</div>`}`;
+  </div>`;
+
+  wrap.innerHTML = dialHtml + detailHtml;
+
+  // Scroll selected circle into view
+  setTimeout(() => {
+    const strip = document.getElementById('ov-dial-strip');
+    const sel = strip?.querySelector('.ov-dial-day.selected');
+    if (sel) sel.scrollIntoView({ behavior:'smooth', block:'nearest', inline:'center' });
+  }, 50);
 }
 
 // ══════════════════════════════════════════════
@@ -3046,14 +3066,29 @@ function previewJournalFile(input) {
   if (file) { label.textContent = file.name; }
   else { label.textContent = 'Add a photo (optional)'; }
 }
+function populateJournalDaySelect() {
+  const t = getTrip(); if (!t) return;
+  const sel = document.getElementById('journal-day'); if (!sel) return;
+  const days = getDayList(t);
+  const today = localDate();
+  sel.innerHTML = '<option value="">📅 Select day…</option>' +
+    days.map((d, idx) => {
+      const label = new Date(d+'T00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+      const sel2 = d === today ? ' selected' : '';
+      return `<option value="${d}"${sel2}>Day ${idx+1} · ${label}</option>`;
+    }).join('');
+}
+
 function addJournalEntry() {
   const t = getTrip(); if (!t) return;
+  const dayVal = document.getElementById('journal-day')?.value || localDate();
   const text = document.getElementById('journal-text').value.trim();
   const author = document.getElementById('journal-author').value.trim() || 'Me';
   const fileInput = document.getElementById('journal-file');
   const file = fileInput.files[0];
 
   if (!text && !file) return toast('Write something or add a photo');
+  if (!dayVal) return toast('Select a day first');
 
   if (!t.journal) t.journal = [];
 
@@ -3076,7 +3111,7 @@ function addJournalEntry() {
         t.journal.push({
           id: Date.now().toString(),
           text, image: compressed, author,
-          date: localDate()
+          day: dayVal, date: localDate()
         });
         save(); renderJournal();
         document.getElementById('journal-text').value = '';
@@ -3090,10 +3125,8 @@ function addJournalEntry() {
   } else {
     t.journal.push({
       id: Date.now().toString(),
-      text: text,
-      image: null,
-      author: author,
-      date: localDate()
+      text, image: null, author,
+      day: dayVal, date: localDate()
     });
     save(); renderJournal();
     document.getElementById('journal-text').value = '';
@@ -3118,39 +3151,70 @@ function renderJournal() {
     board.innerHTML = `<div class="journal-board-empty">📌 No memories yet — add a photo or note above!</div>`;
     return;
   }
+
+  // Group entries by day (use entry.day if set, else entry.date)
+  const allDays = getDayList(t);
+  const grouped = {};
+  entries.forEach(e => { const k = e.day || e.date || ''; (grouped[k] = grouped[k]||[]).push(e); });
+  // Sort groups by day order (trip days first, then any orphan dates)
+  const orderedKeys = [
+    ...allDays.filter(d => grouped[d]),
+    ...Object.keys(grouped).filter(k => !allDays.includes(k) && grouped[k])
+  ];
+
   const PIN_COLORS = ['#ef4444','#3b82f6','#10b981','#f59e0b','#7c3aed','#f97316','#ec4899','#06b6d4'];
-  board.innerHTML = [...entries].reverse().map((entry, i) => {
-    const rng   = seededRng(entry.id);
-    const szIdx = Math.floor(rng() * 3);       // 0=small 1=medium 2=large
-    const deg   = (rng() - 0.5) * 22;          // –11 … +11°
-    const tx    = (rng() - 0.5) * 32;          // x nudge
-    const ty    = (rng() - 0.5) * 22;          // y nudge
-    const pin   = PIN_COLORS[i % PIN_COLORS.length];
-    const mtop  = 12 + Math.round(rng() * 40);
-    const base  = `transform:rotate(${deg.toFixed(1)}deg) translate(${tx.toFixed(0)}px,${ty.toFixed(0)}px);margin-top:${mtop}px;z-index:${entries.length - i}`;
-    // size tables: [small, medium, large]
-    const imgW  = [145, 195, 260][szIdx];
-    const imgH  = [115, 158, 212][szIdx];
-    const stW   = [125, 162, 210][szIdx];
-    const stMH  = [95,  132, 172][szIdx];
-    if (entry.image) {
-      return `<div class="journal-item" style="${base};width:${imgW}px">
-        <div class="journal-pin" style="background:${pin}"></div>
-        <img src="${entry.image}" alt="Memory" loading="lazy" onclick="openLightbox(this.src)" style="height:${imgH}px" />
-        <div class="journal-caption">
-          ${entry.text ? `<div class="journal-caption-text">${escHtml(entry.text)}</div>` : ''}
-          <div class="journal-caption-meta">📍 ${escHtml(entry.author)} · ${entry.date}</div>
-        </div>
-        <button class="journal-del" onclick="removeJournalEntry('${entry.id}')">✕ remove</button>
-      </div>`;
-    } else {
-      return `<div class="journal-sticky" style="${base};width:${stW}px;min-height:${stMH}px">
-        <div class="journal-pin" style="background:${pin}"></div>
-        <div class="journal-sticky-text">${escHtml(entry.text)}</div>
-        <div class="journal-sticky-meta">📍 ${escHtml(entry.author)} · ${entry.date}</div>
-        <button class="journal-del" onclick="removeJournalEntry('${entry.id}')">✕</button>
-      </div>`;
-    }
+
+  function renderEntries(dayEntries, globalOffset) {
+    return [...dayEntries].reverse().map((entry, i) => {
+      const gi = globalOffset + i;
+      const rng  = seededRng(entry.id);
+      const szIdx = Math.floor(rng() * 3);
+      const deg  = (rng() - 0.5) * 22;
+      const tx   = (rng() - 0.5) * 32;
+      const ty   = (rng() - 0.5) * 22;
+      const pin  = PIN_COLORS[gi % PIN_COLORS.length];
+      const mtop = 12 + Math.round(rng() * 40);
+      const base = `transform:rotate(${deg.toFixed(1)}deg) translate(${tx.toFixed(0)}px,${ty.toFixed(0)}px);margin-top:${mtop}px;z-index:${dayEntries.length - i}`;
+      const imgW = [145,195,260][szIdx], imgH = [115,158,212][szIdx];
+      const stW  = [125,162,210][szIdx], stMH = [95,132,172][szIdx];
+      if (entry.image) {
+        return `<div class="journal-item" style="${base};width:${imgW}px">
+          <div class="journal-pin" style="background:${pin}"></div>
+          <img src="${entry.image}" alt="Memory" loading="lazy" onclick="openLightbox(this.src)" style="height:${imgH}px" />
+          <div class="journal-caption">
+            ${entry.text ? `<div class="journal-caption-text">${escHtml(entry.text)}</div>` : ''}
+            <div class="journal-caption-meta">📍 ${escHtml(entry.author)} · ${entry.day||entry.date}</div>
+          </div>
+          <button class="journal-del" onclick="removeJournalEntry('${entry.id}')">✕ remove</button>
+        </div>`;
+      } else {
+        return `<div class="journal-sticky" style="${base};width:${stW}px;min-height:${stMH}px">
+          <div class="journal-pin" style="background:${pin}"></div>
+          <div class="journal-sticky-text">${escHtml(entry.text)}</div>
+          <div class="journal-sticky-meta">📍 ${escHtml(entry.author)} · ${entry.day||entry.date}</div>
+          <button class="journal-del" onclick="removeJournalEntry('${entry.id}')">✕</button>
+        </div>`;
+      }
+    }).join('');
+  }
+
+  let offset = 0;
+  board.innerHTML = orderedKeys.map(k => {
+    const dayEntries = grouped[k];
+    const dayIdx = allDays.indexOf(k);
+    const dayLabel = dayIdx >= 0
+      ? `Day ${dayIdx+1} · ${new Date(k+'T00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}`
+      : k;
+    const html = `<div class="jday-section">
+      <div class="jday-header">
+        <span class="jday-badge">${dayLabel}</span>
+      </div>
+      <div style="position:relative;min-height:180px;display:flex;flex-wrap:wrap;align-items:flex-start">
+        ${renderEntries(dayEntries, offset)}
+      </div>
+    </div>`;
+    offset += dayEntries.length;
+    return html;
   }).join('');
 }
 
