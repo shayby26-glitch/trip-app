@@ -3065,8 +3065,17 @@ function stopFallingElements() {
 function previewJournalFile(input) {
   const file = input.files[0];
   const label = document.getElementById('journal-file-name');
-  if (file) { label.textContent = file.name; }
-  else { label.textContent = 'Add a photo (optional)'; }
+  if (file) {
+    label.textContent = file.name;
+    // Auto-select the day chip matching the photo's taken date (file.lastModified)
+    const t = getTrip();
+    if (t && file.lastModified) {
+      const photoDate = localDate(new Date(file.lastModified));
+      if (getDayList(t).includes(photoDate)) selectJournalDay(photoDate);
+    }
+  } else {
+    label.textContent = 'Add a photo (optional)';
+  }
 }
 function selectJournalDay(day) {
   document.getElementById('journal-day').value = day;
