@@ -539,6 +539,12 @@
     #lightbox.open img { transform:scale(1); }
     #lightbox-close { position:absolute; top:18px; right:22px; background:rgba(255,255,255,.15); border:none; color:#fff; font-size:1.4rem; width:40px; height:40px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .2s; }
     #lightbox-close:hover { background:rgba(255,255,255,.3); }
+    #lb-prev, #lb-next { position:absolute; top:50%; transform:translateY(-50%); background:rgba(255,255,255,.15); border:none; color:#fff; font-size:2rem; width:48px; height:48px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .2s; user-select:none; }
+    #lb-prev { left:14px; }
+    #lb-next { right:14px; }
+    #lb-prev:hover, #lb-next:hover { background:rgba(255,255,255,.3); }
+    #lb-prev:disabled, #lb-next:disabled { opacity:.25; cursor:default; }
+    #lb-counter { position:absolute; bottom:18px; left:50%; transform:translateX(-50%); color:rgba(255,255,255,.65); font-size:.78rem; font-weight:600; pointer-events:none; }
     .journal-caption { padding:6px 4px 0; text-align:center; }
     .journal-caption-text { font-family:var(--font-body); font-size:.72rem; color:#333; line-height:1.4; max-height:54px; overflow:hidden; }
     .journal-caption-meta { font-size:.63rem; color:#999; margin-top:3px; }
@@ -1337,17 +1343,53 @@ function undoDelete() {
   document.getElementById('toast').classList.remove('show');
   toast('Restored ✓');
 }
-function openLightbox(src) {
+// Lightbox gallery state
+const _lbGal = {};   // key → [src, src, …]  populated by render functions
+let _lbCur = [], _lbIdx = 0, _lbTouchX = 0;
+
+function openLightbox(src, galKey) {
+  _lbCur = (galKey && _lbGal[galKey]) ? _lbGal[galKey] : [src];
+  _lbIdx = Math.max(0, _lbCur.indexOf(src));
+  _lbShow(_lbIdx);
+  document.getElementById('lightbox').classList.add('open');
+  document.addEventListener('keydown', _lbKey);
   const lb = document.getElementById('lightbox');
-  document.getElementById('lightbox-img').src = src;
-  lb.classList.add('open');
-  document.addEventListener('keydown', closeLightboxOnEsc);
+  lb.addEventListener('touchstart', _lbTouchStart, {passive:true});
+  lb.addEventListener('touchend', _lbTouchEnd, {passive:true});
+}
+function _lbShow(idx) {
+  _lbIdx = idx;
+  document.getElementById('lightbox-img').src = _lbCur[idx];
+  const prev = document.getElementById('lb-prev');
+  const next = document.getElementById('lb-next');
+  const ctr  = document.getElementById('lb-counter');
+  const multi = _lbCur.length > 1;
+  prev.style.display = next.style.display = multi ? '' : 'none';
+  prev.disabled = idx === 0;
+  next.disabled = idx === _lbCur.length - 1;
+  ctr.textContent = multi ? `${idx + 1} / ${_lbCur.length}` : '';
+}
+function lbNav(dir) {
+  const n = _lbIdx + dir;
+  if (n >= 0 && n < _lbCur.length) _lbShow(n);
 }
 function closeLightbox() {
   document.getElementById('lightbox').classList.remove('open');
-  document.removeEventListener('keydown', closeLightboxOnEsc);
+  document.removeEventListener('keydown', _lbKey);
+  const lb = document.getElementById('lightbox');
+  lb.removeEventListener('touchstart', _lbTouchStart);
+  lb.removeEventListener('touchend', _lbTouchEnd);
 }
-function closeLightboxOnEsc(e) { if (e.key === 'Escape') closeLightbox(); }
+function _lbKey(e) {
+  if (e.key === 'Escape') closeLightbox();
+  if (e.key === 'ArrowLeft')  lbNav(-1);
+  if (e.key === 'ArrowRight') lbNav(1);
+}
+function _lbTouchStart(e) { _lbTouchX = e.touches[0].clientX; }
+function _lbTouchEnd(e) {
+  const dx = e.changedTouches[0].clientX - _lbTouchX;
+  if (Math.abs(dx) > 50) lbNav(dx < 0 ? 1 : -1);
+}
 
 function openDatePicker(id) {
   const el = document.getElementById(id);
@@ -1882,12 +1924,14 @@ function renderOverview() {
 
   const costHtml = '';
 
+  const ovGalKey = 'ov-' + day;
+  _lbGal[ovGalKey] = journalForDay.filter(e => e.image).map(e => e.image);
   const journalHtml = journalForDay.length ? `
     <div style="margin-top:.85rem">
       <div class="sub-label" style="margin-bottom:8px">📸 Memories</div>
       <div class="ov-journal-thumbs">
         ${journalForDay.map(e => e.image
-          ? `<img class="ov-journal-thumb" src="${e.image}" onclick="openLightbox(this.src)" title="${escHtml(e.text||'')}" />`
+          ? `<img class="ov-journal-thumb" src="${e.image}" onclick="openLightbox(this.src,'${ovGalKey}')" title="${escHtml(e.text||'')}" />`
           : `<div class="ov-journal-note">${escHtml(e.text)}</div>`
         ).join('')}
       </div>
@@ -3197,7 +3241,9 @@ function renderJournal() {
 
   const PIN_COLORS = ['#ef4444','#3b82f6','#10b981','#f59e0b','#7c3aed','#f97316','#ec4899','#06b6d4'];
 
-  function renderEntries(dayEntries, globalOffset) {
+  function renderEntries(dayEntries, globalOffset, galKey) {
+    // Register this day's images as a lightbox gallery
+    _lbGal[galKey] = dayEntries.filter(e => e.image).map(e => e.image);
     return [...dayEntries].reverse().map((entry, i) => {
       const gi = globalOffset + i;
       const rng  = seededRng(entry.id);
@@ -3213,7 +3259,7 @@ function renderJournal() {
       if (entry.image) {
         return `<div class="journal-item" style="${base};width:${imgW}px">
           <div class="journal-pin" style="background:${pin}"></div>
-          <img src="${entry.image}" alt="Memory" loading="lazy" onclick="openLightbox(this.src)" style="height:${imgH}px" />
+          <img src="${entry.image}" alt="Memory" loading="lazy" onclick="openLightbox(this.src,'${galKey}')" style="height:${imgH}px" />
           <div class="journal-caption">
             ${entry.text ? `<div class="journal-caption-text">${escHtml(entry.text)}</div>` : ''}
             <div class="journal-caption-meta">📍 ${escHtml(entry.author)} · ${entry.day||entry.date}</div>
@@ -3243,7 +3289,7 @@ function renderJournal() {
         <span class="jday-badge">${dayLabel}</span>
       </div>
       <div style="position:relative;min-height:180px;display:flex;flex-wrap:wrap;align-items:flex-start">
-        ${renderEntries(dayEntries, offset)}
+        ${renderEntries(dayEntries, offset, 'j-'+k)}
       </div>
     </div>`;
     offset += dayEntries.length;
@@ -4158,7 +4204,10 @@ authReady.then(() => {
 </script>
 <div id="lightbox" onclick="closeLightbox()">
   <button id="lightbox-close" onclick="closeLightbox()">✕</button>
+  <button id="lb-prev" onclick="event.stopPropagation();lbNav(-1)">‹</button>
   <img id="lightbox-img" src="" alt="Full size" onclick="event.stopPropagation()" />
+  <button id="lb-next" onclick="event.stopPropagation();lbNav(1)">›</button>
+  <div id="lb-counter"></div>
 </div>
 </body>
 </html>
