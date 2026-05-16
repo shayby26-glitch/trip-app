@@ -427,6 +427,11 @@
     .journal-author-input { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:.5rem .7rem; color:var(--text); font-family:inherit; font-size:.85rem; max-width:200px; }
     .journal-submit { background:var(--grad); color:#fff; border:none; border-radius:10px; padding:.65rem 1.2rem; font-family:inherit; font-size:.9rem; font-weight:700; cursor:pointer; transition:all .2s; }
     .journal-submit:hover { opacity:.85; transform:translateY(-2px); }
+    .journal-link-row { display:flex; align-items:center; gap:.7rem; background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:.6rem 1rem; }
+    .journal-link-row input { flex:1; background:transparent; border:none; outline:none; color:var(--text); font-family:inherit; font-size:.85rem; min-width:0; }
+    .journal-link-row input::placeholder { color:var(--muted); }
+    .journal-link-chip { display:inline-flex; align-items:center; gap:4px; font-size:.68rem; font-weight:700; color:var(--accent); background:rgba(124,58,237,.12); border:1px solid rgba(124,58,237,.25); border-radius:20px; padding:3px 9px; text-decoration:none; white-space:nowrap; max-width:100%; overflow:hidden; text-overflow:ellipsis; cursor:pointer; margin-top:4px; }
+    .journal-link-chip:hover { background:rgba(124,58,237,.22); }
     /* ── MEMORY BOARD ── */
     /* ── Journal wooden frame ── */
     .journal-frame {
@@ -765,6 +770,10 @@
           <span id="journal-file-name">Add a photo (optional)</span>
           <input type="file" id="journal-file" accept="image/*" onchange="previewJournalFile(this)" />
         </label>
+        <div class="journal-link-row">
+          <span style="font-size:1.1rem">🔗</span>
+          <input type="url" id="journal-link" placeholder="Paste a link (optional) — e.g. a guide, map or article" />
+        </div>
         <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
           <input type="text" class="journal-author-input" id="journal-author" placeholder="Your name" value="Me" />
           <button class="journal-submit" onclick="addJournalEntry()">Post Entry</button>
@@ -3163,8 +3172,10 @@ function addJournalEntry() {
   const author = document.getElementById('journal-author').value.trim() || 'Me';
   const fileInput = document.getElementById('journal-file');
   const file = fileInput.files[0];
+  const rawLink = document.getElementById('journal-link').value.trim();
+  const link = rawLink ? (rawLink.match(/^https?:\/\//) ? rawLink : 'https://' + rawLink) : '';
 
-  if (!text && !file) return toast('Write something or add a photo');
+  if (!text && !file && !link) return toast('Write something, add a photo, or paste a link');
   if (!dayVal) return toast('Select a day first');
 
   if (!t.journal) t.journal = [];
@@ -3187,11 +3198,12 @@ function addJournalEntry() {
         const compressed = canvas.toDataURL('image/jpeg', 0.72);
         t.journal.push({
           id: Date.now().toString(),
-          text, image: compressed, author,
+          text, image: compressed, author, link,
           day: dayVal, date: localDate()
         });
         save(); renderJournal();
         document.getElementById('journal-text').value = '';
+        document.getElementById('journal-link').value = '';
         fileInput.value = '';
         document.getElementById('journal-file-name').textContent = 'Add a photo (optional)';
         toast('Journal entry added!');
@@ -3202,11 +3214,12 @@ function addJournalEntry() {
   } else {
     t.journal.push({
       id: Date.now().toString(),
-      text, image: null, author,
+      text, image: null, author, link,
       day: dayVal, date: localDate()
     });
     save(); renderJournal();
     document.getElementById('journal-text').value = '';
+    document.getElementById('journal-link').value = '';
     toast('Journal entry added!');
   }
 }
@@ -3256,12 +3269,16 @@ function renderJournal() {
       const base = `transform:rotate(${deg.toFixed(1)}deg) translate(${tx.toFixed(0)}px,${ty.toFixed(0)}px);margin-top:${mtop}px;z-index:${dayEntries.length - i}`;
       const imgW = [145,195,260][szIdx], imgH = [115,158,212][szIdx];
       const stW  = [125,162,210][szIdx], stMH = [95,132,172][szIdx];
+      const linkChip = entry.link
+        ? `<a class="journal-link-chip" href="${escHtml(entry.link)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">🔗 Open link</a>`
+        : '';
       if (entry.image) {
         return `<div class="journal-item" style="${base};width:${imgW}px">
           <div class="journal-pin" style="background:${pin}"></div>
           <img src="${entry.image}" alt="Memory" loading="lazy" onclick="openLightbox(this.src,'${galKey}')" style="height:${imgH}px" />
           <div class="journal-caption">
             ${entry.text ? `<div class="journal-caption-text">${escHtml(entry.text)}</div>` : ''}
+            ${linkChip}
             <div class="journal-caption-meta">📍 ${escHtml(entry.author)} · ${entry.day||entry.date}</div>
           </div>
           <button class="journal-del" onclick="removeJournalEntry('${entry.id}')">✕ remove</button>
@@ -3269,7 +3286,8 @@ function renderJournal() {
       } else {
         return `<div class="journal-sticky" style="${base};width:${stW}px;min-height:${stMH}px">
           <div class="journal-pin" style="background:${pin}"></div>
-          <div class="journal-sticky-text">${escHtml(entry.text)}</div>
+          ${entry.text ? `<div class="journal-sticky-text">${escHtml(entry.text)}</div>` : ''}
+          ${linkChip}
           <div class="journal-sticky-meta">📍 ${escHtml(entry.author)} · ${entry.day||entry.date}</div>
           <button class="journal-del" onclick="removeJournalEntry('${entry.id}')">✕</button>
         </div>`;
