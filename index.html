@@ -4147,15 +4147,11 @@ async function initialFirebaseSync() {
     if (data) {
       const fbTrips = Object.values(data);
       if (pendingLocalSave) {
-        // Offline edits exist — merge: Firebase wins for shared trips, local-only trips are added
-        const fbIds = new Set(fbTrips.map(t => t.id));
-        const localOnly = trips.filter(t => !fbIds.has(t.id));
-        trips = [...fbTrips, ...localOnly];
+        // Offline edits — push local state (includes offline creates/deletes) to Firebase
         pendingLocalSave = false;
         const tripsObj = {};
         trips.forEach(t => { tripsObj[t.id] = t; });
-        if (localOnly.length > 0) await tripsRef.set(tripsObj);
-        else localStorage.setItem('trips', JSON.stringify(trips));
+        await tripsRef.set(tripsObj);
       } else {
         // Firebase is the truth — always use it
         trips = fbTrips;
@@ -4179,17 +4175,11 @@ async function initialFirebaseSync() {
       const data = snapshot.val();
       const firebaseTrips = data ? Object.values(data) : [];
       if (pendingLocalSave) {
-        // Offline edits — merge Firebase + local-only trips, then push
+        // Offline edits — push local state (includes offline creates/deletes) to Firebase
         pendingLocalSave = false;
-        const fbIds = new Set(firebaseTrips.map(t => t.id));
-        const localOnly = trips.filter(t => !fbIds.has(t.id));
-        trips = [...firebaseTrips, ...localOnly];
-        localStorage.setItem('trips', JSON.stringify(trips));
-        if (localOnly.length > 0) {
-          const tripsObj = {};
-          trips.forEach(t => { tripsObj[t.id] = t; });
-          tripsRef.set(tripsObj).catch(err => console.warn('Firebase flush error:', err));
-        }
+        const tripsObj = {};
+        trips.forEach(t => { tripsObj[t.id] = t; });
+        tripsRef.set(tripsObj).catch(err => console.warn('Firebase flush error:', err));
         renderHome();
         return;
       }
