@@ -4,6 +4,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Trip Planner</title>
+
+  <!-- PWA manifest & theme -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#a855f7" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Trips" />
+  <link rel="apple-touch-icon" href="/icons/icon.svg" />
+
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✈️</text></svg>" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -4213,6 +4223,13 @@ async function initialFirebaseSync() {
 // Render from localStorage immediately (no auth needed), then sync with Firebase
 if (!checkUrlForSharedTrip()) {
   renderHome();
+  // Handle PWA shortcut: ?action=new-trip
+  const _initParams = new URLSearchParams(window.location.search);
+  if (_initParams.get('action') === 'new-trip') {
+    history.replaceState(null, '', window.location.pathname);
+    // Open the create-trip modal once the page is painted
+    requestAnimationFrame(() => openCreateTrip());
+  }
 }
 authReady.then(() => {
   if (!sharedMode) initialFirebaseSync();
@@ -4225,5 +4242,57 @@ authReady.then(() => {
   <button id="lb-next" onclick="event.stopPropagation();lbNav(1)">›</button>
   <div id="lb-counter"></div>
 </div>
+
+<!-- Install banner (hidden until browser fires beforeinstallprompt) -->
+<div id="pwa-install-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:9999;padding:14px 20px;background:linear-gradient(135deg,#a855f7,#ec4899);color:#fff;display:none;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 -4px 24px rgba(168,85,247,.35);font-family:var(--font-body);">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <span style="font-size:1.4rem;">✈️</span>
+    <div>
+      <div style="font-weight:700;font-size:.95rem;">Install Trip Planner</div>
+      <div style="font-size:.8rem;opacity:.85;">Works offline &amp; adds to your home screen</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;flex-shrink:0;">
+    <button onclick="dismissInstallBanner()" style="background:rgba(255,255,255,.2);border:none;color:#fff;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:.85rem;">Not now</button>
+    <button onclick="triggerInstall()" style="background:#fff;border:none;color:#a855f7;padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:700;font-size:.85rem;">Install</button>
+  </div>
+</div>
+
+<script>
+  // Service worker registration
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    });
+  }
+
+  // PWA install prompt
+  let _deferredInstallPrompt = null;
+  const _installBanner = document.getElementById('pwa-install-banner');
+
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    _deferredInstallPrompt = e;
+    if (_installBanner) _installBanner.style.display = 'flex';
+  });
+
+  window.addEventListener('appinstalled', () => {
+    if (_installBanner) _installBanner.style.display = 'none';
+    _deferredInstallPrompt = null;
+  });
+
+  function triggerInstall() {
+    if (!_deferredInstallPrompt) return;
+    _deferredInstallPrompt.prompt();
+    _deferredInstallPrompt.userChoice.then(() => {
+      _deferredInstallPrompt = null;
+      if (_installBanner) _installBanner.style.display = 'none';
+    });
+  }
+
+  function dismissInstallBanner() {
+    if (_installBanner) _installBanner.style.display = 'none';
+  }
+</script>
 </body>
 </html>
