@@ -1893,7 +1893,7 @@ function renderOverview() {
   const isCheckout = (t.stays||[]).some(s => s.checkout === day);
   const dests = (t.destinations||[]).filter(d => d.day === day);
   const acts  = (t.itinerary||[]).filter(a => a.day === day).sort((a,b) => (a.time||'').localeCompare(b.time||''));
-  const journalForDay = (t.journal||[]).filter(e => (e.day || e.date) === day);
+  const journalForDay = (t.journal||[]).filter(e => (e.day || e.date) === day && e.image);
 
   const cityName = stay ? (stay.city || stay.name) : (dests.length ? dests[0].name : null);
   const cityBar = cityName ? (() => {
@@ -1933,14 +1933,13 @@ function renderOverview() {
   const costHtml = '';
 
   const ovGalKey = 'ov-' + day;
-  _lbGal[ovGalKey] = journalForDay.filter(e => e.image).map(e => e.image);
+  _lbGal[ovGalKey] = journalForDay.map(e => e.image);
   const journalHtml = journalForDay.length ? `
     <div style="margin-top:.85rem">
       <div class="sub-label" style="margin-bottom:8px">📸 Memories</div>
       <div class="ov-journal-thumbs">
-        ${journalForDay.map(e => e.image
-          ? `<img class="ov-journal-thumb" src="${e.image}" onclick="openLightbox(this.src,'${ovGalKey}')" title="${escHtml(e.text||'')}" />`
-          : `<div class="ov-journal-note">${escHtml(e.text)}</div>`
+        ${journalForDay.map(e =>
+          `<img class="ov-journal-thumb" src="${e.image}" onclick="openLightbox(this.src,'${ovGalKey}')" title="${escHtml(e.text||'')}" />`
         ).join('')}
       </div>
     </div>` : '';
