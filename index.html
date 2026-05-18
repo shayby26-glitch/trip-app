@@ -1197,9 +1197,19 @@ function setCloudStatus(status) {
   }
 }
 
-// Monitor Firebase connection state
+// Monitor Firebase connection — flush pending offline edits when reconnecting
+let _wasOffline = false;
 db.ref('.info/connected').on('value', (snap) => {
-  setCloudStatus(snap.val() ? 'connected' : 'offline');
+  const connected = !!snap.val();
+  setCloudStatus(connected ? 'connected' : 'offline');
+  if (connected && _wasOffline && pendingLocalSave && firebaseReady) {
+    pendingLocalSave = false;
+    const tripsObj = {};
+    trips.forEach(t => { tripsObj[t.id] = t; });
+    tripsRef.set(tripsObj)
+      .catch(err => { pendingLocalSave = true; console.warn('Firebase flush error:', err); });
+  }
+  _wasOffline = !connected;
 });
 
 // Real-time listener is set up inside initialFirebaseSync after auth resolves
@@ -4172,72 +4182,47 @@ function seedTokyoExpensesIfNeeded() {
 
 
 async function initialFirebaseSync() {
-  if (sharedMode) return; // skip for guests
+  if (sharedMode) return;
   try {
     const snapshot = await tripsRef.once('value');
     const data = snapshot.val();
     firebaseReady = true;
 
     if (data) {
-      const fbTrips = Object.values(data);
-      if (pendingLocalSave) {
-        // Offline edits — push local state (includes offline creates/deletes) to Firebase
-        pendingLocalSave = false;
-        const tripsObj = {};
-        trips.forEach(t => { tripsObj[t.id] = t; });
-        await tripsRef.set(tripsObj);
-      } else {
-        // Firebase is the truth — always use it
-        saveBackup();
-        trips = fbTrips;
-        localStorage.setItem('trips', JSON.stringify(trips));
-      }
+      // Firebase has data — always the source of truth
+      saveBackup();
+      trips = Object.values(data);
+      localStorage.setItem('trips', JSON.stringify(trips));
       renderHome();
     } else if (trips.length > 0) {
-      // Firebase is empty — first-time setup, push local data up
-      pendingLocalSave = false;
+      // Firebase is empty but this device has trips — first-time setup, push up
       const tripsObj = {};
       trips.forEach(t => { tripsObj[t.id] = t; });
       await tripsRef.set(tripsObj);
     }
 
-    // Set up real-time listener now that auth is established
-    // Firebase is the single source of truth — always apply its updates
-    tripsRef.on('value', (snapshot) => {
+    // Real-time listener — Firebase always wins, propagates changes across all devices
+    tripsRef.on('value', snapshot => {
       if (sharedMode) return;
       firebaseReady = true;
       setCloudStatus('connected');
-      const data = snapshot.val();
-      const firebaseTrips = data ? Object.values(data) : [];
-      if (pendingLocalSave) {
-        // Offline edits — push local state (includes offline creates/deletes) to Firebase
-        pendingLocalSave = false;
-        const tripsObj = {};
-        trips.forEach(t => { tripsObj[t.id] = t; });
-        tripsRef.set(tripsObj).catch(err => console.warn('Firebase flush error:', err));
-        renderHome();
-        return;
-      }
-      // Normal case — apply Firebase update
-      const localJSON = JSON.stringify(trips);
-      const remoteJSON = JSON.stringify(firebaseTrips);
-      if (localJSON === remoteJSON) return;
+      const firebaseTrips = snapshot.val() ? Object.values(snapshot.val()) : [];
+      if (JSON.stringify(trips) === JSON.stringify(firebaseTrips)) return;
       saveBackup();
       trips = firebaseTrips;
       localStorage.setItem('trips', JSON.stringify(trips));
       const activePage = document.querySelector('.page.active');
-      if (activePage && activePage.id === 'page-home') {
-        renderHome();
-      } else if (activePage && activePage.id === 'page-detail' && currentTripId) {
+      if (activePage?.id === 'page-home') renderHome();
+      else if (activePage?.id === 'page-detail' && currentTripId) {
         renderAllTabs();
-        toast('🔄 Synced from cloud');
+        toast('🔄 Synced');
       }
-    }, (err) => {
+    }, err => {
       console.warn('Firebase read error:', err);
       firebaseReady = false;
       setCloudStatus('offline');
     });
-    // Add Tokyo expenses once if the trip exists but has none
+
     seedTokyoExpensesIfNeeded();
   } catch (err) {
     console.warn('Initial Firebase sync failed (offline mode):', err);
