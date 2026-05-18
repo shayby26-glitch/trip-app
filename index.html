@@ -1363,6 +1363,33 @@ function undoDelete() {
 const _lbGal = {};   // key → [src, src, …]  populated by render functions
 let _lbCur = [], _lbIdx = 0, _lbTouchX = 0;
 
+// ── Local backup (safety net before any Firebase overwrite) ──
+function saveBackup() {
+  if (trips.length > 0)
+    localStorage.setItem('trips_backup', JSON.stringify({ trips, savedAt: new Date().toISOString() }));
+}
+function getBackup() {
+  try { const b = localStorage.getItem('trips_backup'); return b ? JSON.parse(b) : null; }
+  catch { return null; }
+}
+function restoreFromBackup() {
+  const backup = getBackup();
+  if (!backup) return toast('No backup found');
+  const d = new Date(backup.savedAt).toLocaleString();
+  if (!confirm(`Restore ${backup.trips.length} trip(s) from backup saved on ${d}?\nThis will overwrite current data.`)) return;
+  trips = backup.trips;
+  localStorage.setItem('trips', JSON.stringify(trips));
+  pendingLocalSave = true;
+  if (firebaseReady) {
+    const tripsObj = {};
+    trips.forEach(t => { tripsObj[t.id] = t; });
+    tripsRef.set(tripsObj).catch(err => console.warn('Restore push error:', err));
+    pendingLocalSave = false;
+  }
+  renderHome();
+  toast(`Restored ${trips.length} trips`);
+}
+
 function openLightbox(src, galKey) {
   _lbCur = (galKey && _lbGal[galKey]) ? _lbGal[galKey] : [src];
   _lbIdx = Math.max(0, _lbCur.indexOf(src));
@@ -1473,7 +1500,14 @@ function renderHome() {
 
   const grid = document.getElementById('trips-grid');
   if (!trips.length) {
-    grid.innerHTML = `<div class="empty-state"><div class="ei">🗺️</div><p>No trips yet — create your first adventure!</p></div>`;
+    const backup = getBackup();
+    const restoreHtml = backup ? `
+      <div style="margin-top:1.2rem;padding:1rem 1.2rem;background:var(--surface);border:1px solid var(--border);border-radius:12px;text-align:left;max-width:320px">
+        <div style="font-size:.75rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--accent);margin-bottom:.4rem">🔄 Backup available</div>
+        <div style="font-size:.82rem;color:var(--text);margin-bottom:.7rem">${backup.trips.length} trip(s) saved on ${new Date(backup.savedAt).toLocaleString()}</div>
+        <button class="btn btn-primary btn-sm" onclick="restoreFromBackup()">Restore trips</button>
+      </div>` : '';
+    grid.innerHTML = `<div class="empty-state"><div class="ei">🗺️</div><p>No trips yet — create your first adventure!</p>${restoreHtml}</div>`;
     return;
   }
   const q = (tripSearch||'').toLowerCase();
@@ -4154,6 +4188,7 @@ async function initialFirebaseSync() {
         await tripsRef.set(tripsObj);
       } else {
         // Firebase is the truth — always use it
+        saveBackup();
         trips = fbTrips;
         localStorage.setItem('trips', JSON.stringify(trips));
       }
@@ -4187,6 +4222,7 @@ async function initialFirebaseSync() {
       const localJSON = JSON.stringify(trips);
       const remoteJSON = JSON.stringify(firebaseTrips);
       if (localJSON === remoteJSON) return;
+      saveBackup();
       trips = firebaseTrips;
       localStorage.setItem('trips', JSON.stringify(trips));
       const activePage = document.querySelector('.page.active');
