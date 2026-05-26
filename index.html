@@ -1198,7 +1198,7 @@ function setCloudStatus(status) {
 }
 
 async function syncFromCloud() {
-  if (!firebaseReady) return toast('Not connected to cloud');
+  if (!_isConnected) return toast('Not connected to cloud');
   const pill = document.getElementById('cloud-status');
   if (pill) { pill.style.pointerEvents = 'none'; pill.innerHTML = '<span id="cloud-dot" style="width:6px;height:6px;border-radius:50%;background:#f59e0b;display:inline-block"></span> ⏳ Syncing...'; }
   try {
@@ -1223,8 +1223,10 @@ async function syncFromCloud() {
 
 // Monitor Firebase connection — flush pending offline edits when reconnecting
 let _wasOffline = false;
+let _isConnected = false;
 db.ref('.info/connected').on('value', (snap) => {
   const connected = !!snap.val();
+  _isConnected = connected;
   setCloudStatus(connected ? 'connected' : 'offline');
   if (connected && _wasOffline && pendingLocalSave && firebaseReady) {
     pendingLocalSave = false;
