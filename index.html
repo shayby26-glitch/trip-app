@@ -1166,12 +1166,12 @@ async function _pushToCloud() {
       const t = getTrip();
       if (!t) return;
       const resp = await fetch(`${DB}/trips/${t.id}.json${q}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(t) });
-      if (resp.ok) setCloudStatus('connected');
+      if (resp.ok) { setCloudStatus('connected'); toast('☁️ Saved to cloud'); }
     } else {
       const tripsObj = {};
       trips.forEach(t => { tripsObj[t.id] = t; });
       const resp = await fetch(`${DB}/trips.json${q}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(tripsObj) });
-      if (resp.ok) { pendingLocalSave = false; setCloudStatus('connected'); }
+      if (resp.ok) { pendingLocalSave = false; setCloudStatus('connected'); toast('☁️ Saved to cloud'); }
     }
   } catch (err) {
     console.warn('Auto-save to cloud failed:', err);
