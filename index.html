@@ -1202,6 +1202,7 @@ async function syncFromCloud() {
   const pill = document.getElementById('cloud-status');
   if (pill) { pill.style.pointerEvents = 'none'; pill.innerHTML = '<span id="cloud-dot" style="width:6px;height:6px;border-radius:50%;background:#f59e0b;display:inline-block"></span> ⏳ Syncing...'; }
   try {
+    await authReady;
     const snapshot = await tripsRef.once('value');
     const firebaseTrips = snapshot.val() ? Object.values(snapshot.val()) : [];
     trips = firebaseTrips;
