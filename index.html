@@ -625,6 +625,9 @@
   <!-- Guest banner (shown only when opening a shared link) -->
   <div id="nav-guest-banner" style="display:none;align-items:center;gap:10px">
     <span style="font-size:.8rem;color:var(--accent);background:rgba(168,85,247,.12);border:1px solid rgba(168,85,247,.3);padding:4px 12px;border-radius:20px">✈️ Shared trip · you can edit</span>
+    <span id="cloud-status-guest" onclick="syncFromCloud()" title="Tap to sync from cloud" style="font-size:.75rem;padding:3px 8px;border-radius:12px;background:rgba(255,255,255,.08);color:var(--muted);display:flex;align-items:center;gap:4px;cursor:pointer">
+      <span id="cloud-dot-guest" style="width:6px;height:6px;border-radius:50%;background:#f59e0b;display:inline-block"></span> Connecting...
+    </span>
     <button class="btn-icon" onclick="toggleTheme()" style="font-size:1.2rem;padding:6px 8px">🌙</button>
   </div>
 </nav>
@@ -1185,39 +1188,51 @@ function getTrip() { return trips.find(t => t.id === currentTripId); }
 
 // ── Cloud status indicator ──
 function setCloudStatus(status) {
-  const el = document.getElementById('cloud-status');
-  const dot = document.getElementById('cloud-dot');
-  if (!el || !dot) return;
-  if (status === 'connected') {
-    dot.style.background = '#10b981'; el.innerHTML = '<span id="cloud-dot" style="width:6px;height:6px;border-radius:50%;background:#10b981;display:inline-block"></span> ☁️ Synced';
-  } else if (status === 'offline') {
-    dot.style.background = '#ef4444'; el.innerHTML = '<span id="cloud-dot" style="width:6px;height:6px;border-radius:50%;background:#ef4444;display:inline-block"></span> Offline';
-  } else {
-    dot.style.background = '#f59e0b'; el.innerHTML = '<span id="cloud-dot" style="width:6px;height:6px;border-radius:50%;background:#f59e0b;display:inline-block"></span> Connecting...';
+  const configs = [
+    { el: document.getElementById('cloud-status'),       dot: document.getElementById('cloud-dot'),       dotId: 'cloud-dot' },
+    { el: document.getElementById('cloud-status-guest'), dot: document.getElementById('cloud-dot-guest'), dotId: 'cloud-dot-guest' },
+  ];
+  const html = status === 'connected'
+    ? (id) => `<span id="${id}" style="width:6px;height:6px;border-radius:50%;background:#10b981;display:inline-block"></span> ☁️ Synced`
+    : status === 'offline'
+    ? (id) => `<span id="${id}" style="width:6px;height:6px;border-radius:50%;background:#ef4444;display:inline-block"></span> Offline`
+    : (id) => `<span id="${id}" style="width:6px;height:6px;border-radius:50%;background:#f59e0b;display:inline-block"></span> Connecting...`;
+  for (const { el, dotId } of configs) {
+    if (el) el.innerHTML = html(dotId);
   }
 }
 
 async function syncFromCloud() {
   if (!_isConnected) return toast('Not connected to cloud');
-  const pill = document.getElementById('cloud-status');
-  if (pill) { pill.style.pointerEvents = 'none'; pill.innerHTML = '<span id="cloud-dot" style="width:6px;height:6px;border-radius:50%;background:#f59e0b;display:inline-block"></span> ⏳ Syncing...'; }
+  const pill = document.getElementById(sharedMode ? 'cloud-status-guest' : 'cloud-status');
+  if (pill) { pill.style.pointerEvents = 'none'; pill.innerHTML = '<span style="width:6px;height:6px;border-radius:50%;background:#f59e0b;display:inline-block"></span> ⏳ Syncing...'; }
   try {
-    const dbBase = 'https://trip-planner-c6bad-default-rtdb.europe-west1.firebasedatabase.app/trips.json';
     const user = await authReady;
     const token = user ? await user.getIdToken().catch(() => null) : null;
-    const dbUrl = token ? dbBase + '?auth=' + token : dbBase;
+    const authSuffix = token ? '?auth=' + token : '';
+    const dbBase = 'https://trip-planner-c6bad-default-rtdb.europe-west1.firebasedatabase.app';
 
-    if (pendingLocalSave) {
+    if (sharedMode && currentTripId) {
+      // Guest: pull just the shared trip from cloud
+      const resp = await fetch(`${dbBase}/trips/${currentTripId}.json${authSuffix}`);
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const updated = await resp.json();
+      if (updated) {
+        trips = [updated];
+        renderAllTabs();
+        toast('✅ Synced from cloud');
+      }
+    } else if (pendingLocalSave) {
       // Local changes not yet in cloud — push up first
       const tripsObj = {};
       trips.forEach(t => { tripsObj[t.id] = t; });
-      const putResp = await fetch(dbUrl, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(tripsObj) });
+      const putResp = await fetch(`${dbBase}/trips.json${authSuffix}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(tripsObj) });
       if (!putResp.ok) throw new Error('HTTP ' + putResp.status);
       pendingLocalSave = false;
       toast('☁️ Changes uploaded');
     } else {
       // No local changes — pull latest from cloud
-      const resp = await fetch(dbUrl);
+      const resp = await fetch(`${dbBase}/trips.json${authSuffix}`);
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       const data = await resp.json();
       const firebaseTrips = data ? Object.values(data) : [];
