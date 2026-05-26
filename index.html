@@ -1206,17 +1206,28 @@ async function syncFromCloud() {
     const user = await authReady;
     const token = user ? await user.getIdToken().catch(() => null) : null;
     const dbUrl = token ? dbBase + '?auth=' + token : dbBase;
-    const resp = await fetch(dbUrl);
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const data = await resp.json();
-    const firebaseTrips = data ? Object.values(data) : [];
-    trips = firebaseTrips;
-    localStorage.setItem('trips', JSON.stringify(trips));
-    pendingLocalSave = false;
-    const activePage = document.querySelector('.page.active');
-    if (activePage?.id === 'page-home') renderHome();
-    else if (activePage?.id === 'page-detail' && currentTripId) renderAllTabs();
-    toast('✅ Synced from cloud');
+
+    if (pendingLocalSave) {
+      // Local changes not yet in cloud — push up first
+      const tripsObj = {};
+      trips.forEach(t => { tripsObj[t.id] = t; });
+      const putResp = await fetch(dbUrl, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(tripsObj) });
+      if (!putResp.ok) throw new Error('HTTP ' + putResp.status);
+      pendingLocalSave = false;
+      toast('☁️ Changes uploaded');
+    } else {
+      // No local changes — pull latest from cloud
+      const resp = await fetch(dbUrl);
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const data = await resp.json();
+      const firebaseTrips = data ? Object.values(data) : [];
+      trips = firebaseTrips;
+      localStorage.setItem('trips', JSON.stringify(trips));
+      const activePage = document.querySelector('.page.active');
+      if (activePage?.id === 'page-home') renderHome();
+      else if (activePage?.id === 'page-detail' && currentTripId) renderAllTabs();
+      toast('✅ Synced from cloud');
+    }
     setCloudStatus('connected');
   } catch (err) {
     console.warn('Sync from cloud error:', err);
