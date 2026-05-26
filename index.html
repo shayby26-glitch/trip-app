@@ -1215,7 +1215,7 @@ async function syncFromCloud() {
     setCloudStatus('connected');
   } catch (err) {
     console.warn('Sync from cloud error:', err);
-    toast('❌ Sync failed');
+    toast('❌ ' + (err?.message || err?.code || 'Sync failed'));
     setCloudStatus('connected');
   } finally {
     if (pill) pill.style.pointerEvents = '';
