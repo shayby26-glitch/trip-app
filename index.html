@@ -4247,6 +4247,7 @@ async function initialFirebaseSync() {
     // Real-time listener — Firebase always wins, propagates changes across all devices
     tripsRef.on('value', snapshot => {
       if (sharedMode) return;
+      if (pendingLocalSave) return; // local edits not yet pushed — don't overwrite them
       firebaseReady = true;
       setCloudStatus('connected');
       const firebaseTrips = snapshot.val() ? Object.values(snapshot.val()) : [];
