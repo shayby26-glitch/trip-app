@@ -617,6 +617,7 @@
     <span id="cloud-status" title="Cloud sync status" style="font-size:.75rem;padding:3px 8px;border-radius:12px;background:rgba(255,255,255,.08);color:var(--muted);display:flex;align-items:center;gap:4px">
       <span id="cloud-dot" style="width:6px;height:6px;border-radius:50%;background:#f59e0b;display:inline-block"></span> Connecting...
     </span>
+    <button id="sync-from-cloud-btn" class="btn btn-ghost btn-sm" onclick="syncFromCloud()" title="Pull latest data from cloud" style="font-size:.75rem">🔄 Sync</button>
     <button class="btn-icon" onclick="toggleTheme()" id="theme-btn" title="Toggle light/dark mode" style="font-size:1.2rem;padding:6px 8px">🌙</button>
     <button class="btn btn-ghost btn-sm" onclick="showPage('home')">My Trips</button>
     <button class="btn btn-primary btn-sm" onclick="openNewTripModal()">+ New Trip</button>
@@ -1194,6 +1195,28 @@ function setCloudStatus(status) {
     dot.style.background = '#ef4444'; el.innerHTML = '<span id="cloud-dot" style="width:6px;height:6px;border-radius:50%;background:#ef4444;display:inline-block"></span> Offline';
   } else {
     dot.style.background = '#f59e0b'; el.innerHTML = '<span id="cloud-dot" style="width:6px;height:6px;border-radius:50%;background:#f59e0b;display:inline-block"></span> Connecting...';
+  }
+}
+
+async function syncFromCloud() {
+  if (!firebaseReady) return toast('Not connected to cloud');
+  const btn = document.getElementById('sync-from-cloud-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Syncing...'; }
+  try {
+    const snapshot = await tripsRef.once('value');
+    const firebaseTrips = snapshot.val() ? Object.values(snapshot.val()) : [];
+    trips = firebaseTrips;
+    localStorage.setItem('trips', JSON.stringify(trips));
+    pendingLocalSave = false;
+    const activePage = document.querySelector('.page.active');
+    if (activePage?.id === 'page-home') renderHome();
+    else if (activePage?.id === 'page-detail' && currentTripId) renderAllTabs();
+    toast('✅ Synced from cloud');
+  } catch (err) {
+    console.warn('Sync from cloud error:', err);
+    toast('❌ Sync failed');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 Sync'; }
   }
 }
 
