@@ -614,10 +614,9 @@
   <div class="nav-brand">✈️ Trip Planner</div>
   <!-- Owner controls (hidden in guest/shared mode) -->
   <div id="nav-owner-actions" style="display:flex;gap:8px;align-items:center">
-    <span id="cloud-status" title="Cloud sync status" style="font-size:.75rem;padding:3px 8px;border-radius:12px;background:rgba(255,255,255,.08);color:var(--muted);display:flex;align-items:center;gap:4px">
+    <span id="cloud-status" onclick="syncFromCloud()" title="Tap to sync from cloud" style="font-size:.75rem;padding:3px 8px;border-radius:12px;background:rgba(255,255,255,.08);color:var(--muted);display:flex;align-items:center;gap:4px;cursor:pointer">
       <span id="cloud-dot" style="width:6px;height:6px;border-radius:50%;background:#f59e0b;display:inline-block"></span> Connecting...
     </span>
-    <button id="sync-from-cloud-btn" class="btn btn-ghost btn-sm" onclick="syncFromCloud()" title="Pull latest data from cloud" style="font-size:.75rem">🔄 Sync</button>
     <button class="btn-icon" onclick="toggleTheme()" id="theme-btn" title="Toggle light/dark mode" style="font-size:1.2rem;padding:6px 8px">🌙</button>
     <button class="btn btn-ghost btn-sm" onclick="showPage('home')">My Trips</button>
     <button class="btn btn-primary btn-sm" onclick="openNewTripModal()">+ New Trip</button>
@@ -1200,8 +1199,8 @@ function setCloudStatus(status) {
 
 async function syncFromCloud() {
   if (!firebaseReady) return toast('Not connected to cloud');
-  const btn = document.getElementById('sync-from-cloud-btn');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Syncing...'; }
+  const pill = document.getElementById('cloud-status');
+  if (pill) { pill.style.pointerEvents = 'none'; pill.innerHTML = '<span id="cloud-dot" style="width:6px;height:6px;border-radius:50%;background:#f59e0b;display:inline-block"></span> ⏳ Syncing...'; }
   try {
     const snapshot = await tripsRef.once('value');
     const firebaseTrips = snapshot.val() ? Object.values(snapshot.val()) : [];
@@ -1212,11 +1211,13 @@ async function syncFromCloud() {
     if (activePage?.id === 'page-home') renderHome();
     else if (activePage?.id === 'page-detail' && currentTripId) renderAllTabs();
     toast('✅ Synced from cloud');
+    setCloudStatus('connected');
   } catch (err) {
     console.warn('Sync from cloud error:', err);
     toast('❌ Sync failed');
+    setCloudStatus('connected');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '🔄 Sync'; }
+    if (pill) pill.style.pointerEvents = '';
   }
 }
 
