@@ -1149,39 +1149,47 @@ let _summaryCurrency = null; // user-selected display currency for the summary t
 // Exchange rate cache for multi-currency settlement conversion
 let _ratesCache = {}; // { base: { rates: {...}, ts: timestamp } }
 
+const DB = 'https://trip-planner-c6bad-default-rtdb.europe-west1.firebasedatabase.app';
+let _autoSaveTimer = null;
+
+async function _getAuthSuffix() {
+  const user = await authReady;
+  const token = user ? await user.getIdToken().catch(() => null) : null;
+  return token ? '?auth=' + token : '';
+}
+
+async function _pushToCloud() {
+  if (!_isConnected) return;
+  try {
+    const q = await _getAuthSuffix();
+    if (sharedMode) {
+      const t = getTrip();
+      if (!t) return;
+      const resp = await fetch(`${DB}/trips/${t.id}.json${q}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(t) });
+      if (resp.ok) setCloudStatus('connected');
+    } else {
+      const tripsObj = {};
+      trips.forEach(t => { tripsObj[t.id] = t; });
+      const resp = await fetch(`${DB}/trips.json${q}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(tripsObj) });
+      if (resp.ok) { pendingLocalSave = false; setCloudStatus('connected'); }
+    }
+  } catch (err) {
+    console.warn('Auto-save to cloud failed:', err);
+  }
+}
+
 // Save to both localStorage (offline cache) and Firebase
 function save() {
-  if (sharedMode) {
-    // Guest mode: write only the shared trip back to the owner's Firebase
-    const t = getTrip();
-    if (t) tripsRef.child(t.id).set(t).catch(err => console.warn('Guest save error:', err));
-    return;
-  }
-  localStorage.setItem('trips', JSON.stringify(trips));
-  if (firebaseReady) {
-    pendingLocalSave = true; // mark as pending until write confirms
-    const tripsObj = {};
-    trips.forEach(t => { tripsObj[t.id] = t; });
-    tripsRef.set(tripsObj)
-      .then(() => { pendingLocalSave = false; })
-      .catch(err => {
-        pendingLocalSave = true;
-        console.warn('Firebase save error:', err);
-      });
-  } else {
-    pendingLocalSave = true; // will be flushed when Firebase connects
-  }
+  if (!sharedMode) localStorage.setItem('trips', JSON.stringify(trips));
+  pendingLocalSave = true;
+  setCloudStatus(_isConnected ? 'connecting' : 'offline');
+  clearTimeout(_autoSaveTimer);
+  _autoSaveTimer = setTimeout(_pushToCloud, 800);
 }
 
 // Save a single trip to Firebase (more efficient for single-trip edits)
 function saveTripToFirebase(tripId) {
-  if (!firebaseReady) return;
-  const t = trips.find(tr => tr.id === tripId);
-  if (t) {
-    tripsRef.child(t.id).set(t).catch(err => console.warn('Firebase save error:', err));
-  } else {
-    tripsRef.child(tripId).remove().catch(err => console.warn('Firebase delete error:', err));
-  }
+  save(); // auto-save handles it via REST API now
 }
 
 function getTrip() { return trips.find(t => t.id === currentTripId); }
@@ -1259,14 +1267,8 @@ let _isConnected = false;
 db.ref('.info/connected').on('value', (snap) => {
   const connected = !!snap.val();
   _isConnected = connected;
-  setCloudStatus(connected ? 'connected' : 'offline');
-  if (connected && _wasOffline && pendingLocalSave && firebaseReady) {
-    pendingLocalSave = false;
-    const tripsObj = {};
-    trips.forEach(t => { tripsObj[t.id] = t; });
-    tripsRef.set(tripsObj)
-      .catch(err => { pendingLocalSave = true; console.warn('Firebase flush error:', err); });
-  }
+  setCloudStatus(connected ? (pendingLocalSave ? 'connecting' : 'connected') : 'offline');
+  if (connected && _wasOffline && pendingLocalSave) _pushToCloud();
   _wasOffline = !connected;
 });
 
