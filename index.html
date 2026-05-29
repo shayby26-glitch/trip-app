@@ -832,7 +832,8 @@
   <div class="modal">
     <div class="modal-title">⚙️ Data Recovery</div>
     <div id="recovery-backup-info" style="margin-bottom:1rem;font-size:.85rem;color:var(--muted)">Checking backup…</div>
-    <button class="btn btn-primary" style="width:100%;margin-bottom:.6rem" onclick="restoreFromBackup()">🔄 Restore from Backup</button>
+    <button class="btn btn-primary" style="width:100%;margin-bottom:.6rem" onclick="exportAllTrips()">📥 Download Backup File</button>
+    <button class="btn btn-ghost" style="width:100%;margin-bottom:.6rem" onclick="restoreFromBackup()">🔄 Restore from Local Backup</button>
     <button class="btn btn-ghost" style="width:100%;margin-bottom:.6rem" onclick="syncFromCloud()">☁️ Pull from Cloud</button>
     <button class="btn btn-ghost" style="width:100%;margin-bottom:.6rem" onclick="reconstructTokyoTrip()">🗾 Reconstruct Tokyo Trip</button>
     <button class="btn btn-ghost" style="width:100%" onclick="closeModal('modal-recovery')">Cancel</button>
@@ -3671,6 +3672,35 @@ function copyShareLink() {
 }
 
 // Download as .trip file
+function exportAllTrips() {
+  if (!trips.length) return toast('No trips to export');
+  const data = JSON.stringify({ trips, exportedAt: new Date().toISOString() }, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'trips-backup-' + new Date().toISOString().slice(0,10) + '.json';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+  localStorage.setItem('last_export_ts', Date.now());
+  toast('📥 Backup downloaded');
+}
+
+function checkPeriodicBackup() {
+  const last = parseInt(localStorage.getItem('last_export_ts') || '0');
+  const hoursSince = (Date.now() - last) / 36e5;
+  if (hoursSince < 24) return;
+  const banner = document.createElement('div');
+  banner.id = 'backup-banner';
+  banner.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--accent);border-radius:14px;padding:12px 18px;display:flex;align-items:center;gap:12px;z-index:1500;box-shadow:0 4px 20px rgba(0,0,0,.4);max-width:320px;width:90%';
+  banner.innerHTML = `<span style="font-size:.82rem;color:var(--text);flex:1">💾 Download a local backup of your trips?</span>
+    <button class="btn btn-primary btn-sm" onclick="exportAllTrips();this.closest('#backup-banner').remove()">Download</button>
+    <button class="btn btn-ghost btn-sm" onclick="localStorage.setItem('last_export_ts',Date.now());this.closest('#backup-banner').remove()">Later</button>`;
+  document.body.appendChild(banner);
+  setTimeout(() => banner.remove(), 30000);
+}
+
 function downloadTripFile() {
   const t = getTrip();
   if (!t) return;
@@ -4414,6 +4444,7 @@ async function initialFirebaseSync() {
 // Render from localStorage immediately (no auth needed), then sync with Firebase
 if (!checkUrlForSharedTrip()) {
   renderHome();
+  setTimeout(checkPeriodicBackup, 3000);
 }
 authReady.then(() => {
   if (!sharedMode) initialFirebaseSync();
