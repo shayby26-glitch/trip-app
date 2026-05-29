@@ -2046,25 +2046,50 @@ function renderOverview() {
   const journalHtml = journalForDay.filter(e => e.image).length ? `
     <div style="margin-top:.85rem">
       <div class="sub-label" style="margin-bottom:8px">📸 Memories</div>
-      <div class="journal-board" style="margin-top:.5rem;border-radius:8px">
-        ${journalForDay.filter(e => e.image).map((e, i) => {
-          const rng  = seededRng(e.id);
-          const szIdx = Math.floor(rng() * 3);
-          const deg  = (rng() - 0.5) * 22;
-          const tx   = (rng() - 0.5) * 32;
-          const ty   = (rng() - 0.5) * 22;
-          const pin  = PIN_COLORS[i % PIN_COLORS.length];
-          const mtop = 12 + Math.round(rng() * 40);
-          const imgW = [145,195,260][szIdx], imgH = [115,158,212][szIdx];
-          return `<div class="journal-item" style="width:${imgW}px;transform:rotate(${deg.toFixed(1)}deg) translate(${tx.toFixed(0)}px,${ty.toFixed(0)}px);margin-top:${mtop}px;z-index:${journalForDay.length - i}">
-            <div class="journal-pin" style="background:${pin}"></div>
-            <img src="${e.image}" alt="Memory" loading="lazy" onclick="openLightbox(this.src,'${ovGalKey}')" style="height:${imgH}px;width:100%;object-fit:cover;display:block;cursor:zoom-in" />
-            <div class="journal-caption">
-              ${e.text ? `<div class="journal-caption-text">${escHtml(e.text)}</div>` : ''}
-              <div class="journal-caption-meta">📍 ${escHtml(e.author||'')} · Day ${e.day||''}</div>
-            </div>
-          </div>`;
-        }).join('')}
+      <div class="journal-frame" style="margin-top:.5rem">
+        <span class="jf-screw jf-tl"></span>
+        <span class="jf-screw jf-tr"></span>
+        <span class="jf-screw jf-bl"></span>
+        <span class="jf-screw jf-br"></span>
+        <div class="journal-board">
+          ${journalForDay.filter(e => e.image).map((e, i) => {
+            const rng  = seededRng(e.id);
+            const szIdx = Math.floor(rng() * 3);
+            const deg  = (rng() - 0.5) * 22;
+            const tx   = (rng() - 0.5) * 32;
+            const ty   = (rng() - 0.5) * 22;
+            const pin  = PIN_COLORS[i % PIN_COLORS.length];
+            const mtop = 12 + Math.round(rng() * 40);
+            const imgW = [145,195,260][szIdx], imgH = [115,158,212][szIdx];
+            return `<div class="journal-item" style="width:${imgW}px;transform:rotate(${deg.toFixed(1)}deg) translate(${tx.toFixed(0)}px,${ty.toFixed(0)}px);margin-top:${mtop}px;z-index:${journalForDay.length - i}">
+              <div class="journal-pin" style="background:${pin}"></div>
+              <img src="${e.image}" alt="Memory" loading="lazy" onclick="openLightbox(this.src,'${ovGalKey}')" style="height:${imgH}px;width:100%;object-fit:cover;display:block;cursor:zoom-in" />
+              <div class="journal-caption">
+                ${e.text ? `<div class="journal-caption-text">${escHtml(e.text)}</div>` : ''}
+                <div class="journal-caption-meta">📍 ${escHtml(e.author||'')} · Day ${e.day||''}</div>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+        <div class="jb-deco-layer" aria-hidden="true">
+          <svg class="jb-strings" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <path d="M 8 14 Q 35 22 68 11" stroke="#b8954e" stroke-width=".7" fill="none" opacity=".65"/>
+            <path d="M 72 12 Q 88 40 84 72" stroke="#b8954e" stroke-width=".6" fill="none" opacity=".55"/>
+            <path d="M 6 42 Q 28 55 12 74" stroke="#c4a060" stroke-width=".5" fill="none" opacity=".5"/>
+          </svg>
+          <span class="jb-pin" style="--pc:#ef4444;top:10%;left:6%"></span>
+          <span class="jb-pin" style="--pc:#3b82f6;top:7%;left:65%"></span>
+          <span class="jb-pin" style="--pc:#10b981;top:38%;right:3%"></span>
+          <span class="jb-pin" style="--pc:#f59e0b;bottom:20%;left:4%"></span>
+          <span class="jb-pin" style="--pc:#ec4899;bottom:8%;right:12%"></span>
+          <span class="jb-pin" style="--pc:#8b5cf6;top:62%;left:10%"></span>
+          <span class="jb-pin" style="--pc:#06b6d4;top:22%;right:6%"></span>
+          <span class="jb-tape jb-tape-1"></span>
+          <span class="jb-tape jb-tape-2"></span>
+          <span class="jb-tape jb-tape-3"></span>
+          <span class="jb-sticker">✈️ memories</span>
+          <span class="jb-flag">📸 Day Memories</span>
+        </div>
       </div>
     </div>` : '';
 
