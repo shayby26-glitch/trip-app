@@ -2046,7 +2046,7 @@ function renderOverview() {
   const journalHtml = journalForDay.filter(e => e.image).length ? `
     <div style="margin-top:.85rem">
       <div class="sub-label" style="margin-bottom:8px">📸 Memories</div>
-      <div style="display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:center;gap:10px 6px;padding:8px 0 12px">
+      <div class="journal-board" style="margin-top:.5rem;border-radius:8px">
         ${journalForDay.filter(e => e.image).map((e, i) => {
           const rng  = seededRng(e.id);
           const szIdx = Math.floor(rng() * 3);
