@@ -1461,7 +1461,7 @@ function openDataRecovery() {
     info.textContent = 'No local backup found.';
     info.style.color = 'var(--muted)';
   }
-  openModal('modal-recovery');
+  document.getElementById('modal-recovery').classList.add('open');
 }
 
 function restoreFromBackup() {
