@@ -378,9 +378,6 @@
     .ov-dial-nav button:hover { border-color:var(--accent); color:var(--accent); }
     .ov-dial-nav button:disabled { opacity:.3; cursor:default; }
     .ov-day-detail { animation:fadeIn .2s ease; }
-    .ov-journal-thumbs { display:flex; flex-wrap:wrap; gap:8px; margin-top:.6rem; }
-    .ov-journal-thumb { width:72px; height:72px; object-fit:cover; border-radius:8px; cursor:pointer; border:2px solid var(--border); transition:all .2s; }
-    .ov-journal-thumb:hover { border-color:var(--accent); transform:scale(1.05); }
     .ov-journal-note { background:rgba(245,158,11,.07); border:1px solid rgba(245,158,11,.15); border-radius:8px; padding:7px 11px; font-size:.82rem; color:var(--text); font-style:italic; margin-top:4px; }
     .ov-city-divider { text-align:center; margin:0 0 16px; }
     .ov-city-divider-inner { display:inline-flex; align-items:center; gap:.6rem; padding:.5rem 1.4rem; background:var(--surface); border:1px solid var(--accent); border-radius:50px; text-decoration:none; color:inherit; transition:all .2s; }
@@ -2045,14 +2042,29 @@ function renderOverview() {
   const costHtml = '';
 
   const ovGalKey = 'ov-' + day;
-  _lbGal[ovGalKey] = journalForDay.map(e => e.image);
-  const journalHtml = journalForDay.length ? `
+  _lbGal[ovGalKey] = journalForDay.filter(e => e.image).map(e => e.image);
+  const journalHtml = journalForDay.filter(e => e.image).length ? `
     <div style="margin-top:.85rem">
       <div class="sub-label" style="margin-bottom:8px">📸 Memories</div>
-      <div class="ov-journal-thumbs">
-        ${journalForDay.map(e =>
-          `<img class="ov-journal-thumb" src="${e.image}" onclick="openLightbox(this.src,'${ovGalKey}')" title="${escHtml(e.text||'')}" />`
-        ).join('')}
+      <div style="display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:center;gap:10px 6px;padding:8px 0 12px">
+        ${journalForDay.filter(e => e.image).map((e, i) => {
+          const rng  = seededRng(e.id);
+          const szIdx = Math.floor(rng() * 3);
+          const deg  = (rng() - 0.5) * 22;
+          const tx   = (rng() - 0.5) * 32;
+          const ty   = (rng() - 0.5) * 22;
+          const pin  = PIN_COLORS[i % PIN_COLORS.length];
+          const mtop = 12 + Math.round(rng() * 40);
+          const imgW = [145,195,260][szIdx], imgH = [115,158,212][szIdx];
+          return `<div class="journal-item" style="width:${imgW}px;transform:rotate(${deg.toFixed(1)}deg) translate(${tx.toFixed(0)}px,${ty.toFixed(0)}px);margin-top:${mtop}px;z-index:${journalForDay.length - i}">
+            <div class="journal-pin" style="background:${pin}"></div>
+            <img src="${e.image}" alt="Memory" loading="lazy" onclick="openLightbox(this.src,'${ovGalKey}')" style="height:${imgH}px;width:100%;object-fit:cover;display:block;cursor:zoom-in" />
+            <div class="journal-caption">
+              ${e.text ? `<div class="journal-caption-text">${escHtml(e.text)}</div>` : ''}
+              <div class="journal-caption-meta">📍 ${escHtml(e.author||'')} · Day ${e.day||''}</div>
+            </div>
+          </div>`;
+        }).join('')}
       </div>
     </div>` : '';
 
