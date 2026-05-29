@@ -3351,6 +3351,7 @@ function removeJournalEntry(id) {
   save(); renderJournal();
   toast('Entry removed');
 }
+const PIN_COLORS = ['#ef4444','#3b82f6','#10b981','#f59e0b','#7c3aed','#f97316','#ec4899','#06b6d4'];
 function seededRng(id) {
   let h = (parseInt(id.slice(-7)) || 54321) * 1000003;
   return () => { h = ((h * 1664525) + 1013904223) & 0xffffffff; return (h >>> 0) / 4294967296; };
@@ -3373,8 +3374,6 @@ function renderJournal() {
     ...allDays.filter(d => grouped[d]),
     ...Object.keys(grouped).filter(k => !allDays.includes(k) && grouped[k])
   ];
-
-  const PIN_COLORS = ['#ef4444','#3b82f6','#10b981','#f59e0b','#7c3aed','#f97316','#ec4899','#06b6d4'];
 
   function renderEntries(dayEntries, globalOffset, galKey) {
     // Register this day's images as a lightbox gallery
