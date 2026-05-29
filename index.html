@@ -615,6 +615,7 @@
       <span id="cloud-dot" style="width:6px;height:6px;border-radius:50%;background:#f59e0b;display:inline-block"></span> Connecting...
     </span>
     <button class="btn-icon" onclick="toggleTheme()" id="theme-btn" title="Toggle light/dark mode" style="font-size:1.2rem;padding:6px 8px">🌙</button>
+    <button class="btn-icon" onclick="openDataRecovery()" title="Data recovery" style="font-size:1.1rem;padding:6px 8px">⚙️</button>
     <button class="btn btn-ghost btn-sm" onclick="showPage('home')">My Trips</button>
     <button class="btn btn-primary btn-sm" onclick="openNewTripModal()">+ New Trip</button>
     <input type="file" id="import-file-input" accept=".json,.trip" style="display:none" onchange="handleImportFile(event)" />
@@ -827,6 +828,16 @@
 </div>
 
 <!-- ═══ MODAL: NEW TRIP ═══ -->
+<div class="overlay" id="modal-recovery">
+  <div class="modal">
+    <div class="modal-title">⚙️ Data Recovery</div>
+    <div id="recovery-backup-info" style="margin-bottom:1rem;font-size:.85rem;color:var(--muted)">Checking backup…</div>
+    <button class="btn btn-primary" style="width:100%;margin-bottom:.6rem" onclick="restoreFromBackup()">🔄 Restore from Backup</button>
+    <button class="btn btn-ghost" style="width:100%;margin-bottom:.6rem" onclick="syncFromCloud()">☁️ Pull from Cloud</button>
+    <button class="btn btn-ghost" style="width:100%" onclick="closeModal('modal-recovery')">Cancel</button>
+  </div>
+</div>
+
 <div class="overlay" id="modal-new">
   <div class="modal">
     <div class="modal-title">New Trip ✈️</div>
@@ -1439,6 +1450,20 @@ function getBackup() {
   try { const b = localStorage.getItem('trips_backup'); return b ? JSON.parse(b) : null; }
   catch { return null; }
 }
+function openDataRecovery() {
+  const backup = getBackup();
+  const info = document.getElementById('recovery-backup-info');
+  if (backup) {
+    const d = new Date(backup.savedAt).toLocaleString();
+    info.innerHTML = `<strong>Backup found:</strong> ${backup.trips.length} trip(s) saved on ${d}`;
+    info.style.color = 'var(--accent)';
+  } else {
+    info.textContent = 'No local backup found.';
+    info.style.color = 'var(--muted)';
+  }
+  openModal('modal-recovery');
+}
+
 function restoreFromBackup() {
   const backup = getBackup();
   if (!backup) return toast('No backup found');
