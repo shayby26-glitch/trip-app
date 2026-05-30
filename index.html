@@ -1234,7 +1234,16 @@ async function _pushToCloud() {
       const tripsObj = {};
       trips.forEach(t => { tripsObj[t.id] = t; });
       const resp = await fetch(`${DB}/users/${uid}/trips.json${q}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(tripsObj) });
-      if (resp.ok) { pendingLocalSave = false; setCloudStatus('connected'); toast('☁️ Saved to cloud'); }
+      if (resp.ok) {
+        pendingLocalSave = false;
+        setCloudStatus('connected');
+        toast('☁️ Saved to cloud');
+        // Mirror any shared trips to /shared/{id} so viewers see live updates
+        trips.filter(t => t.isShared).forEach(t => {
+          fetch(`${DB}/shared/${t.id}.json${q}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(t) })
+            .catch(err => console.warn('Shared mirror failed:', err));
+        });
+      }
     }
   } catch (err) {
     console.warn('Auto-save to cloud failed:', err);
@@ -3649,6 +3658,9 @@ function decompressTrip(str) {
 function openShareModal() {
   const t = getTrip();
   if (!t) return;
+  // Mark trip as shared so future saves also mirror to /shared/{id}
+  t.isShared = true;
+  save();
   // Publish trip to /shared/{id} so anyone with the link can read it
   sharedRef.child(t.id).set(t).catch(err => console.warn('Share publish error:', err));
   const baseUrl = window.location.origin + window.location.pathname;
