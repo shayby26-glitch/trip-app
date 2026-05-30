@@ -1391,7 +1391,7 @@ function getDestSVG(dest) {
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 }
 
-function getDestPhoto(dest) {
+function getDestPhoto(dest, stayCity) {
   const photos = [
     'photo-1500835556837-99ac94a94552', // travel suitcase
     'photo-1488646953014-85cb44e25828', // travel map
@@ -1412,7 +1412,7 @@ function getDestPhoto(dest) {
     'photo-1534430480872-3498386e7856', // kilimanjaro
     'photo-1493246507139-91e8fad9978e', // nature
   ];
-  const destLower = dest.toLowerCase();
+  const destLower = (dest || '').toLowerCase();
   // Smart keyword matching for specific destinations
   const keywordMap = {
     'italy': 11, 'italia': 12, 'rome': 11, 'roma': 11, 'venice': 11, 'venezia': 11,
@@ -1438,14 +1438,19 @@ function getDestPhoto(dest) {
     'thailand': 13, '\u05ea\u05d0\u05d9\u05dc\u05e0\u05d3': 13, 'phuket': 13, 'costa rica': 13, 'fiji': 13, 'tahiti': 13,
     'sunset': 5, 'island': 13, '\u05d0\u05d9': 13,
   };
-  for (const [keyword, idx] of Object.entries(keywordMap)) {
-    if (destLower.includes(keyword)) {
-      return `https://images.unsplash.com/${photos[idx]}?w=800&q=75&auto=format`;
+  // Try stay city first, then trip destination
+  const candidates = [stayCity, dest].filter(Boolean).map(s => s.toLowerCase());
+  for (const term of candidates) {
+    for (const [keyword, idx] of Object.entries(keywordMap)) {
+      if (term.includes(keyword)) {
+        return `https://images.unsplash.com/${photos[idx]}?w=800&q=75&auto=format`;
+      }
     }
   }
-  // Fallback: hash-based selection
+  // Fallback: hash-based selection from destination
+  const hashSrc = dest || stayCity || 'travel';
   let hash = 0;
-  for (let i = 0; i < dest.length; i++) hash = ((hash << 5) - hash + dest.charCodeAt(i)) | 0;
+  for (let i = 0; i < hashSrc.length; i++) hash = ((hash << 5) - hash + hashSrc.charCodeAt(i)) | 0;
   const idx = Math.abs(hash) % photos.length;
   return `https://images.unsplash.com/${photos[idx]}?w=800&q=75&auto=format`;
 }
@@ -1689,7 +1694,8 @@ function renderHome() {
     ).join('');
     const moreP = people.length > 5 ? `<div class="mini-avatar" style="background:var(--surface2);color:var(--muted)">+${people.length-5}</div>` : '';
 
-    const photoUrl = getDestPhoto(t.destination);
+    const cardStayCity = (t.stays && t.stays.length > 0) ? (t.stays[0].city || t.stays[0].name || '') : '';
+    const photoUrl = getDestPhoto(t.destination, cardStayCity);
     return `<div class="trip-card" onclick="openTrip('${t.id}')">
       <div class="trip-card-banner img-shimmer" style="background:${gradBg};background-image:${meshBg},${gradBg};background-size:cover">
         <img class="trip-card-banner-img" src="${photoUrl}" alt="${escHtml(t.destination)}" loading="lazy" onload="this.classList.add('loaded');this.parentElement.classList.remove('img-shimmer')" onerror="this.style.display='none'" />
@@ -1893,9 +1899,10 @@ function openTrip(id) {
   const hero = document.getElementById('detail-hero');
   hero.style.background = getDestGradient(t.destination);
   hero.style.backgroundImage = getDestSVG(t.destination) + ',' + getDestGradient(t.destination);
-  // Set real hero photo
+  // Set real hero photo — prefer the city of the first/current stay
   const heroPhoto = document.getElementById('hero-photo');
-  const heroPhotoUrl = getDestPhoto(t.destination);
+  const stayCity = (t.stays && t.stays.length > 0) ? (t.stays[0].city || t.stays[0].name || '') : '';
+  const heroPhotoUrl = getDestPhoto(t.destination, stayCity);
   heroPhoto.src = heroPhotoUrl;
   heroPhoto.style.display = 'block';
   heroPhoto.onerror = function() { this.style.display = 'none'; };
