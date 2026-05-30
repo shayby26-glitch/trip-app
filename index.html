@@ -607,15 +607,31 @@
 </head>
 <body>
 
+<!-- ═══ SIGN-IN OVERLAY ═══ -->
+<div id="signin-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);flex-direction:column;align-items:center;justify-content:center;padding:32px">
+  <div style="text-align:center;max-width:320px;width:100%">
+    <div style="font-size:3rem;margin-bottom:12px">✈️</div>
+    <h1 style="font-size:1.8rem;font-weight:800;margin-bottom:6px;background:linear-gradient(135deg,#a78bfa,#7c3aed);-webkit-background-clip:text;-webkit-text-fill-color:transparent">Trip Planner</h1>
+    <p style="font-size:.9rem;color:var(--muted);margin-bottom:36px">Plan. Explore. Remember.</p>
+    <button onclick="signInWithGoogle()" style="width:100%;display:flex;align-items:center;justify-content:center;gap:12px;padding:14px 20px;background:#fff;color:#333;border:none;border-radius:12px;font-size:.95rem;font-weight:600;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.3)">
+      <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.34-8.16 2.34-6.26 0-11.57-3.59-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      Continue with Google
+    </button>
+    <p style="font-size:.72rem;color:var(--muted);margin-top:20px">Your trips are private and only visible to you.</p>
+  </div>
+</div>
+
 <nav>
   <div class="nav-brand">✈️ Trip Planner</div>
   <!-- Owner controls (hidden in guest/shared mode) -->
   <div id="nav-owner-actions" style="display:flex;gap:8px;align-items:center">
+    <span id="nav-user-info"></span>
     <span id="cloud-status" onclick="syncFromCloud()" title="Tap to sync from cloud" style="font-size:.75rem;padding:3px 8px;border-radius:12px;background:rgba(255,255,255,.08);color:var(--muted);display:flex;align-items:center;gap:4px;cursor:pointer">
       <span id="cloud-dot" style="width:6px;height:6px;border-radius:50%;background:#f59e0b;display:inline-block"></span> Connecting...
     </span>
     <button class="btn-icon" onclick="toggleTheme()" id="theme-btn" title="Toggle light/dark mode" style="font-size:1.2rem;padding:6px 8px">🌙</button>
     <button class="btn-icon" onclick="openDataRecovery()" title="Data recovery" style="font-size:1.1rem;padding:6px 8px">⚙️</button>
+    <button class="btn-icon" onclick="signOut()" title="Sign out" style="font-size:1.1rem;padding:6px 8px">🚪</button>
     <button class="btn btn-ghost btn-sm" onclick="showPage('home')">My Trips</button>
     <button class="btn btn-primary btn-sm" onclick="openNewTripModal()">+ New Trip</button>
     <input type="file" id="import-file-input" accept=".json,.trip" style="display:none" onchange="handleImportFile(event)" />
@@ -1123,21 +1139,57 @@ const firebaseConfig = {
   measurementId: "G-WRS6E54VKC"
 };
 firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-const tripsRef = db.ref('trips');
+const db   = firebase.database();
 const auth = firebase.auth();
-// Resolves as soon as an anonymous session is ready (instant on repeat visits)
+let tripsRef  = null; // set to db.ref('users/{uid}/trips') after sign-in
+let sharedRef = db.ref('shared'); // public shared trips
+let currentUser = null;
+
+// Resolves once a signed-in user is available
 const authReady = new Promise(resolve => {
+  // Handle redirect result first (mobile Google sign-in returns here)
+  auth.getRedirectResult()
+    .then(result => { if (result.user) resolve(result.user); })
+    .catch(() => {});
   auth.onAuthStateChanged(user => {
-    if (user) { resolve(user); return; }
-    auth.signInAnonymously()
-      .then(cred => resolve(cred.user))
-      .catch(err => { console.warn('Anonymous auth failed:', err); resolve(null); });
+    if (user) {
+      currentUser = user;
+      tripsRef = db.ref('users/' + user.uid + '/trips');
+      document.getElementById('signin-overlay').style.display = 'none';
+      _updateUserNav(user);
+      resolve(user);
+    } else {
+      document.getElementById('signin-overlay').style.display = 'flex';
+    }
   });
 });
+
+function _updateUserNav(user) {
+  const el = document.getElementById('nav-user-info');
+  if (!el) return;
+  el.innerHTML = user.photoURL
+    ? `<img src="${user.photoURL}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:2px solid var(--accent)" />`
+    : `<span style="font-size:.75rem;padding:3px 8px;border-radius:12px;background:rgba(255,255,255,.1);color:var(--muted)">${(user.displayName||user.email||'User').split(' ')[0]}</span>`;
+}
+
+function signInWithGoogle() {
+  const provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider).catch(() => auth.signInWithRedirect(provider));
+}
+
+function signOut() {
+  if (!confirm('Sign out?')) return;
+  auth.signOut().then(() => {
+    trips = []; currentUser = null; tripsRef = null;
+    localStorage.removeItem('trips');
+    document.getElementById('signin-overlay').style.display = 'flex';
+    document.getElementById('nav-user-info').innerHTML = '';
+  });
+}
+
 let firebaseReady = false;
-let sharedMode = false; // true when viewing a shared trip link
-let pendingLocalSave = false; // local edits made while Firebase was offline
+let sharedMode = false;
+let pendingLocalSave = false;
 
 let trips = JSON.parse(localStorage.getItem('trips') || '[]');
 let currentTripId = null;
@@ -1168,18 +1220,19 @@ async function _getAuthSuffix() {
 }
 
 async function _pushToCloud() {
-  if (!_isConnected) return;
+  if (!_isConnected || !currentUser) return;
   try {
     const q = await _getAuthSuffix();
+    const uid = currentUser.uid;
     if (sharedMode) {
       const t = getTrip();
       if (!t) return;
-      const resp = await fetch(`${DB}/trips/${t.id}.json${q}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(t) });
+      const resp = await fetch(`${DB}/shared/${t.id}.json${q}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(t) });
       if (resp.ok) { setCloudStatus('connected'); toast('☁️ Saved to cloud'); }
     } else {
       const tripsObj = {};
       trips.forEach(t => { tripsObj[t.id] = t; });
-      const resp = await fetch(`${DB}/trips.json${q}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(tripsObj) });
+      const resp = await fetch(`${DB}/users/${uid}/trips.json${q}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(tripsObj) });
       if (resp.ok) { pendingLocalSave = false; setCloudStatus('connected'); toast('☁️ Saved to cloud'); }
     }
   } catch (err) {
@@ -1225,31 +1278,25 @@ async function syncFromCloud() {
   if (pill) { pill.style.pointerEvents = 'none'; pill.innerHTML = '<span style="width:6px;height:6px;border-radius:50%;background:#f59e0b;display:inline-block"></span> ⏳ Syncing...'; }
   try {
     const user = await authReady;
-    const token = user ? await user.getIdToken().catch(() => null) : null;
+    if (!user) return toast('Please sign in first');
+    const token = await user.getIdToken().catch(() => null);
     const authSuffix = token ? '?auth=' + token : '';
-    const dbBase = 'https://trip-planner-c6bad-default-rtdb.europe-west1.firebasedatabase.app';
+    const uid = user.uid;
 
     if (sharedMode && currentTripId) {
-      // Guest: pull just the shared trip from cloud
-      const resp = await fetch(`${dbBase}/trips/${currentTripId}.json${authSuffix}`);
+      const resp = await fetch(`${DB}/shared/${currentTripId}.json${authSuffix}`);
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       const updated = await resp.json();
-      if (updated) {
-        trips = [updated];
-        renderAllTabs();
-        toast('✅ Synced from cloud');
-      }
+      if (updated) { trips = [updated]; renderAllTabs(); toast('✅ Synced from cloud'); }
     } else if (pendingLocalSave) {
-      // Local changes not yet in cloud — push up first
       const tripsObj = {};
       trips.forEach(t => { tripsObj[t.id] = t; });
-      const putResp = await fetch(`${dbBase}/trips.json${authSuffix}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(tripsObj) });
+      const putResp = await fetch(`${DB}/users/${uid}/trips.json${authSuffix}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(tripsObj) });
       if (!putResp.ok) throw new Error('HTTP ' + putResp.status);
       pendingLocalSave = false;
       toast('☁️ Changes uploaded');
     } else {
-      // No local changes — pull latest from cloud
-      const resp = await fetch(`${dbBase}/trips.json${authSuffix}`);
+      const resp = await fetch(`${DB}/users/${uid}/trips.json${authSuffix}`);
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       const data = await resp.json();
       const firebaseTrips = data ? Object.values(data) : [];
@@ -3592,7 +3639,8 @@ function decompressTrip(str) {
 function openShareModal() {
   const t = getTrip();
   if (!t) return;
-  // Share by Firebase trip ID — no trip data in URL, guests fetch live from Firebase
+  // Publish trip to /shared/{id} so anyone with the link can read it
+  sharedRef.child(t.id).set(t).catch(err => console.warn('Share publish error:', err));
   const baseUrl = window.location.origin + window.location.pathname;
   const shareUrl = baseUrl + '?shared=' + t.id;
   document.getElementById('share-link-input').value = shareUrl;
@@ -3794,8 +3842,8 @@ function checkUrlForSharedTrip() {
   document.getElementById('nav-owner-actions').style.display = 'none';
   document.getElementById('nav-guest-banner').style.display = 'flex';
 
-  // Fetch the trip from Firebase by ID (wait for auth first)
-  authReady.then(() => tripsRef.child(sharedId).once('value')).then(snapshot => {
+  // Fetch the shared trip from /shared/{id} — no auth required (public read)
+  sharedRef.child(sharedId).once('value').then(snapshot => {
     const trip = snapshot.val();
     if (!trip) {
       toast('Trip not found or link has expired');
@@ -3805,8 +3853,7 @@ function checkUrlForSharedTrip() {
       return;
     }
     trips = [trip];
-    // Subscribe to live updates for this trip so edits from others appear instantly
-    tripsRef.child(sharedId).on('value', snap => {
+    sharedRef.child(sharedId).on('value', snap => {
       if (!sharedMode) return;
       const updated = snap.val();
       if (!updated) return;
@@ -4334,7 +4381,7 @@ function seedTokyoExpensesIfNeeded() {
 
 
 async function initialFirebaseSync() {
-  if (sharedMode) return;
+  if (sharedMode || !tripsRef) return;
   try {
     const snapshot = await tripsRef.once('value');
     const data = snapshot.val();

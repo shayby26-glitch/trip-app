@@ -1,6 +1,18 @@
 {
   "rules": {
-    ".read": true,
-    ".write": true
+    "users": {
+      "$uid": {
+        "trips": {
+          ".read": "$uid === auth.uid",
+          ".write": "$uid === auth.uid"
+        }
+      }
+    },
+    "shared": {
+      "$tripId": {
+        ".read": true,
+        ".write": "auth != null"
+      }
+    }
   }
 }
