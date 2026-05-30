@@ -638,7 +638,8 @@
   </div>
   <!-- Guest banner (shown only when opening a shared link) -->
   <div id="nav-guest-banner" style="display:none;align-items:center;gap:10px">
-    <span style="font-size:.8rem;color:var(--accent);background:rgba(168,85,247,.12);border:1px solid rgba(168,85,247,.3);padding:4px 12px;border-radius:20px">✈️ Shared trip · you can edit</span>
+    <span style="font-size:.8rem;color:var(--accent);background:rgba(168,85,247,.12);border:1px solid rgba(168,85,247,.3);padding:4px 12px;border-radius:20px">✈️ Shared trip · view only</span>
+    <button id="btn-add-to-my-trips" class="btn btn-primary btn-sm" onclick="addSharedTripToAccount()" style="display:none;font-size:.8rem;padding:5px 12px">➕ Add to my trips</button>
     <span id="cloud-status-guest" onclick="syncFromCloud()" title="Tap to sync from cloud" style="font-size:.75rem;padding:3px 8px;border-radius:12px;background:rgba(255,255,255,.08);color:var(--muted);display:flex;align-items:center;gap:4px;cursor:pointer">
       <span id="cloud-dot-guest" style="width:6px;height:6px;border-radius:50%;background:#f59e0b;display:inline-block"></span> Connecting...
     </span>
@@ -3870,6 +3871,9 @@ function checkUrlForSharedTrip() {
       if (currentTripId === updated.id) renderAllTabs();
     });
     openTrip(trip.id);
+    // Show "Add to my trips" button for all viewers (signed-in or not)
+    const addBtn = document.getElementById('btn-add-to-my-trips');
+    if (addBtn) addBtn.style.display = '';
   }).catch(() => {
     toast('Could not load shared trip — check your connection');
     sharedMode = false;
@@ -3878,6 +3882,41 @@ function checkUrlForSharedTrip() {
   });
 
   return true;
+}
+
+function addSharedTripToAccount() {
+  if (!currentUser) {
+    // Not signed in — prompt sign-in then they can use the button after
+    document.getElementById('signin-overlay').style.display = 'flex';
+    return;
+  }
+  const trip = getTrip();
+  if (!trip) return;
+
+  // Check for duplicate
+  const ownTrips = JSON.parse(localStorage.getItem('trips') || '[]');
+  const dupe = ownTrips.find(t =>
+    t.destination === trip.destination && t.start === trip.start && t.end === trip.end
+  );
+  if (dupe) {
+    if (!confirm('You already have a trip with the same destination and dates. Add anyway?')) return;
+  }
+
+  const copy = JSON.parse(JSON.stringify(trip));
+  copy.id = Date.now().toString();
+  copy.archived = false;
+
+  // Exit shared mode and restore owner UI
+  sharedMode = false;
+  trips = ownTrips;
+  document.getElementById('nav-owner-actions').style.display = 'flex';
+  document.getElementById('nav-guest-banner').style.display = 'none';
+  document.getElementById('cloud-status').style.display = '';
+
+  trips.unshift(copy);
+  save();
+  toast('Trip added to your account! 🎉');
+  openTrip(copy.id);
 }
 
 // KEYBOARD / OVERLAY
