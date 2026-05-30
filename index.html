@@ -1507,12 +1507,14 @@ const _lbGal = {};   // key → [src, src, …]  populated by render functions
 let _lbCur = [], _lbIdx = 0, _lbTouchX = 0;
 
 // ── Local backup (safety net before any Firebase overwrite) ──
+function _backupKey()    { return 'trips_backup'   + (currentUser ? '_' + currentUser.uid : ''); }
+function _exportTsKey()  { return 'last_export_ts' + (currentUser ? '_' + currentUser.uid : ''); }
 function saveBackup() {
   if (trips.length > 0)
-    localStorage.setItem('trips_backup', JSON.stringify({ trips, savedAt: new Date().toISOString() }));
+    localStorage.setItem(_backupKey(), JSON.stringify({ trips, savedAt: new Date().toISOString() }));
 }
 function getBackup() {
-  try { const b = localStorage.getItem('trips_backup'); return b ? JSON.parse(b) : null; }
+  try { const b = localStorage.getItem(_backupKey()); return b ? JSON.parse(b) : null; }
   catch { return null; }
 }
 function openDataRecovery() {
@@ -1536,15 +1538,9 @@ function restoreFromBackup() {
   const d = new Date(backup.savedAt).toLocaleString();
   if (!confirm(`Restore ${backup.trips.length} trip(s) from backup saved on ${d}?\nThis will overwrite current data.`)) return;
   trips = backup.trips;
-  localStorage.setItem('trips', JSON.stringify(trips));
-  pendingLocalSave = true;
-  if (firebaseReady) {
-    const tripsObj = {};
-    trips.forEach(t => { tripsObj[t.id] = t; });
-    tripsRef.set(tripsObj).catch(err => console.warn('Restore push error:', err));
-    pendingLocalSave = false;
-  }
+  save();
   renderHome();
+  closeModal('modal-recovery');
   toast(`Restored ${trips.length} trips`);
 }
 
@@ -3685,21 +3681,22 @@ function copyShareLink() {
 // Download as .trip file
 function exportAllTrips() {
   if (!trips.length) return toast('No trips to export');
-  const data = JSON.stringify({ trips, exportedAt: new Date().toISOString() }, null, 2);
+  const uid  = currentUser ? currentUser.uid.slice(0,8) : 'guest';
+  const data = JSON.stringify({ trips, exportedAt: new Date().toISOString(), uid }, null, 2);
   const blob = new Blob([data], { type: 'application/json' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href     = url;
-  a.download = 'trips-backup-' + new Date().toISOString().slice(0,10) + '.json';
+  a.download = 'trips-backup-' + uid + '-' + new Date().toISOString().slice(0,10) + '.json';
   document.body.appendChild(a);
   a.click();
   setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
-  localStorage.setItem('last_export_ts', Date.now());
+  localStorage.setItem(_exportTsKey(), Date.now());
   toast('📥 Backup downloaded');
 }
 
 function checkPeriodicBackup() {
-  const last = parseInt(localStorage.getItem('last_export_ts') || '0');
+  const last = parseInt(localStorage.getItem(_exportTsKey()) || '0');
   const hoursSince = (Date.now() - last) / 36e5;
   if (hoursSince < 24) return;
   const banner = document.createElement('div');
@@ -3707,7 +3704,7 @@ function checkPeriodicBackup() {
   banner.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--accent);border-radius:14px;padding:12px 18px;display:flex;align-items:center;gap:12px;z-index:1500;box-shadow:0 4px 20px rgba(0,0,0,.4);max-width:320px;width:90%';
   banner.innerHTML = `<span style="font-size:.82rem;color:var(--text);flex:1">💾 Download a local backup of your trips?</span>
     <button class="btn btn-primary btn-sm" onclick="exportAllTrips();this.closest('#backup-banner').remove()">Download</button>
-    <button class="btn btn-ghost btn-sm" onclick="localStorage.setItem('last_export_ts',Date.now());this.closest('#backup-banner').remove()">Later</button>`;
+    <button class="btn btn-ghost btn-sm" onclick="localStorage.setItem(_exportTsKey(),Date.now());this.closest('#backup-banner').remove()">Later</button>`;
   document.body.appendChild(banner);
   setTimeout(() => banner.remove(), 30000);
 }
