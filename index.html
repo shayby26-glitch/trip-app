@@ -848,7 +848,10 @@
 
     <!-- JOURNAL (was Notes) -->
     <div id="tab-notes" class="tab-content">
-      <div class="journal-form">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+        <button class="btn btn-primary btn-sm" onclick="toggleJournalForm()">✏️ Add entry</button>
+      </div>
+      <div class="journal-form" id="journal-add-form" style="display:none">
         <div style="font-family:var(--font-heading);font-size:1.1rem;font-weight:700;margin-bottom:.3rem">Add to Journal</div>
         <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:5px">📅 Day</div>
         <div id="journal-day-chips" style="display:flex;gap:6px;overflow-x:auto;padding:2px 0 6px;scrollbar-width:none"></div>
@@ -3553,6 +3556,7 @@ function addJournalEntry() {
         document.getElementById('journal-link').value = '';
         fileInput.value = '';
         document.getElementById('journal-file-name').textContent = 'Add a photo (optional)';
+        document.getElementById('journal-add-form').style.display = 'none';
         toast('Journal entry added!');
       };
       img.src = e.target.result;
@@ -3567,8 +3571,15 @@ function addJournalEntry() {
     save(); renderJournal();
     document.getElementById('journal-text').value = '';
     document.getElementById('journal-link').value = '';
+    document.getElementById('journal-add-form').style.display = 'none';
     toast('Journal entry added!');
   }
+}
+function toggleJournalForm() {
+  const f = document.getElementById('journal-add-form');
+  const visible = f.style.display !== 'none';
+  f.style.display = visible ? 'none' : '';
+  if (!visible) f.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 function removeJournalEntry(id) {
   const t = getTrip(); if (!t) return;
