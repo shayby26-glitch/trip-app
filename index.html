@@ -651,13 +651,16 @@
     <input type="file" id="import-file-input" accept=".json,.trip" style="display:none" onchange="handleImportFile(event)" />
     <!-- Profile dropdown -->
     <div class="profile-menu-wrap" id="profile-menu-wrap">
-      <button class="profile-menu-trigger" onclick="toggleProfileMenu()" id="nav-user-info" aria-label="Account menu"></button>
+      <button class="profile-menu-trigger" onclick="toggleProfileMenu()" id="nav-user-info" aria-label="Account menu" style="position:relative">
+        <span id="backup-due-dot" style="display:none;position:absolute;top:2px;right:2px;width:8px;height:8px;border-radius:50%;background:#f59e0b;border:1.5px solid var(--bg)"></span>
+      </button>
       <div class="profile-dropdown" id="profile-dropdown">
         <button class="profile-dropdown-item" onclick="toggleTheme();closeProfileMenu()">
           <span id="theme-icon">🌙</span> <span id="theme-label">Dark mode</span>
         </button>
         <div class="profile-dropdown-divider"></div>
-        <button class="profile-dropdown-item" onclick="openDataRecovery();closeProfileMenu()">⚙️ Settings &amp; backup</button>
+        <button class="profile-dropdown-item" id="backup-dropdown-item" onclick="exportAllTrips();closeProfileMenu()">💾 Download backup</button>
+        <button class="profile-dropdown-item" onclick="openDataRecovery();closeProfileMenu()">⚙️ Settings &amp; restore</button>
         <div class="profile-dropdown-divider"></div>
         <button class="profile-dropdown-item" onclick="signOut()" style="color:#f87171">🚪 Sign out</button>
       </div>
@@ -3733,21 +3736,23 @@ function exportAllTrips() {
   a.click();
   setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
   localStorage.setItem(_exportTsKey(), Date.now());
+  checkPeriodicBackup(); // clear the badge
   toast('📥 Backup downloaded');
 }
 
 function checkPeriodicBackup() {
   const last = parseInt(localStorage.getItem(_exportTsKey()) || '0');
   const hoursSince = (Date.now() - last) / 36e5;
-  if (hoursSince < 24) return;
-  const banner = document.createElement('div');
-  banner.id = 'backup-banner';
-  banner.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--accent);border-radius:14px;padding:12px 18px;display:flex;align-items:center;gap:12px;z-index:1500;box-shadow:0 4px 20px rgba(0,0,0,.4);max-width:320px;width:90%';
-  banner.innerHTML = `<span style="font-size:.82rem;color:var(--text);flex:1">💾 Download a local backup of your trips?</span>
-    <button class="btn btn-primary btn-sm" onclick="exportAllTrips();this.closest('#backup-banner').remove()">Download</button>
-    <button class="btn btn-ghost btn-sm" onclick="localStorage.setItem(_exportTsKey(),Date.now());this.closest('#backup-banner').remove()">Later</button>`;
-  document.body.appendChild(banner);
-  setTimeout(() => banner.remove(), 30000);
+  const dot = document.getElementById('backup-due-dot');
+  const item = document.getElementById('backup-dropdown-item');
+  if (hoursSince >= 24) {
+    // Show amber dot on profile avatar and highlight the backup item
+    if (dot) dot.style.display = '';
+    if (item) item.style.color = '#f59e0b';
+  } else {
+    if (dot) dot.style.display = 'none';
+    if (item) item.style.color = '';
+  }
 }
 
 function downloadTripFile() {
