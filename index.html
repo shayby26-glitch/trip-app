@@ -763,10 +763,7 @@
     <div id="detail-hero-actions" style="position:absolute;top:16px;right:20px;display:flex;gap:8px;flex-wrap:wrap">
       <button id="btn-back-trip" class="btn btn-ghost btn-sm" onclick="showPage('home')" style="background:rgba(0,0,0,.4);backdrop-filter:blur(10px);border-color:rgba(255,255,255,.2);color:#fff">← Back</button>
       <button id="btn-edit-trip" class="btn btn-ghost btn-sm" onclick="openEditTripModal()" style="background:rgba(0,0,0,.4);backdrop-filter:blur(10px);border-color:rgba(255,255,255,.2);color:#fff">✏️</button>
-      <button id="btn-dup-trip" class="btn btn-ghost btn-sm" onclick="duplicateCurrentTrip()" style="background:rgba(0,0,0,.4);backdrop-filter:blur(10px);border-color:rgba(255,255,255,.2);color:#fff">⧉</button>
-      <button id="btn-arch-trip" class="btn btn-ghost btn-sm" onclick="archiveCurrentTrip()" style="background:rgba(0,0,0,.4);backdrop-filter:blur(10px);border-color:rgba(255,255,255,.2);color:#fff">📦</button>
-      <button id="btn-share-trip" class="btn btn-primary btn-sm" onclick="openShareModal()" style="background:linear-gradient(135deg,#7c3aed,#f43f5e);border:none">🔗 Share</button>
-<button id="btn-del-trip" class="btn btn-danger btn-sm" onclick="deleteCurrentTrip()" style="background:rgba(239,68,68,.3);backdrop-filter:blur(10px)">Delete</button>
+      <button id="btn-del-trip" class="btn btn-danger btn-sm" onclick="deleteCurrentTrip()" style="background:rgba(239,68,68,.3);backdrop-filter:blur(10px)">Delete</button>
     </div>
   </div>
 
@@ -2062,7 +2059,7 @@ function openTrip(id) {
   startFallingElements(t.destination, t.emoji);
 
   // In shared/guest mode hide all action buttons
-  ['btn-back-trip','btn-edit-trip','btn-dup-trip','btn-arch-trip','btn-share-trip','btn-del-trip'].forEach(id => {
+  ['btn-back-trip','btn-edit-trip','btn-del-trip'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = sharedMode ? 'none' : '';
   });
