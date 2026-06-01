@@ -79,6 +79,24 @@
     .btn-icon { background:transparent; color:var(--muted); padding:4px 8px; border-radius:6px; font-size:1rem; line-height:1; }
     .btn-icon:hover { background:var(--surface2); color:var(--text); transform:scale(1.1); }
 
+    /* PROFILE DROPDOWN */
+    .profile-menu-wrap { position:relative; }
+    .profile-menu-trigger { cursor:pointer; display:flex; align-items:center; gap:6px; padding:3px 6px; border-radius:20px; border:none; background:transparent; }
+    .profile-menu-trigger:hover { background:rgba(255,255,255,.07); }
+    .profile-dropdown {
+      display:none; position:absolute; right:0; top:calc(100% + 6px);
+      background:var(--surface); border:1px solid var(--border); border-radius:12px;
+      min-width:160px; box-shadow:0 8px 24px rgba(0,0,0,.4); z-index:500; overflow:hidden;
+    }
+    .profile-dropdown.open { display:block; }
+    .profile-dropdown-item {
+      display:flex; align-items:center; gap:10px; padding:10px 14px;
+      font-size:.85rem; color:var(--text); cursor:pointer; border:none;
+      background:transparent; width:100%; text-align:left;
+    }
+    .profile-dropdown-item:hover { background:var(--surface2); }
+    .profile-dropdown-divider { height:1px; background:var(--border); margin:2px 0; }
+
     /* PAGES */
     .page { display:none; }
     .page.active { display:block; }
@@ -625,16 +643,25 @@
   <div class="nav-brand">✈️ Trip Planner</div>
   <!-- Owner controls (hidden in guest/shared mode) -->
   <div id="nav-owner-actions" style="display:flex;gap:8px;align-items:center">
-    <span id="nav-user-info"></span>
     <span id="cloud-status" onclick="syncFromCloud()" title="Tap to sync from cloud" style="font-size:.75rem;padding:3px 8px;border-radius:12px;background:rgba(255,255,255,.08);color:var(--muted);display:flex;align-items:center;gap:4px;cursor:pointer">
       <span id="cloud-dot" style="width:6px;height:6px;border-radius:50%;background:#f59e0b;display:inline-block"></span> Connecting...
     </span>
-    <button class="btn-icon" onclick="toggleTheme()" id="theme-btn" title="Toggle light/dark mode" style="font-size:1.2rem;padding:6px 8px">🌙</button>
-    <button class="btn-icon" onclick="openDataRecovery()" title="Data recovery" style="font-size:1.1rem;padding:6px 8px">⚙️</button>
-    <button class="btn-icon" onclick="signOut()" title="Sign out" style="font-size:1.1rem;padding:6px 8px">🚪</button>
     <button class="btn btn-ghost btn-sm" onclick="showPage('home')">My Trips</button>
     <button class="btn btn-primary btn-sm" onclick="openNewTripModal()">+ New Trip</button>
     <input type="file" id="import-file-input" accept=".json,.trip" style="display:none" onchange="handleImportFile(event)" />
+    <!-- Profile dropdown -->
+    <div class="profile-menu-wrap" id="profile-menu-wrap">
+      <button class="profile-menu-trigger" onclick="toggleProfileMenu()" id="nav-user-info" aria-label="Account menu"></button>
+      <div class="profile-dropdown" id="profile-dropdown">
+        <button class="profile-dropdown-item" onclick="toggleTheme();closeProfileMenu()">
+          <span id="theme-icon">🌙</span> <span id="theme-label">Dark mode</span>
+        </button>
+        <div class="profile-dropdown-divider"></div>
+        <button class="profile-dropdown-item" onclick="openDataRecovery();closeProfileMenu()">⚙️ Settings &amp; backup</button>
+        <div class="profile-dropdown-divider"></div>
+        <button class="profile-dropdown-item" onclick="signOut()" style="color:#f87171">🚪 Sign out</button>
+      </div>
+    </div>
   </div>
   <!-- Guest banner (shown only when opening a shared link) -->
   <div id="nav-guest-banner" style="display:none;align-items:center;gap:10px">
@@ -643,7 +670,6 @@
     <span id="cloud-status-guest" onclick="syncFromCloud()" title="Tap to sync from cloud" style="font-size:.75rem;padding:3px 8px;border-radius:12px;background:rgba(255,255,255,.08);color:var(--muted);display:flex;align-items:center;gap:4px;cursor:pointer">
       <span id="cloud-dot-guest" style="width:6px;height:6px;border-radius:50%;background:#f59e0b;display:inline-block"></span> Connecting...
     </span>
-    <button class="btn-icon" onclick="toggleTheme()" style="font-size:1.2rem;padding:6px 8px">🌙</button>
   </div>
 </nav>
 
@@ -1168,10 +1194,25 @@ const authReady = new Promise(resolve => {
 function _updateUserNav(user) {
   const el = document.getElementById('nav-user-info');
   if (!el) return;
-  el.innerHTML = user.photoURL
-    ? `<img src="${user.photoURL}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:2px solid var(--accent)" />`
-    : `<span style="font-size:.75rem;padding:3px 8px;border-radius:12px;background:rgba(255,255,255,.1);color:var(--muted)">${(user.displayName||user.email||'User').split(' ')[0]}</span>`;
+  if (user.photoURL) {
+    el.innerHTML = `<img src="${user.photoURL}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;border:2px solid var(--accent)" />`;
+  } else {
+    const name = (user.displayName || user.email || 'U').split(' ')[0];
+    el.innerHTML = `<span style="width:30px;height:30px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700">${name[0].toUpperCase()}</span>`;
+  }
 }
+
+function toggleProfileMenu() {
+  document.getElementById('profile-dropdown').classList.toggle('open');
+}
+function closeProfileMenu() {
+  document.getElementById('profile-dropdown').classList.remove('open');
+}
+// Close dropdown when clicking outside
+document.addEventListener('click', e => {
+  const wrap = document.getElementById('profile-menu-wrap');
+  if (wrap && !wrap.contains(e.target)) closeProfileMenu();
+});
 
 function signInWithGoogle() {
   const provider = new firebase.auth.GoogleAuthProvider();
@@ -3949,19 +3990,23 @@ document.getElementById('new-pack-name').addEventListener('keydown', e => { if(e
 // ══════════════════════════════════════════════
 // THEME
 // ══════════════════════════════════════════════
+function _applyThemeUI(theme) {
+  const icon  = document.getElementById('theme-icon');
+  const label = document.getElementById('theme-label');
+  if (icon)  icon.textContent  = theme === 'light' ? '☀️' : '🌙';
+  if (label) label.textContent = theme === 'light' ? 'Light mode' : 'Dark mode';
+}
 function toggleTheme() {
-  const html = document.documentElement;
-  const isLight = html.getAttribute('data-theme') === 'light';
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
   const next = isLight ? 'dark' : 'light';
-  html.setAttribute('data-theme', next);
-  document.getElementById('theme-btn').textContent = next === 'light' ? '☀️' : '🌙';
+  document.documentElement.setAttribute('data-theme', next);
   localStorage.setItem('theme', next);
+  _applyThemeUI(next);
 }
 (function initTheme() {
   const saved = localStorage.getItem('theme') || 'dark';
   document.documentElement.setAttribute('data-theme', saved);
-  const btn = document.getElementById('theme-btn');
-  if (btn) btn.textContent = saved === 'light' ? '☀️' : '🌙';
+  _applyThemeUI(saved);
 })();
 
 // ══════════════════════════════════════════════
