@@ -194,12 +194,32 @@
     .detail-meta { display:flex; gap:14px; flex-wrap:wrap; margin-top:6px; font-size:.85rem; color:var(--muted); }
 
     /* TABS */
-    .tabs { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:20px; border-bottom:none; }
-    .tab { padding:10px 6px; font-size:.78rem; font-weight:700; color:var(--muted); background:var(--surface); border:1px solid var(--border); border-radius:10px; cursor:pointer; transition:all .2s ease; white-space:nowrap; text-align:center; margin-bottom:0; border-bottom:none; }
-    .tab.active { color:#fff; background:var(--grad); border-color:transparent; box-shadow:0 4px 14px rgba(168,85,247,.35); }
-    .tab:hover:not(.active) { color:var(--text); background:var(--surface2); border-color:rgba(168,85,247,.4); }
+    .tabs { display:none; } /* replaced by fixed bottom bar */
+    .tab { display:none; }
     .tab-content { display:none; }
     .tab-content.active { display:block; animation: fadeIn .3s ease; }
+
+    /* FIXED BOTTOM TAB BAR */
+    #bottom-tab-bar {
+      display:none; position:fixed; bottom:0; left:0; right:0; z-index:400;
+      background:var(--surface); border-top:1px solid var(--border);
+      padding:6px 4px env(safe-area-inset-bottom, 6px);
+      display:none; grid-auto-flow:column; grid-auto-columns:1fr;
+      gap:0; box-shadow:0 -4px 20px rgba(0,0,0,.25);
+    }
+    #bottom-tab-bar.visible { display:grid; }
+    .btab {
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      gap:3px; padding:6px 2px; cursor:pointer; border:none; background:transparent;
+      color:var(--muted); font-size:.6rem; font-weight:600; letter-spacing:.01em;
+      transition:color .2s; min-width:0; white-space:nowrap;
+    }
+    .btab .btab-icon { font-size:1.3rem; line-height:1; transition:transform .2s; }
+    .btab.active { color:var(--accent); }
+    .btab.active .btab-icon { transform:scale(1.15); }
+    .btab:hover:not(.active) { color:var(--text); }
+    /* push detail-page content above the bottom bar */
+    #page-detail .detail-page { padding-bottom:80px; }
 
     /* PEOPLE */
     .people-grid { display:flex; flex-wrap:wrap; gap:12px; margin-bottom:20px; }
@@ -354,7 +374,7 @@
 
     /* PRINT */
     @media print {
-      nav, .tabs, .btn, .add-inline, .day-add, .btn-icon, #toast { display:none !important; }
+      nav, .tabs, .btn, .add-inline, .day-add, .btn-icon, #toast, #bottom-tab-bar { display:none !important; }
       .page { display:block !important; }
       .tab-content { display:block !important; margin-bottom:24px; }
       body { background:#fff; color:#000; }
@@ -675,6 +695,17 @@
     </span>
   </div>
 </nav>
+
+<!-- ═══ FIXED BOTTOM TAB BAR ═══ -->
+<div id="bottom-tab-bar">
+  <button class="btab" data-tab="overview"  onclick="switchTab('overview',this)"><span class="btab-icon">📅</span>Overview</button>
+  <button class="btab" data-tab="itinerary" onclick="switchTab('itinerary',this)"><span class="btab-icon">🗓</span>Itinerary</button>
+  <button class="btab" data-tab="stay"      onclick="switchTab('stay',this)"><span class="btab-icon">🏨</span>Stay</button>
+  <button class="btab" data-tab="expenses"  onclick="switchTab('expenses',this)"><span class="btab-icon">💸</span>Expenses</button>
+  <button class="btab" data-tab="packing"   onclick="switchTab('packing',this)"><span class="btab-icon">🎒</span>Packing</button>
+  <button class="btab" data-tab="notes"     onclick="switchTab('notes',this)"><span class="btab-icon">📓</span>Journal</button>
+  <button class="btab" data-tab="people"    onclick="switchTab('people',this)"><span class="btab-icon">👥</span>People</button>
+</div>
 
 <!-- ═══ HOME ═══ -->
 <div id="page-home" class="page active">
@@ -1675,6 +1706,8 @@ function currency(t) { return t.currency || '$'; }
 function showPage(name) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('active');
+  const bar = document.getElementById('bottom-tab-bar');
+  if (bar) bar.classList.toggle('visible', name === 'detail');
   if (name === 'home') {
     renderHome();
     stopFallingElements();
@@ -1971,10 +2004,9 @@ function openTrip(id) {
      <span>🕐 ${days} day${days>1?'s':''}</span>
      <span class="badge badge-${st}" style="margin-left:4px">${st}</span>`;
 
-  document.querySelectorAll('.tab').forEach(tb=>tb.classList.remove('active'));
+  document.querySelectorAll('.tab,.btab').forEach(tb=>tb.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(tc=>tc.classList.remove('active'));
-  const defTab = document.querySelector('.tab[data-tab="overview"]');
-  if (defTab) defTab.classList.add('active');
+  document.querySelectorAll('[data-tab="overview"]').forEach(el=>el.classList.add('active'));
   const defContent = document.getElementById('tab-overview');
   if (defContent) defContent.classList.add('active');
 
@@ -2004,9 +2036,10 @@ function deleteCurrentTrip() {
   save(); toast('Trip deleted'); showPage('home');
 }
 function switchTab(name, btn) {
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab,.btab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
-  btn.classList.add('active');
+  // Activate the clicked button and its counterpart in the other bar
+  document.querySelectorAll(`.tab[data-tab="${name}"],.btab[data-tab="${name}"]`).forEach(t=>t.classList.add('active'));
   document.getElementById('tab-'+name).classList.add('active');
   if (name === 'notes') populateJournalDaySelect();
 }
