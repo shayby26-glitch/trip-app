@@ -152,14 +152,14 @@
     .trips-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:24px; }
     .trip-card { background:rgba(14,21,37,.6); backdrop-filter:blur(10px); border:1px solid rgba(124,58,237,.1); border-radius:18px; overflow:hidden; transition:transform .3s cubic-bezier(.34,1.4,.64,1),box-shadow .3s ease; cursor:pointer; position:relative; }
     .trip-card:hover { transform:translateY(-8px) scale(1.015); box-shadow:0 24px 60px rgba(0,0,0,.55),0 0 0 1px rgba(124,58,237,.3),0 0 40px rgba(124,58,237,.1); }
-    .trip-card-banner { height:190px; position:relative; overflow:hidden; display:flex; align-items:flex-end; background:linear-gradient(135deg,#1a1040,#0d1a2e); }
+    .trip-card-banner { height:200px; position:relative; overflow:hidden; background:linear-gradient(135deg,#1a1040,#0d1a2e); }
     .trip-card-banner-img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transition:transform .5s ease, filter .5s ease; filter:brightness(.82) saturate(1.2); }
     .trip-card-banner-img.loaded { animation: fadeIn .5s ease; }
     .trip-card:hover .trip-card-banner-img { transform:scale(1.08); filter:brightness(.9) saturate(1.3); }
-    .trip-card-banner-overlay { position:absolute; inset:0; background:linear-gradient(to top,rgba(5,8,15,.95) 0%,rgba(5,8,15,.2) 55%,transparent 100%); }
-    .trip-card-banner-content { position:relative; z-index:1; padding:14px 16px; width:100%; }
-    .trip-card-emoji { font-size:1.9rem; line-height:1; margin-bottom:5px; display:block; }
-    .trip-card-title-banner { font-family:var(--font-heading); font-size:1.2rem; font-weight:800; color:#fff; letter-spacing:-.02em; text-shadow:0 2px 12px rgba(0,0,0,.7); }
+    .trip-card-banner-overlay { position:absolute; inset:0; background:linear-gradient(to top,rgba(5,8,15,1) 0%,rgba(5,8,15,.5) 45%,transparent 100%); }
+    .trip-card-banner-content { position:absolute; bottom:0; left:0; right:0; z-index:1; padding:14px 16px; }
+    .trip-card-emoji { position:absolute; top:12px; left:14px; font-size:1.5rem; line-height:1; z-index:1; filter:drop-shadow(0 2px 4px rgba(0,0,0,.5)); }
+    .trip-card-title-banner { font-family:var(--font-heading); font-size:1.25rem; font-weight:800; color:#fff; letter-spacing:-.02em; text-shadow:0 2px 12px rgba(0,0,0,.7); line-height:1.2; margin-top:5px; }
     .trip-card-body { padding:13px 16px 16px; }
     .trip-card-meta { font-size:.77rem; color:var(--muted); display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
     .countdown-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:20px; font-size:.7rem; font-weight:700; }
@@ -1752,18 +1752,15 @@ function renderHome() {
       <div class="trip-card-banner img-shimmer" style="background:${gradBg};background-image:${meshBg},${gradBg};background-size:cover">
         <img class="trip-card-banner-img" src="${photoUrl}" alt="${escHtml(t.destination)}" loading="lazy" onload="this.classList.add('loaded');this.parentElement.classList.remove('img-shimmer')" onerror="this.style.display='none'" />
         <div class="trip-card-banner-overlay"></div>
+        <span class="trip-card-emoji">${t.emoji}</span>
         <div class="trip-card-banner-content">
-          <span class="trip-card-emoji">${t.emoji}</span>
+          ${countdownHtml}
           <div class="trip-card-title-banner">${escHtml(t.destination)}</div>
+          <div style="font-size:.75rem;color:rgba(255,255,255,.65);margin-top:3px">📅 ${fmtDate(t.start)} → ${fmtDate(t.end)} · ${days} day${days!==1?'s':''}</div>
         </div>
       </div>
       <div class="trip-card-body">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-          ${countdownHtml}
-          <span style="font-size:.78rem;color:var(--muted)">🕐 ${days} day${days!==1?'s':''}</span>
-        </div>
         <div class="trip-card-meta">
-          <span>📅 ${fmtDate(t.start)} → ${fmtDate(t.end)}</span>
           ${budgetHtml}
         </div>
         ${t.description ? `<div style="font-size:.78rem;color:var(--muted);margin-bottom:10px;line-height:1.5">${escHtml(t.description)}</div>` : ''}
