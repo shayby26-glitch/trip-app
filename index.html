@@ -1158,6 +1158,7 @@
       <div class="form-group"><label>Total Cost</label><input type="number" id="stay-cost" placeholder="0.00" min="0" step="0.01" /></div>
     </div>
     <div class="form-group"><label>Notes</label><textarea id="stay-notes" placeholder="Room type, check-in time, breakfast included…"></textarea></div>
+    <div class="form-group"><label>Booking Link</label><input type="url" id="stay-link" placeholder="https://airbnb.com/rooms/… or booking.com/…" /></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('modal-stay')">Cancel</button>
       <button class="btn btn-primary" onclick="submitStay()">Save Stay</button>
@@ -3203,13 +3204,14 @@ function openEditStayModal(id) {
     document.getElementById('stay-conf').value     = s.conf||'';
     document.getElementById('stay-cost').value     = s.cost||'';
     document.getElementById('stay-notes').value    = s.notes||'';
+    document.getElementById('stay-link').value     = s.link||'';
     document.querySelector('#modal-stay .modal-title').textContent = 'Edit Stay ✏️';
   }, 10);
 }
 function openStayModal() {
   editingStayId = null;
   editingStayOriginalDates = null;
-  ['stay-name','stay-address','stay-city','stay-conf','stay-notes'].forEach(id => document.getElementById(id).value = '');
+  ['stay-name','stay-address','stay-city','stay-conf','stay-notes','stay-link'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('stay-cost').value = '';
   const t = getTrip();
   document.getElementById('stay-checkin').value = t.start;
@@ -3227,6 +3229,8 @@ function submitStay() {
   const conf     = document.getElementById('stay-conf').value.trim();
   const cost     = parseFloat(document.getElementById('stay-cost').value) || 0;
   const notes    = document.getElementById('stay-notes').value.trim();
+  const rawLink  = document.getElementById('stay-link').value.trim();
+  const link     = rawLink ? (rawLink.match(/^https?:\/\//) ? rawLink : 'https://' + rawLink) : '';
   if (!name)     return toast('Enter a property name');
   if (!checkin)  return toast('Pick a check-in date');
   if (!checkout) return toast('Pick a check-out date');
@@ -3248,11 +3252,11 @@ function submitStay() {
   }
   if (editingStayId) {
     const s = t.stays.find(x => x.id === editingStayId);
-    if (s) { Object.assign(s, {name,checkin,checkout,address,city,conf,cost,notes}); }
+    if (s) { Object.assign(s, {name,checkin,checkout,address,city,conf,cost,notes,link}); }
     editingStayId = null;
     toast('Stay updated ✓');
   } else {
-    t.stays.push({ id: Date.now().toString(), name, checkin, checkout, address, city, conf, cost, notes });
+    t.stays.push({ id: Date.now().toString(), name, checkin, checkout, address, city, conf, cost, notes, link });
     toast('Stay saved ✓');
   }
   save();
@@ -3319,6 +3323,7 @@ function renderStay() {
           ${stay.conf ? `<span style="display:inline-flex;align-items:center;gap:5px;font-size:.78rem;font-family:monospace;font-weight:700;color:var(--accent);background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.2);padding:5px 12px;border-radius:10px">🔑 ${escHtml(stay.conf)}</span>` : ''}
         </div>
         ${hasLocation ? `<a class="stay-map-link" href="https://www.google.com/maps/search/?api=1&query=${mapsQuery}" target="_blank" rel="noopener" style="align-self:flex-start">📍 ${escHtml(stay.address || stay.city)} — Open in Maps ↗</a>` : ''}
+        ${stay.link ? `<a href="${escHtml(stay.link)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;align-self:flex-start;font-size:.82rem;font-weight:600;color:var(--accent);background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.25);padding:6px 14px;border-radius:10px;text-decoration:none">🔗 Booking link ↗</a>` : ''}
         ${stay.notes ? `<div style="font-size:.82rem;color:var(--muted);padding:8px 12px;background:var(--surface2);border-radius:8px;border-left:3px solid rgba(124,58,237,.3)">📝 ${escHtml(stay.notes)}</div>` : ''}
       </div>
     </div>`;
