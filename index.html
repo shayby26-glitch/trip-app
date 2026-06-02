@@ -2242,10 +2242,12 @@ function renderOverview() {
   let hotelBox = '';
   if (stay) {
     const mapsQ = encodeURIComponent(stay.address || (stay.name + (stay.city ? ' ' + stay.city : '')));
-    hotelBox = `<a class="ov-card-hotel" href="https://www.google.com/maps/search/?api=1&query=${mapsQ}" target="_blank" rel="noopener">
+    const stayHref = stay.link ? escHtml(stay.link) : `https://www.google.com/maps/search/?api=1&query=${mapsQ}`;
+    const stayLinkLabel = stay.link ? '🔗' : '📍';
+    hotelBox = `<a class="ov-card-hotel" href="${stayHref}" target="_blank" rel="noopener">
       <div class="ov-card-hotel-label">🏨 ${isCheckin ? 'Check-in' : 'Staying at'}</div>
       <div class="ov-card-hotel-name">${escHtml(stay.name)}</div>
-      ${stay.city ? `<div class="ov-card-hotel-address">📍 ${escHtml(stay.city)}</div>` : ''}
+      ${stay.city ? `<div class="ov-card-hotel-address">${stayLinkLabel} ${escHtml(stay.city)}</div>` : ''}
       ${stay.conf ? `<div style="margin-top:.3rem"><span class="ov-conf">${escHtml(stay.conf)}</span></div>` : ''}
     </a>`;
   } else if (isCheckout) {
