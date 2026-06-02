@@ -1701,6 +1701,9 @@ function avatarColor(i) { return AVATAR_COLORS[i % AVATAR_COLORS.length]; }
 function initials(name) { return name.trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase(); }
 function personById(t, id) { return (t.people||[]).find(p=>p.id===id); }
 function currency(t) { return t.currency || '$'; }
+function fmtNum(n, decimals = 2) {
+  return Number(n).toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
 
 // ══════════════════════════════════════════════
 // PAGES
@@ -1774,7 +1777,7 @@ function renderHome() {
 
     const budget = t.budget||0;
     const budgetHtml = budget > 0
-      ? `<span>💰 ${currency(t)}${expenses.toFixed(0)}/${budget.toFixed(0)}</span>` : '';
+      ? `<span>💰 ${currency(t)}${fmtNum(expenses,0)}/${fmtNum(budget,0)}</span>` : '';
 
     const avatarRow = people.slice(0,5).map((p,i) =>
       `<div class="mini-avatar" style="background:${avatarColor(i)}" title="${escHtml(p.name)}">${initials(p.name)}</div>`
@@ -2629,7 +2632,7 @@ function renderBalanceSection(t, rates, baseCur) {
     const label = b > 0.005 ? 'gets back' : b < -0.005 ? 'owes' : 'settled';
     return `<div class="balance-card">
       <div class="balance-person"><div class="avatar" style="width:24px;height:24px;font-size:.65rem;background:${avatarColor(i)}">${initials(p.name)}</div>${escHtml(p.name)}</div>
-      <div class="balance-amount ${cls}">${sign}${displayCur} ${Math.abs(b).toFixed(2)}</div>
+      <div class="balance-amount ${cls}">${sign}${displayCur} ${fmtNum(Math.abs(b))}</div>
       <div style="font-size:.72rem;color:var(--muted);margin-top:2px">${label}</div>
     </div>`;
   }).join('');
@@ -2646,7 +2649,7 @@ function renderBalanceSection(t, rates, baseCur) {
           <span class="arrow">→</span>
           <div class="avatar" style="width:28px;height:28px;font-size:.7rem;background:${avatarColor(ti)}">${initials(to?.name||'?')}</div>
           <span style="font-weight:600">${escHtml(to?.name||'?')}</span>
-          <span class="settlement-amount">${displayCur} ${s.amount.toFixed(2)}</span>
+          <span class="settlement-amount">${displayCur} ${fmtNum(s.amount)}</span>
         </div>`;
       }).join('')
     : `<div style="color:var(--muted);font-size:.875rem">Everyone is settled up ✓</div>`;
@@ -2692,13 +2695,13 @@ function renderExpenses() {
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:20px">
         <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:.85rem">
           <span style="font-weight:700">💰 Budget</span>
-          <span style="color:${remaining>=0?'var(--green)':'var(--red)'};font-weight:700">${remaining>=0?'':'−'}${cur}${Math.abs(remaining).toFixed(2)} ${remaining>=0?'remaining':'over budget'}</span>
+          <span style="color:${remaining>=0?'var(--green)':'var(--red)'};font-weight:700">${remaining>=0?'':'−'}${cur}${fmtNum(Math.abs(remaining))} ${remaining>=0?'remaining':'over budget'}</span>
         </div>
         <div style="background:var(--surface2);border-radius:4px;height:8px;overflow:hidden">
           <div style="width:${pct}%;height:100%;background:${barColor};border-radius:4px;transition:width .3s"></div>
         </div>
         <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:.75rem;color:var(--muted)">
-          <span>${cur}${totalSpent.toFixed(2)} spent</span><span>${cur}${budget.toFixed(2)} budget</span>
+          <span>${cur}${fmtNum(totalSpent)} spent</span><span>${cur}${fmtNum(budget)} budget</span>
         </div>
       </div>`);
   }
@@ -2864,7 +2867,7 @@ function renderExpenseSummary(expenses, cur, summaryEl, rates, baseCur) {
         <span class="cat-pill cat-${c}">${getCatIcon(c)} ${EXP_CAT_LABELS[c]}</span>
       </td>
       <td style="padding:9px 12px;color:var(--muted);font-size:.82rem;text-align:center">${count}</td>
-      <td style="padding:9px 12px;font-weight:700;text-align:right">${displayCur} ${total.toFixed(2)}</td>
+      <td style="padding:9px 12px;font-weight:700;text-align:right">${displayCur} ${fmtNum(total)}</td>
       <td style="padding:9px 12px;width:120px">
         <div style="display:flex;align-items:center;gap:6px">
           <div style="flex:1;height:6px;background:var(--surface2);border-radius:3px;overflow:hidden">
@@ -2883,7 +2886,7 @@ function renderExpenseSummary(expenses, cur, summaryEl, rates, baseCur) {
           ${selHtml}
           ${convNote}
         </div>
-        <span style="font-weight:700;font-size:1rem;white-space:nowrap">${displayCur} ${grandTotal.toFixed(2)}</span>
+        <span style="font-weight:700;font-size:1rem;white-space:nowrap">${displayCur} ${fmtNum(grandTotal)}</span>
       </div>
       <table style="width:100%;border-collapse:collapse">
         <thead>
@@ -2946,7 +2949,7 @@ function renderExpenseList(t, expenses, cur, expList) {
       shortDate = d.toLocaleDateString('en-GB', { day:'numeric', month:'short' });
     }
     const perPerson = splitCount > 1
-      ? `<div style="font-size:.7rem;color:var(--muted)">÷${splitCount} · ${exp.currency||cur} ${(exp.amount/splitCount).toFixed(2)} ea</div>`
+      ? `<div style="font-size:.7rem;color:var(--muted)">÷${splitCount} · ${exp.currency||cur} ${fmtNum(exp.amount/splitCount)} ea</div>`
       : '';
     return `<div class="expense-item">
       <div class="avatar" style="flex-shrink:0;background:${avatarColor(paidIdx)}" title="${escHtml(paidBy?.name||'?')}">${initials(paidBy?.name||'?')}</div>
@@ -2956,7 +2959,7 @@ function renderExpenseList(t, expenses, cur, expList) {
       </div>
       <span class="cat-pill cat-${cat}" style="flex-shrink:0" title="${EXP_CAT_LABELS[cat]}">${getCatIcon(cat)}</span>
       <div style="text-align:right;flex-shrink:0">
-        <div class="exp-amount">${exp.currency||cur} ${Number(exp.amount).toFixed(2)}</div>
+        <div class="exp-amount">${exp.currency||cur} ${fmtNum(exp.amount)}</div>
         ${perPerson}
       </div>
       <button class="btn-icon" onclick="openEditExpenseModal('${exp.id}')" title="Edit">✏️</button>
@@ -3072,7 +3075,7 @@ function previewCopyExpenses() {
       <div class="act-icon-wrap" style="flex-shrink:0">${getCatIcon(e.category||'other')}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:.88rem;font-weight:600;word-break:break-word">${escHtml(e.desc||EXP_CAT_LABELS[e.category||'other'])}</div>
-        <div style="font-size:.75rem;color:var(--muted);margin-top:2px">${e.currency||cur} ${Number(e.amount).toFixed(2)} · ${EXP_CAT_LABELS[e.category||'other']}${e.date?' · '+e.date:''}</div>
+        <div style="font-size:.75rem;color:var(--muted);margin-top:2px">${e.currency||cur} ${fmtNum(e.amount)} · ${EXP_CAT_LABELS[e.category||'other']}${e.date?' · '+e.date:''}</div>
       </div>
     </label>`).join('');
 }
@@ -3321,7 +3324,7 @@ function renderStay() {
           <span style="display:inline-flex;align-items:center;gap:5px;font-size:.82rem;background:var(--surface2);border:1px solid var(--border);padding:5px 12px;border-radius:10px">
             📅 <strong>${n} night${n!==1?'s':''}</strong> · ${fmtDate(stay.checkin)} → ${fmtDate(stay.checkout)}
           </span>
-          ${stay.cost > 0 ? `<span style="display:inline-flex;align-items:center;gap:5px;font-size:.82rem;font-weight:700;color:var(--green);background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);padding:5px 12px;border-radius:10px">💰 ${cur}${Number(stay.cost).toFixed(2)}</span>` : ''}
+          ${stay.cost > 0 ? `<span style="display:inline-flex;align-items:center;gap:5px;font-size:.82rem;font-weight:700;color:var(--green);background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);padding:5px 12px;border-radius:10px">💰 ${cur}${fmtNum(stay.cost)}</span>` : ''}
           ${stay.conf ? `<span style="display:inline-flex;align-items:center;gap:5px;font-size:.78rem;font-family:monospace;font-weight:700;color:var(--accent);background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.2);padding:5px 12px;border-radius:10px">🔑 ${escHtml(stay.conf)}</span>` : ''}
         </div>
         ${hasLocation ? `<a class="stay-map-link" href="https://www.google.com/maps/search/?api=1&query=${mapsQuery}" target="_blank" rel="noopener" style="align-self:flex-start">📍 ${escHtml(stay.address || stay.city)} — Open in Maps ↗</a>` : ''}
