@@ -439,16 +439,55 @@ const BREAD_RECIPE = {
   tip: 'proofing = התפחה סופית לפני אפייה. בתבנית עם מכסה זה קריטי — אל תתן לבצק לעלות מעל גובה התבנית לפני שסוגרים.',
 };
 
+const AREEK_RECIPE = {
+  id: 'areek_veg_chicken_patties',
+  emoji: '🥔',
+  title: 'ערוק – קציצות ירק עם חזה עוף',
+  tags: ['מטוגן', 'קציצות', 'עיראקי'],
+  yields: 'כ-25 קציצות',
+  cookTime: '3–4 דקות לכל צד',
+  ingredients: [
+    { name: 'תפוחי אדמה גדולים, מבושלים למחצה ומקולפים', amount: '3'           },
+    { name: 'בצל גדול, מגורד וסחוט מהנוזלים',           amount: '1'           },
+    { name: 'בצל ירוק קצוץ',                            amount: '3 גבעולים'   },
+    { name: 'פטרוזיליה קצוצה',                          amount: '½ חבילה'     },
+    { name: 'כוסברה קצוצה',                             amount: '½ חבילה'     },
+    { name: 'חזה עוף חתוך לקוביות קטנות',                amount: '½ פרגית (כ-200 גרם)' },
+    { name: 'ביצים',                                    amount: '3'           },
+    { name: 'קמח',                                      amount: '3 כפות'      },
+    { name: 'כמון',                                     amount: '½ כפית'      },
+    { name: 'כורכום',                                   amount: '½ כפית'      },
+    { name: 'מלח',                                      amount: '1 כפית'      },
+    { name: 'פלפל שחור',                                amount: '½ כפית'      },
+    { name: 'שמן לטיגון',                               amount: 'לפי הצורך'   },
+  ],
+  steps: [
+    'לתוך קערה, לגרד את תפוחי האדמה בעזרת מגרדת.',
+    'להוסיף את כל שאר המצרכים ולערבב בעדינות עם הידיים לתערובת אחידה. להשתדל לא לדחוס את התערובת.',
+    'לחמם במחבת גדולה שמן חצי עמוק.',
+    'לקחת כף מהתערובת ולהניח בעדינות בתוך השמן החם, לשטח מעט את הקציצה.',
+    'לטגן עד השחמה משני הצדדים, כ-3–4 דקות כל צד.',
+    'להוציא לצלחת גדולה מרופדת בנייר סופג.',
+  ],
+  tip: 'לבישול תפוחי האדמה: לבשל עם הקליפה (עדיף עם קליפה אדומה) בהרבה מים עד שהם רכים מבחוץ אבל עדיין קצת קשים באמצע, כ-15 דקות. לקלף מיד עם סיום הבישול — להחזיק בעזרת מגבת כדי שלא יהיה חם ביד.',
+};
+
+const SEED_RECIPES = [BREAD_RECIPE, AREEK_RECIPE];
+
 function loadRecipes() {
   try {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    if (!stored.find(r => r.id === BREAD_RECIPE.id)) {
-      stored.unshift(BREAD_RECIPE);
-      saveRecipes(stored);
-    }
+    let changed = false;
+    SEED_RECIPES.forEach(seed => {
+      if (!stored.find(r => r.id === seed.id)) {
+        stored.unshift(seed);
+        changed = true;
+      }
+    });
+    if (changed) saveRecipes(stored);
     return stored;
   } catch {
-    return [BREAD_RECIPE];
+    return [...SEED_RECIPES];
   }
 }
 
