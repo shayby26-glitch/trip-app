@@ -645,6 +645,9 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <!-- Leaflet (maps) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
 
@@ -703,6 +706,7 @@
 <div id="bottom-tab-bar">
   <button class="btab" data-tab="overview"  onclick="switchTab('overview',this)"><span class="btab-icon">📅</span>Overview</button>
   <button class="btab" data-tab="itinerary" onclick="switchTab('itinerary',this)"><span class="btab-icon">🗓</span>Itinerary</button>
+  <button class="btab" data-tab="map"       onclick="switchTab('map',this)"><span class="btab-icon">🗺</span>Map</button>
   <button class="btab" data-tab="stay"      onclick="switchTab('stay',this)"><span class="btab-icon">🏨</span>Stay</button>
   <button class="btab" data-tab="expenses"  onclick="switchTab('expenses',this)"><span class="btab-icon">💸</span>Expenses</button>
   <button class="btab" data-tab="packing"   onclick="switchTab('packing',this)"><span class="btab-icon">🎒</span>Packing</button>
@@ -770,6 +774,7 @@
     <div class="tabs">
       <button class="tab" data-tab="overview"  onclick="switchTab('overview',this)">📅 Overview</button>
       <button class="tab" data-tab="itinerary" onclick="switchTab('itinerary',this)">🗓 Itinerary</button>
+      <button class="tab" data-tab="map"       onclick="switchTab('map',this)">🗺 Map</button>
       <button class="tab" data-tab="stay"      onclick="switchTab('stay',this)">🏨 Stay</button>
       <button class="tab" data-tab="expenses"  onclick="switchTab('expenses',this)">💸 Expenses</button>
       <button class="tab" data-tab="packing"   onclick="switchTab('packing',this)">🎒 Packing</button>
@@ -789,6 +794,15 @@
     <!-- OVERVIEW -->
     <div id="tab-overview" class="tab-content">
       <div id="overview-table-wrap"></div>
+    </div>
+
+    <!-- MAP -->
+    <div id="tab-map" class="tab-content">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)">🗺 Trip Route</div>
+        <span id="map-status" style="font-size:.78rem;color:var(--muted)"></span>
+      </div>
+      <div id="trip-map-el" style="height:60vh;min-height:360px;border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;background:var(--surface2)"></div>
     </div>
 
     <!-- STAY -->
@@ -1287,6 +1301,9 @@ let undoState = null;
 let _summaryCurrency = null; // user-selected display currency for the summary table
 // Exchange rate cache for multi-currency settlement conversion
 let _ratesCache = {}; // { base: { rates: {...}, ts: timestamp } }
+// Trip route map
+let _tripMapInstance = null;
+let _geocodeCache = JSON.parse(localStorage.getItem('geocodeCache') || '{}'); // { "place query": {lat, lng} }
 
 const DB = 'https://trip-planner-c6bad-default-rtdb.europe-west1.firebasedatabase.app';
 let _autoSaveTimer = null;
@@ -2095,6 +2112,7 @@ function switchTab(name, btn) {
   document.querySelectorAll(`.tab[data-tab="${name}"],.btab[data-tab="${name}"]`).forEach(t=>t.classList.add('active'));
   document.getElementById('tab-'+name).classList.add('active');
   if (name === 'notes') populateJournalDaySelect();
+  if (name === 'map') renderMap();
 }
 
 // ══════════════════════════════════════════════
@@ -2474,6 +2492,101 @@ function renderItinerary() {
         </div>
       </div>`;
   }).join('');
+}
+
+// ══════════════════════════════════════════════
+// MAP
+// ══════════════════════════════════════════════
+async function geocodePlace(query) {
+  const key = query.trim().toLowerCase();
+  if (_geocodeCache[key]) return _geocodeCache[key];
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`);
+    if (!res.ok) throw new Error('geocode failed');
+    const data = await res.json();
+    if (!data.length) return null;
+    const coords = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+    _geocodeCache[key] = coords;
+    localStorage.setItem('geocodeCache', JSON.stringify(_geocodeCache));
+    return coords;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function renderMap() {
+  const t = getTrip();
+  const statusEl = document.getElementById('map-status');
+  const mapEl = document.getElementById('trip-map-el');
+  if (!mapEl) return;
+
+  if (_tripMapInstance) { _tripMapInstance.remove(); _tripMapInstance = null; }
+
+  // Build an ordered, deduped list of place names from the itinerary
+  const allDays = getDayList(t);
+  let places = [];
+  allDays.forEach(day => {
+    (t.destinations || []).filter(d => d.day === day).forEach(d => {
+      if (d.name && d.name.trim()) places.push(d.name.trim());
+    });
+  });
+  if (!places.length && t.stays && t.stays.length) {
+    places = t.stays.map(s => s.city || s.name).filter(Boolean);
+  }
+  places = places.filter((p, i) => i === 0 || p.toLowerCase() !== places[i - 1].toLowerCase());
+
+  if (!places.length) {
+    statusEl.textContent = '';
+    mapEl.innerHTML = `<div class="empty-state" style="height:100%;display:flex;flex-direction:column;justify-content:center"><div class="ei">🗺</div><p>Add destinations in the Itinerary tab to see your route.</p></div>`;
+    return;
+  }
+
+  statusEl.textContent = 'Locating destinations…';
+  mapEl.innerHTML = '';
+
+  const cityHint = t.destination ? `, ${t.destination}` : '';
+  const points = [];
+  for (const place of places) {
+    let coords = await geocodePlace(`${place}${cityHint}`);
+    if (!coords) coords = await geocodePlace(place);
+    if (coords) points.push({ name: place, lat: coords.lat, lng: coords.lng });
+    await new Promise(r => setTimeout(r, 250)); // be polite to Nominatim's rate limit
+  }
+
+  if (!points.length) {
+    statusEl.textContent = '';
+    mapEl.innerHTML = `<div class="empty-state" style="height:100%;display:flex;flex-direction:column;justify-content:center"><div class="ei">🗺</div><p>Couldn't locate any destinations on the map.</p></div>`;
+    return;
+  }
+
+  statusEl.textContent = `📍 ${points.length} of ${places.length} destination${places.length === 1 ? '' : 's'} mapped`;
+
+  const map = L.map('trip-map-el');
+  _tripMapInstance = map;
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  points.forEach((p, i) => {
+    L.marker([p.lat, p.lng], {
+      icon: L.divIcon({
+        className: 'trip-map-marker',
+        html: `<div style="background:#a855f7;color:#fff;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.78rem;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35)">${i + 1}</div>`,
+        iconSize: [26, 26],
+        iconAnchor: [13, 13]
+      })
+    }).bindPopup(`<b>${i + 1}. ${escHtml(p.name)}</b>`).addTo(map);
+  });
+
+  if (points.length > 1) {
+    L.polyline(points.map(p => [p.lat, p.lng]), { color: '#a855f7', weight: 3, opacity: 0.8, dashArray: '6,8' }).addTo(map);
+    map.fitBounds(points.map(p => [p.lat, p.lng]), { padding: [40, 40] });
+  } else {
+    map.setView([points[0].lat, points[0].lng], 12);
+  }
+
+  setTimeout(() => map.invalidateSize(), 100);
 }
 
 function addDest(day) {
