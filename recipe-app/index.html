@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>מתכונים שלי</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #fdf8f0;
+      --card: #ffffff;
+      --primary: #c0622a;
+      --primary-light: #f5ece3;
+      --primary-dark: #9e4f22;
+      --text: #2c1a0e;
+      --text-muted: #7a5c44;
+      --border: #e8d8c8;
+      --tag-bg: #fde8d8;
+      --tag-text: #8b3a1a;
+      --step-num: #c0622a;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+      --radius: 16px;
+    }
+
+    body {
+      font-family: 'Segoe UI', 'Arial Hebrew', Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 60px;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--primary);
+      color: #fff;
+      padding: 20px 24px 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    header h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: 0.02em; }
+    header p  { font-size: 0.85rem; opacity: 0.85; margin-top: 2px; }
+
+    /* ── Search ── */
+    .search-bar {
+      padding: 16px 20px;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+    }
+    .search-bar input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-size: 0.95rem;
+      color: var(--text);
+      background: var(--bg);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .search-bar input:focus { border-color: var(--primary); }
+
+    /* ── Recipe list ── */
+    .recipe-list {
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .recipe-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      border: 1.5px solid var(--border);
+      overflow: hidden;
+      cursor: pointer;
+      transition: box-shadow 0.2s, transform 0.15s;
+    }
+    .recipe-card:hover { box-shadow: 0 6px 24px rgba(0,0,0,0.12); transform: translateY(-1px); }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 16px 18px;
+    }
+    .card-icon {
+      font-size: 2.2rem;
+      width: 52px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--primary-light);
+      border-radius: 12px;
+      flex-shrink: 0;
+    }
+    .card-info { flex: 1; min-width: 0; }
+    .card-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .card-meta {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .card-meta span { display: flex; align-items: center; gap: 3px; }
+    .card-chevron {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      transition: transform 0.25s;
+      flex-shrink: 0;
+    }
+    .recipe-card.open .card-chevron { transform: rotate(90deg); }
+
+    .card-tags {
+      padding: 0 18px 12px;
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .tag {
+      background: var(--tag-bg);
+      color: var(--tag-text);
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 20px;
+    }
+
+    /* ── Expanded recipe body ── */
+    .recipe-body {
+      display: none;
+      border-top: 1.5px solid var(--border);
+    }
+    .recipe-card.open .recipe-body { display: block; }
+
+    .recipe-body section {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    .recipe-body section:last-child { border-bottom: none; }
+
+    .section-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--primary);
+      margin-bottom: 10px;
+    }
+
+    /* ingredients */
+    .ingredient-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .ingredient-list li {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 0.9rem;
+      gap: 8px;
+    }
+    .ingredient-list li .name { color: var(--text); flex: 1; }
+    .ingredient-list li .amount {
+      font-weight: 700;
+      color: var(--primary-dark);
+      white-space: nowrap;
+    }
+
+    /* steps */
+    .step-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .step-list li {
+      display: flex;
+      gap: 12px;
+      font-size: 0.9rem;
+      line-height: 1.55;
+    }
+    .step-num {
+      width: 24px;
+      height: 24px;
+      min-width: 24px;
+      background: var(--primary);
+      color: #fff;
+      border-radius: 50%;
+      font-size: 0.75rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 1px;
+    }
+
+    /* tip box */
+    .tip-box {
+      background: #fff8ee;
+      border-right: 4px solid #e8a84e;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.85rem;
+      color: #6b4a10;
+      line-height: 1.55;
+    }
+    .tip-box strong { color: #8b5e10; }
+
+    /* baking info pills */
+    .bake-info {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .bake-pill {
+      background: var(--primary-light);
+      border: 1.5px solid #e8c4a8;
+      border-radius: 10px;
+      padding: 8px 14px;
+      font-size: 0.88rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      flex: 1;
+      min-width: 90px;
+    }
+    .bake-pill .pill-label { font-size: 0.7rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+    .bake-pill .pill-val { font-weight: 700; color: var(--primary-dark); font-size: 1rem; }
+
+    /* ── FAB – add recipe ── */
+    #fab {
+      position: fixed;
+      bottom: 24px;
+      left: 24px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      font-size: 1.8rem;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(192,98,42,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s, transform 0.15s;
+      z-index: 200;
+    }
+    #fab:hover { background: var(--primary-dark); transform: scale(1.07); }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 300;
+      align-items: flex-end;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--card);
+      border-radius: 20px 20px 0 0;
+      padding: 24px 20px 36px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      animation: slideUp 0.28s ease;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(60px); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+    .modal h2 { font-size: 1.15rem; font-weight: 700; margin-bottom: 18px; color: var(--primary-dark); }
+
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-bottom: 5px; }
+    .form-group input, .form-group textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-size: 0.9rem;
+      color: var(--text);
+      background: var(--bg);
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+      resize: vertical;
+    }
+    .form-group input:focus, .form-group textarea:focus { border-color: var(--primary); }
+
+    .modal-actions { display: flex; gap: 10px; margin-top: 6px; }
+    .btn-primary {
+      flex: 1;
+      padding: 12px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-secondary {
+      padding: 12px 20px;
+      background: var(--bg);
+      color: var(--text-muted);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-size: 0.95rem;
+      cursor: pointer;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+    .empty-state .emoji { font-size: 3rem; margin-bottom: 12px; }
+    .empty-state p { font-size: 0.95rem; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>📖 המתכונים שלי</h1>
+  <p>שמור, חפש ובשל</p>
+</header>
+
+<div class="search-bar">
+  <input type="search" id="searchInput" placeholder="🔍  חיפוש מתכון..." />
+</div>
+
+<div class="recipe-list" id="recipeList"></div>
+
+<button id="fab" title="הוסף מתכון">+</button>
+
+<!-- Add Recipe Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h2>➕ מתכון חדש</h2>
+    <div class="form-group">
+      <label>שם המתכון *</label>
+      <input type="text" id="newTitle" placeholder="למשל: עוגת שוקולד" />
+    </div>
+    <div class="form-group">
+      <label>אמוג׳י / סמל</label>
+      <input type="text" id="newEmoji" placeholder="🍰" maxlength="4" />
+    </div>
+    <div class="form-group">
+      <label>מרכיבים (שורה אחת לכל מרכיב, פורמט: שם | כמות)</label>
+      <textarea id="newIngredients" rows="5" placeholder="קמח | 500 גרם&#10;ביצים | 3&#10;חמאה | 200 גרם"></textarea>
+    </div>
+    <div class="form-group">
+      <label>הוראות הכנה (שורה לכל שלב)</label>
+      <textarea id="newSteps" rows="5" placeholder="מחממים תנור ל-180°C&#10;מערבבים את כל המרכיבים&#10;אופים 35 דקות"></textarea>
+    </div>
+    <div class="form-group">
+      <label>טיפ (אופציונלי)</label>
+      <input type="text" id="newTip" placeholder="טיפ שימושי..." />
+    </div>
+    <div class="form-group">
+      <label>תגיות (מופרדות בפסיק)</label>
+      <input type="text" id="newTags" placeholder="אפייה, לחם, קל" />
+    </div>
+    <div class="form-group">
+      <label>זמן הכנה</label>
+      <input type="text" id="newPrepTime" placeholder="20 דקות" />
+    </div>
+    <div class="form-group">
+      <label>זמן אפייה / בישול</label>
+      <input type="text" id="newCookTime" placeholder="45 דקות" />
+    </div>
+    <div class="form-group">
+      <label>טמפרטורה</label>
+      <input type="text" id="newTemp" placeholder="180°C" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="modalCancel">ביטול</button>
+      <button class="btn-primary" id="modalSave">שמור מתכון</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'my_recipes_v1';
+
+const BREAD_RECIPE = {
+  id: 'bread_tin_30pct',
+  emoji: '🍞',
+  title: 'לחם תבנית – מנה מוגדלת (×1.3)',
+  tags: ['אפייה', 'לחם', 'בסיסי'],
+  prepTime: '20 דקות + 90 דקות התפחה',
+  cookTime: '38–45 דקות',
+  temp: '200°C',
+  yields: '2 כיכרות בינוניות',
+  ingredients: [
+    { name: 'קמח לבן ללחם',          amount: '1.3 ק״ג'    },
+    { name: 'מים פושרים',             amount: '845 מ״ל'    },
+    { name: 'שמרים יבשים (או 39 גר׳ טריים)', amount: '13 גרם'     },
+    { name: 'מלח',                    amount: '26 גרם'     },
+    { name: 'סוכר',                   amount: '39 גרם'     },
+    { name: 'שמן ניטרלי (או חמאה רכה)', amount: '52 גר׳ שמן / 65 גר׳ חמאה' },
+  ],
+  steps: [
+    'מערבבים מים פושרים + שמרים + סוכר בקערה גדולה. ממתינים 5 דקות עד שהתערובת מתחילה לקצוף.',
+    'מוסיפים את הקמח ומתחילים ללוש.',
+    'אחרי שהבצק מתחיל להתאחד — מוסיפים מלח ושמן (או חמאה רכה).',
+    'לשים 10–12 דקות עד שהבצק חלק, גמיש ולא נדבק ליד.',
+    'התפחה ראשונה: מכסים ומניחים 60–90 דקות עד שהבצק מכפיל נפחו.',
+    'מחלקים לשני חלקים שווים (≈1.1 ק״ג כל אחד), מעצבים ומניחים בתבניות.',
+    'התפחה סופית (proofing): ממתינים עד שהבצק עולה לכ-1–2 ס״מ מתחת לשפת התבנית. לא יותר! סוגרים מכסה.',
+    'אופים ב-200°C כ-38–45 דקות עד להשחמה יפה.',
+    'מוציאים, מצננים על רשת לפחות 20 דקות לפני פריסה.',
+  ],
+  tip: 'proofing = התפחה סופית לפני אפייה. בתבנית עם מכסה זה קריטי — אל תתן לבצק לעלות מעל גובה התבנית לפני שסוגרים.',
+};
+
+function loadRecipes() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    if (!stored.find(r => r.id === BREAD_RECIPE.id)) {
+      stored.unshift(BREAD_RECIPE);
+      saveRecipes(stored);
+    }
+    return stored;
+  } catch {
+    return [BREAD_RECIPE];
+  }
+}
+
+function saveRecipes(list) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+}
+
+function renderRecipes(filter = '') {
+  const list = loadRecipes();
+  const q = filter.trim().toLowerCase();
+  const filtered = q
+    ? list.filter(r =>
+        r.title.toLowerCase().includes(q) ||
+        (r.tags || []).some(t => t.toLowerCase().includes(q))
+      )
+    : list;
+
+  const container = document.getElementById('recipeList');
+  if (!filtered.length) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="emoji">🍳</div>
+        <p>לא נמצאו מתכונים תואמים</p>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map(r => buildCard(r)).join('');
+
+  container.querySelectorAll('.recipe-card').forEach(card => {
+    card.addEventListener('click', () => {
+      card.classList.toggle('open');
+    });
+  });
+}
+
+function buildCard(r) {
+  const tags = (r.tags || []).map(t => `<span class="tag">${t}</span>`).join('');
+  const meta = [
+    r.yields ? `<span>🍽 ${r.yields}</span>` : '',
+    r.prepTime ? `<span>⏱ ${r.prepTime}</span>` : '',
+  ].filter(Boolean).join('');
+
+  const ingredients = (r.ingredients || []).map(i =>
+    `<li><span class="name">${i.name}</span><span class="amount">${i.amount}</span></li>`
+  ).join('');
+
+  const steps = (r.steps || []).map((s, idx) =>
+    `<li><span class="step-num">${idx + 1}</span><span>${s}</span></li>`
+  ).join('');
+
+  const tipHtml = r.tip
+    ? `<section>
+        <div class="section-title">💡 טיפ</div>
+        <div class="tip-box">${r.tip}</div>
+       </section>`
+    : '';
+
+  const bakeHtml = (r.temp || r.cookTime)
+    ? `<section>
+        <div class="section-title">🔥 אפייה</div>
+        <div class="bake-info">
+          ${r.temp     ? `<div class="bake-pill"><span class="pill-label">טמפרטורה</span><span class="pill-val">${r.temp}</span></div>` : ''}
+          ${r.cookTime ? `<div class="bake-pill"><span class="pill-label">זמן</span><span class="pill-val">${r.cookTime}</span></div>` : ''}
+        </div>
+       </section>`
+    : '';
+
+  return `
+    <div class="recipe-card" data-id="${r.id}">
+      <div class="card-header">
+        <div class="card-icon">${r.emoji || '🍽'}</div>
+        <div class="card-info">
+          <div class="card-title">${r.title}</div>
+          <div class="card-meta">${meta}</div>
+        </div>
+        <span class="card-chevron">›</span>
+      </div>
+      ${tags ? `<div class="card-tags">${tags}</div>` : ''}
+      <div class="recipe-body">
+        ${ingredients ? `<section>
+          <div class="section-title">🛒 מרכיבים</div>
+          <ul class="ingredient-list">${ingredients}</ul>
+        </section>` : ''}
+        ${steps ? `<section>
+          <div class="section-title">👨‍🍳 הכנה</div>
+          <ol class="step-list">${steps}</ol>
+        </section>` : ''}
+        ${bakeHtml}
+        ${tipHtml}
+      </div>
+    </div>`;
+}
+
+// Search
+document.getElementById('searchInput').addEventListener('input', e => {
+  renderRecipes(e.target.value);
+});
+
+// FAB / Modal
+const overlay = document.getElementById('modalOverlay');
+document.getElementById('fab').addEventListener('click', () => overlay.classList.add('open'));
+document.getElementById('modalCancel').addEventListener('click', () => overlay.classList.remove('open'));
+overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
+
+document.getElementById('modalSave').addEventListener('click', () => {
+  const title = document.getElementById('newTitle').value.trim();
+  if (!title) { alert('נא להזין שם מתכון'); return; }
+
+  const rawIngredients = document.getElementById('newIngredients').value.trim();
+  const ingredients = rawIngredients
+    ? rawIngredients.split('\n').map(line => {
+        const [name = '', amount = ''] = line.split('|').map(s => s.trim());
+        return { name, amount };
+      }).filter(i => i.name)
+    : [];
+
+  const rawSteps = document.getElementById('newSteps').value.trim();
+  const steps = rawSteps ? rawSteps.split('\n').map(s => s.trim()).filter(Boolean) : [];
+
+  const recipe = {
+    id: 'r_' + Date.now(),
+    emoji: document.getElementById('newEmoji').value.trim() || '🍽',
+    title,
+    tags: document.getElementById('newTags').value.split(',').map(t => t.trim()).filter(Boolean),
+    prepTime: document.getElementById('newPrepTime').value.trim(),
+    cookTime: document.getElementById('newCookTime').value.trim(),
+    temp: document.getElementById('newTemp').value.trim(),
+    tip: document.getElementById('newTip').value.trim(),
+    ingredients,
+    steps,
+  };
+
+  const list = loadRecipes();
+  list.unshift(recipe);
+  saveRecipes(list);
+  renderRecipes(document.getElementById('searchInput').value);
+  overlay.classList.remove('open');
+
+  ['newTitle','newEmoji','newIngredients','newSteps','newTip','newTags','newPrepTime','newCookTime','newTemp']
+    .forEach(id => document.getElementById(id).value = '');
+});
+
+// Init
+renderRecipes();
+</script>
+</body>
+</html>
