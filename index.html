@@ -706,7 +706,6 @@
 <div id="bottom-tab-bar">
   <button class="btab" data-tab="overview"  onclick="switchTab('overview',this)"><span class="btab-icon">📅</span>Overview</button>
   <button class="btab" data-tab="itinerary" onclick="switchTab('itinerary',this)"><span class="btab-icon">🗓</span>Itinerary</button>
-  <button class="btab" data-tab="map"       onclick="switchTab('map',this)"><span class="btab-icon">🗺</span>Map</button>
   <button class="btab" data-tab="stay"      onclick="switchTab('stay',this)"><span class="btab-icon">🏨</span>Stay</button>
   <button class="btab" data-tab="expenses"  onclick="switchTab('expenses',this)"><span class="btab-icon">💸</span>Expenses</button>
   <button class="btab" data-tab="packing"   onclick="switchTab('packing',this)"><span class="btab-icon">🎒</span>Packing</button>
@@ -774,7 +773,6 @@
     <div class="tabs">
       <button class="tab" data-tab="overview"  onclick="switchTab('overview',this)">📅 Overview</button>
       <button class="tab" data-tab="itinerary" onclick="switchTab('itinerary',this)">🗓 Itinerary</button>
-      <button class="tab" data-tab="map"       onclick="switchTab('map',this)">🗺 Map</button>
       <button class="tab" data-tab="stay"      onclick="switchTab('stay',this)">🏨 Stay</button>
       <button class="tab" data-tab="expenses"  onclick="switchTab('expenses',this)">💸 Expenses</button>
       <button class="tab" data-tab="packing"   onclick="switchTab('packing',this)">🎒 Packing</button>
@@ -794,15 +792,14 @@
     <!-- OVERVIEW -->
     <div id="tab-overview" class="tab-content">
       <div id="overview-table-wrap"></div>
-    </div>
 
-    <!-- MAP -->
-    <div id="tab-map" class="tab-content">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)">🗺 Trip Route</div>
-        <span id="map-status" style="font-size:.78rem;color:var(--muted)"></span>
+      <div style="margin-top:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)">🗺 Trip Route</div>
+          <span id="map-status" style="font-size:.78rem;color:var(--muted)"></span>
+        </div>
+        <div id="trip-map-el" style="height:60vh;min-height:360px;border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;background:var(--surface2)"></div>
       </div>
-      <div id="trip-map-el" style="height:60vh;min-height:360px;border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;background:var(--surface2)"></div>
     </div>
 
     <!-- STAY -->
@@ -2082,6 +2079,7 @@ function openTrip(id) {
 
   renderPeople();
   renderOverview();
+  renderMap();
   renderItinerary();
   renderStay();
   renderExpenses();
@@ -2112,7 +2110,7 @@ function switchTab(name, btn) {
   document.querySelectorAll(`.tab[data-tab="${name}"],.btab[data-tab="${name}"]`).forEach(t=>t.classList.add('active'));
   document.getElementById('tab-'+name).classList.add('active');
   if (name === 'notes') populateJournalDaySelect();
-  if (name === 'map') renderMap();
+  if (name === 'overview') renderMap();
 }
 
 // ══════════════════════════════════════════════
