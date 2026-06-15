@@ -794,11 +794,13 @@
       <div id="overview-table-wrap"></div>
 
       <div style="margin-top:20px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-          <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)">🗺 Trip Route</div>
+        <div id="map-section-header" onclick="toggleMapSection()" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;cursor:pointer;user-select:none">
+          <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);display:flex;align-items:center;gap:6px"><span id="map-toggle-icon">▾</span> 🗺 Trip Route</div>
           <span id="map-status" style="font-size:.78rem;color:var(--muted)"></span>
         </div>
-        <div id="trip-map-el" style="height:60vh;min-height:360px;border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;background:var(--surface2)"></div>
+        <div id="map-section-body">
+          <div id="trip-map-el" style="height:60vh;min-height:360px;border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;background:var(--surface2)"></div>
+        </div>
       </div>
     </div>
 
@@ -1302,6 +1304,7 @@ let _ratesCache = {}; // { base: { rates: {...}, ts: timestamp } }
 let _tripMapInstance = null;
 let _geocodeCache = JSON.parse(localStorage.getItem('geocodeCache') || '{}'); // { "place query": {lat, lng} }
 let _routeCache = JSON.parse(localStorage.getItem('routeCache') || '{}'); // { "lat,lng;lat,lng": [[lat,lng],...] }
+let _mapCollapsed = localStorage.getItem('mapSectionCollapsed') === 'true';
 
 const DB = 'https://trip-planner-c6bad-default-rtdb.europe-west1.firebasedatabase.app';
 let _autoSaveTimer = null;
@@ -2530,11 +2533,29 @@ async function fetchRouteSegment(a, b) {
   }
 }
 
+function applyMapCollapsedState() {
+  const body = document.getElementById('map-section-body');
+  const icon = document.getElementById('map-toggle-icon');
+  if (!body || !icon) return;
+  body.style.display = _mapCollapsed ? 'none' : '';
+  icon.textContent = _mapCollapsed ? '▸' : '▾';
+}
+
+function toggleMapSection() {
+  _mapCollapsed = !_mapCollapsed;
+  localStorage.setItem('mapSectionCollapsed', _mapCollapsed);
+  applyMapCollapsedState();
+  if (!_mapCollapsed) renderMap();
+}
+
 async function renderMap() {
   const t = getTrip();
   const statusEl = document.getElementById('map-status');
   const mapEl = document.getElementById('trip-map-el');
   if (!mapEl) return;
+
+  applyMapCollapsedState();
+  if (_mapCollapsed) return;
 
   if (_tripMapInstance) { _tripMapInstance.remove(); _tripMapInstance = null; }
 
