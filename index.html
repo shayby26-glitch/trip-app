@@ -401,17 +401,9 @@
     .hero-photo { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; filter:brightness(.7) saturate(1.3); transition:transform .5s ease; }
     .hero-overlay-animated { position:absolute; inset:0; background:linear-gradient(135deg,rgba(124,58,237,.12),rgba(244,63,94,.08),rgba(124,58,237,.1)); background-size:300% 300%; animation:gradientShift 8s ease infinite; pointer-events:none; }
 
-    /* ═══ OVERVIEW DAY FAN ═══ */
+    /* ═══ OVERVIEW DAY CARD ═══ */
     .ov-fan-wrap { display:flex; align-items:stretch; margin-bottom:16px; touch-action:pan-y; }
-    .ov-fan-front { flex:1 1 95%; min-width:0; position:relative; z-index:5; }
-    .ov-fan-peeks { display:flex; align-items:stretch; }
-    .ov-fan-peek { width:14px; flex-shrink:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:8px 1px; background:var(--surface2); border:1px solid var(--border); border-radius:10px; cursor:pointer; transition:all .2s; box-shadow:0 4px 10px rgba(0,0,0,.08); overflow:hidden; }
-    .ov-fan-peek:hover { opacity:1 !important; }
-    .ov-fan-peek.today { border-color:var(--accent); }
-    .ov-fan-peek-month { display:none; }
-    .ov-fan-peek-day { font-size:.62rem; font-weight:800; color:var(--text); writing-mode:vertical-rl; }
-    .ov-fan-peek.today .ov-fan-peek-day { color:var(--accent); }
-    .ov-fan-peek-preview { display:none; }
+    .ov-fan-front { flex:1 1 100%; width:100%; min-width:0; position:relative; }
     .ov-day-detail { animation:fadeIn .2s ease; }
     .ov-journal-note { background:rgba(245,158,11,.07); border:1px solid rgba(245,158,11,.15); border-radius:8px; padding:7px 11px; font-size:.82rem; color:var(--text); font-style:italic; margin-top:4px; }
     .ov-city-divider { text-align:center; margin:0 0 16px; }
@@ -2213,21 +2205,6 @@ function renderOverview() {
     }
   }
 
-  // ── Fanned day-card peeks ────────────────────
-  const buildFanPeek = (idx) => {
-    const d = allDays[idx];
-    const dist = idx - selIdx; // negative = before, positive = after
-    const dayNum = new Date(d+'T00:00').getDate();
-    const rot = 6 * (dist < 0 ? -1 : 1);
-    return `<div class="ov-fan-peek${d===today?' today':''}" onclick="selectOvDay('${d}')" style="transform:rotate(${rot}deg);opacity:.6;z-index:3">
-      <span class="ov-fan-peek-day">${dayNum}</span>
-    </div>`;
-  };
-  let leftPeeks = '';
-  if (selIdx - 1 >= 0) leftPeeks = buildFanPeek(selIdx - 1);
-  let rightPeeks = '';
-  if (selIdx + 1 <= allDays.length - 1) rightPeeks = buildFanPeek(selIdx + 1);
-
   // ── Selected day data ──────────────────────
   const isToday = day === today;
   const stay     = dayStay[day] || null;
@@ -2337,7 +2314,6 @@ function renderOverview() {
   const detailHtml = `<div class="ov-day-detail">
     ${cityBar}
     <div class="ov-fan-wrap">
-      <div class="ov-fan-peeks ov-fan-peeks-left">${leftPeeks}</div>
       <div class="ov-fan-front">
         <div class="ov-card-inner">
           <div class="ov-card-body">
@@ -2359,7 +2335,6 @@ function renderOverview() {
           </div>
         </div>
       </div>
-      <div class="ov-fan-peeks ov-fan-peeks-right">${rightPeeks}</div>
     </div>
   </div>`;
 
