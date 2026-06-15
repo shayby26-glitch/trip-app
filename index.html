@@ -401,23 +401,16 @@
     .hero-photo { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; filter:brightness(.7) saturate(1.3); transition:transform .5s ease; }
     .hero-overlay-animated { position:absolute; inset:0; background:linear-gradient(135deg,rgba(124,58,237,.12),rgba(244,63,94,.08),rgba(124,58,237,.1)); background-size:300% 300%; animation:gradientShift 8s ease infinite; pointer-events:none; }
 
-    /* ═══ OVERVIEW TIME DIAL ═══ */
-    .ov-dial-wrap { margin-bottom:16px; }
-    .ov-dial-strip { display:flex; gap:7px; overflow-x:auto; padding:6px 2px 10px; scrollbar-width:none; -ms-overflow-style:none; }
-    .ov-dial-strip::-webkit-scrollbar { display:none; }
-    .ov-dial-day { flex-shrink:0; width:54px; text-align:center; cursor:pointer; user-select:none; }
-    .ov-dial-circle { width:46px; height:46px; border-radius:50%; border:2px solid var(--border); display:flex; align-items:center; justify-content:center; margin:0 auto 4px; transition:all .2s; background:var(--surface); }
-    .ov-dial-day.today .ov-dial-circle { border-color:var(--accent); }
-    .ov-dial-day.selected .ov-dial-circle { background:var(--grad); border-color:transparent; box-shadow:0 4px 16px rgba(124,58,237,.4); }
-    .ov-dial-day-num { font-size:.78rem; font-weight:800; color:var(--muted); transition:color .2s; }
-    .ov-dial-day.today:not(.selected) .ov-dial-day-num { color:var(--accent); }
-    .ov-dial-day.selected .ov-dial-day-num { color:#fff; }
-    .ov-dial-day-lbl { font-size:.6rem; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:clip; }
-    .ov-dial-day.selected .ov-dial-day-lbl { color:var(--accent); font-weight:700; }
-    .ov-dial-nav { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
-    .ov-dial-nav button { background:var(--surface); border:1px solid var(--border); border-radius:8px; color:var(--text); padding:5px 12px; cursor:pointer; font-size:.85rem; transition:all .2s; }
-    .ov-dial-nav button:hover { border-color:var(--accent); color:var(--accent); }
-    .ov-dial-nav button:disabled { opacity:.3; cursor:default; }
+    /* ═══ OVERVIEW DAY FAN ═══ */
+    .ov-fan-wrap { display:flex; align-items:stretch; margin-bottom:16px; }
+    .ov-fan-front { flex:1; min-width:0; position:relative; z-index:5; }
+    .ov-fan-peeks { display:flex; align-items:stretch; }
+    .ov-fan-peek { width:34px; flex-shrink:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; background:var(--surface2); border:1px solid var(--border); border-radius:14px; cursor:pointer; transition:all .2s; box-shadow:0 4px 10px rgba(0,0,0,.08); }
+    .ov-fan-peek:hover { opacity:1 !important; }
+    .ov-fan-peek.today { border-color:var(--accent); }
+    .ov-fan-peek-month { font-size:.6rem; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
+    .ov-fan-peek-day { font-size:1rem; font-weight:800; color:var(--text); }
+    .ov-fan-peek.today .ov-fan-peek-day { color:var(--accent); }
     .ov-day-detail { animation:fadeIn .2s ease; }
     .ov-journal-note { background:rgba(245,158,11,.07); border:1px solid rgba(245,158,11,.15); border-radius:8px; padding:7px 11px; font-size:.82rem; color:var(--text); font-style:italic; margin-top:4px; }
     .ov-city-divider { text-align:center; margin:0 0 16px; }
@@ -2219,17 +2212,26 @@ function renderOverview() {
     }
   }
 
-  // ── Dial strip ──────────────────────────────
-  const dialHtml = `<div class="ov-dial-wrap">
-    <div class="ov-dial-strip" id="ov-dial-strip">${allDays.map((d, idx) => {
-      const isSel = d === day, isToday2 = d === today;
-      const lbl = new Date(d+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
-      return `<div class="ov-dial-day${isSel?' selected':''}${isToday2?' today':''}" onclick="selectOvDay('${d}')">
-        <div class="ov-dial-circle"><span class="ov-dial-day-num">${idx+1}</span></div>
-        <div class="ov-dial-day-lbl">${lbl}</div>
-      </div>`;
-    }).join('')}</div>
-  </div>`;
+  // ── Fanned day-card peeks ────────────────────
+  const buildFanPeek = (idx) => {
+    const d = allDays[idx];
+    const dist = idx - selIdx; // negative = before, positive = after
+    const adist = Math.abs(dist);
+    const monthLbl = new Date(d+'T00:00').toLocaleDateString('en-US',{month:'short'});
+    const dayNum = new Date(d+'T00:00').getDate();
+    const rot = (adist === 1 ? 5 : 10) * (dist < 0 ? -1 : 1);
+    const scale = adist === 1 ? .96 : .9;
+    const opacity = adist === 1 ? .85 : .55;
+    const z = 4 - adist;
+    const overlapSide = dist < 0 ? 'margin-right' : 'margin-left';
+    return `<div class="ov-fan-peek${d===today?' today':''}" onclick="selectOvDay('${d}')" style="transform:rotate(${rot}deg) scale(${scale});opacity:${opacity};z-index:${z};${overlapSide}:-16px">
+      <span class="ov-fan-peek-month">${monthLbl}</span><span class="ov-fan-peek-day">${dayNum}</span>
+    </div>`;
+  };
+  let leftPeeks = '';
+  for (let i = Math.max(0, selIdx - 2); i < selIdx; i++) leftPeeks += buildFanPeek(i);
+  let rightPeeks = '';
+  for (let i = selIdx + 1; i <= Math.min(allDays.length - 1, selIdx + 2); i++) rightPeeks += buildFanPeek(i);
 
   // ── Selected day data ──────────────────────
   const isToday = day === today;
@@ -2339,35 +2341,34 @@ function renderOverview() {
 
   const detailHtml = `<div class="ov-day-detail">
     ${cityBar}
-    <div class="ov-card-inner">
-      <div class="ov-card-body">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:.75rem">
-          <div>
-            <span class="ov-card-day-badge">Day ${selIdx+1}</span>
-            <div class="ov-card-date-str" style="margin-top:5px">${dateStr} ${todayBadge}</div>
-          </div>
-          <div style="display:flex;gap:5px">
-            <button onclick="selectOvDay('${prevDay}')" ${!prevDay?'disabled':''} style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:5px 10px;cursor:pointer;font-size:.85rem;color:var(--text)">◀</button>
-            <button onclick="selectOvDay('${nextDay}')" ${!nextDay?'disabled':''} style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:5px 10px;cursor:pointer;font-size:.85rem;color:var(--text)">▶</button>
+    <div class="ov-fan-wrap">
+      <div class="ov-fan-peeks ov-fan-peeks-left">${leftPeeks}</div>
+      <div class="ov-fan-front">
+        <div class="ov-card-inner">
+          <div class="ov-card-body">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:.75rem">
+              <div>
+                <span class="ov-card-day-badge">Day ${selIdx+1}</span>
+                <div class="ov-card-date-str" style="margin-top:5px">${dateStr} ${todayBadge}</div>
+              </div>
+              <div style="display:flex;gap:5px">
+                <button onclick="selectOvDay('${prevDay}')" ${!prevDay?'disabled':''} style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:5px 10px;cursor:pointer;font-size:.85rem;color:var(--text)">◀</button>
+                <button onclick="selectOvDay('${nextDay}')" ${!nextDay?'disabled':''} style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:5px 10px;cursor:pointer;font-size:.85rem;color:var(--text)">▶</button>
+              </div>
+            </div>
+            ${destPills ? `<div class="ov-dest-pills">${destPills}</div>` : ''}
+            ${actList ? `<ul class="ov-card-activities">${actList}</ul>` : ''}
+            ${hotelBox}
+            ${costHtml}
+            ${journalHtml}
           </div>
         </div>
-        ${destPills ? `<div class="ov-dest-pills">${destPills}</div>` : ''}
-        ${actList ? `<ul class="ov-card-activities">${actList}</ul>` : ''}
-        ${hotelBox}
-        ${costHtml}
-        ${journalHtml}
       </div>
+      <div class="ov-fan-peeks ov-fan-peeks-right">${rightPeeks}</div>
     </div>
   </div>`;
 
-  wrap.innerHTML = dialHtml + detailHtml;
-
-  // Scroll selected circle into view
-  setTimeout(() => {
-    const strip = document.getElementById('ov-dial-strip');
-    const sel = strip?.querySelector('.ov-dial-day.selected');
-    if (sel) sel.scrollIntoView({ behavior:'smooth', block:'nearest', inline:'center' });
-  }, 50);
+  wrap.innerHTML = detailHtml;
 }
 
 // ══════════════════════════════════════════════
