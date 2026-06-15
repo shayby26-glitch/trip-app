@@ -936,6 +936,14 @@
       <label>Pick an Icon</label>
       <div class="emoji-picker" id="emoji-picker"></div>
     </div>
+    <div class="form-group">
+      <label>Travelers</label>
+      <div id="nt-people-list" class="people-grid" style="margin-bottom:8px"></div>
+      <div class="add-inline">
+        <input type="text" id="nt-person-name" placeholder="Person's name…" />
+        <button class="btn btn-ghost btn-sm" onclick="addNewTripPerson()">+ Add</button>
+      </div>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('modal-new')">Cancel</button>
       <button class="btn btn-primary" onclick="createTrip()">Create Trip</button>
@@ -1120,6 +1128,14 @@
     <div class="form-group">
       <label>Icon</label>
       <div class="emoji-picker" id="et-emoji-picker"></div>
+    </div>
+    <div class="form-group">
+      <label>Travelers</label>
+      <div id="et-people-list" class="people-grid" style="margin-bottom:8px"></div>
+      <div class="add-inline">
+        <input type="text" id="et-person-name" placeholder="Person's name…" />
+        <button class="btn btn-ghost btn-sm" onclick="addEditTripPerson()">+ Add</button>
+      </div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('modal-edit-trip')">Cancel</button>
@@ -1825,6 +1841,7 @@ function renderHome() {
 // ══════════════════════════════════════════════
 // NEW TRIP MODAL
 // ══════════════════════════════════════════════
+let _newTripPeople = [];
 function openNewTripModal() {
   ['f-dest','f-desc'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('f-start').value = '';
@@ -1832,8 +1849,36 @@ function openNewTripModal() {
   document.getElementById('f-currency').value = '$';
   document.getElementById('emoji-picker').innerHTML = EMOJIS.map((e,i) =>
     `<button class="emoji-opt${i===0?' selected':''}" onclick="selectEmoji(this)">${e}</button>`).join('');
+  _newTripPeople = [];
+  document.getElementById('nt-person-name').value = '';
+  renderNewTripPeople();
   document.getElementById('modal-new').classList.add('open');
   setTimeout(() => document.getElementById('f-dest').focus(), 100);
+}
+function renderNewTripPeople() {
+  const container = document.getElementById('nt-people-list');
+  if (!_newTripPeople.length) {
+    container.innerHTML = `<div style="color:var(--muted);font-size:.875rem">No travelers added yet.</div>`;
+    return;
+  }
+  container.innerHTML = _newTripPeople.map((p,i) => `<div class="person-chip">
+    <div class="avatar" style="background:${avatarColor(i)}">${initials(p.name)}</div>
+    <span class="pname">${escHtml(p.name)}</span>
+    <button class="btn-icon" onclick="removeNewTripPerson('${p.id}')" title="Remove">✕</button>
+  </div>`).join('');
+}
+function addNewTripPerson() {
+  const input = document.getElementById('nt-person-name');
+  const name = input.value.trim();
+  if (!name) return toast('Enter a name');
+  if (_newTripPeople.some(p => p.name.toLowerCase() === name.toLowerCase())) return toast('Already added');
+  _newTripPeople.push({ id: Date.now().toString(), name });
+  input.value = '';
+  renderNewTripPeople();
+}
+function removeNewTripPerson(id) {
+  _newTripPeople = _newTripPeople.filter(p => p.id !== id);
+  renderNewTripPeople();
 }
 function selectEmoji(el) {
   document.querySelectorAll('.emoji-opt').forEach(e=>e.classList.remove('selected'));
@@ -1854,7 +1899,7 @@ function createTrip() {
   const trip = {
     id: Date.now().toString(), destination: dest, start, end, description: desc, emoji, currency: cur,
     color: colors[Math.floor(Math.random()*colors.length)],
-    people: [], itinerary: [], destinations: [], expenses: [], stays: [], packing: [], notes: '', budget: 0, transport: [], archived: false
+    people: _newTripPeople.map(p => ({ id: p.id, name: p.name })), itinerary: [], destinations: [], expenses: [], stays: [], packing: [], notes: '', budget: 0, transport: [], archived: false
   };
   trips.unshift(trip); save();
   closeModal('modal-new');
@@ -1876,7 +1921,45 @@ function openEditTripModal() {
   document.getElementById('et-budget').value = t.budget || '';
   document.getElementById('et-emoji-picker').innerHTML = EMOJIS.map(e =>
     `<button class="emoji-opt${e===t.emoji?' selected':''}" onclick="selectEmoji(this)">${e}</button>`).join('');
+  document.getElementById('et-person-name').value = '';
+  renderEditTripPeople();
   document.getElementById('modal-edit-trip').classList.add('open');
+}
+function renderEditTripPeople() {
+  const t = getTrip();
+  const people = t.people || [];
+  const container = document.getElementById('et-people-list');
+  if (!people.length) {
+    container.innerHTML = `<div style="color:var(--muted);font-size:.875rem">No travelers added yet.</div>`;
+    return;
+  }
+  container.innerHTML = people.map((p,i) => `<div class="person-chip">
+    <div class="avatar" style="background:${avatarColor(i)}">${initials(p.name)}</div>
+    <span class="pname">${escHtml(p.name)}</span>
+    <button class="btn-icon" onclick="removeEditTripPerson('${p.id}')" title="Remove">✕</button>
+  </div>`).join('');
+}
+function addEditTripPerson() {
+  const input = document.getElementById('et-person-name');
+  const name = input.value.trim();
+  if (!name) return toast('Enter a name');
+  const t = getTrip();
+  if (!t.people) t.people = [];
+  if (t.people.some(p => p.name.toLowerCase() === name.toLowerCase())) return toast('Already added');
+  t.people.push({ id: Date.now().toString(), name });
+  save();
+  input.value = '';
+  renderEditTripPeople();
+  renderPeople();
+}
+function removeEditTripPerson(id) {
+  const t = getTrip();
+  const hasExp = (t.expenses||[]).some(e => e.paidBy === id || (e.splitAmong||[]).includes(id));
+  if (hasExp) return toast("Remove this person’s expenses first");
+  t.people = (t.people||[]).filter(p => p.id !== id);
+  save();
+  renderEditTripPeople();
+  renderPeople();
 }
 let pendingTripEdit = null;
 
@@ -4220,6 +4303,8 @@ document.addEventListener('keydown', e => {
 // Enter key on person/dest/activity/pack inputs
 document.getElementById('new-person-name').addEventListener('keydown', e => { if(e.key==='Enter') addPerson(); });
 document.getElementById('new-pack-name').addEventListener('keydown', e => { if(e.key==='Enter') addPackItem(); });
+document.getElementById('nt-person-name').addEventListener('keydown', e => { if(e.key==='Enter') { e.preventDefault(); addNewTripPerson(); } });
+document.getElementById('et-person-name').addEventListener('keydown', e => { if(e.key==='Enter') { e.preventDefault(); addEditTripPerson(); } });
 
 // ══════════════════════════════════════════════
 // THEME
