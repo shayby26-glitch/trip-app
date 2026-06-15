@@ -402,15 +402,16 @@
     .hero-overlay-animated { position:absolute; inset:0; background:linear-gradient(135deg,rgba(124,58,237,.12),rgba(244,63,94,.08),rgba(124,58,237,.1)); background-size:300% 300%; animation:gradientShift 8s ease infinite; pointer-events:none; }
 
     /* ═══ OVERVIEW DAY FAN ═══ */
-    .ov-fan-wrap { display:flex; align-items:stretch; margin-bottom:16px; }
+    .ov-fan-wrap { display:flex; align-items:stretch; margin-bottom:16px; touch-action:pan-y; }
     .ov-fan-front { flex:1; min-width:0; position:relative; z-index:5; }
     .ov-fan-peeks { display:flex; align-items:stretch; }
-    .ov-fan-peek { width:34px; flex-shrink:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; background:var(--surface2); border:1px solid var(--border); border-radius:14px; cursor:pointer; transition:all .2s; box-shadow:0 4px 10px rgba(0,0,0,.08); }
+    .ov-fan-peek { width:58px; flex-shrink:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:8px 5px; background:var(--surface2); border:1px solid var(--border); border-radius:14px; cursor:pointer; transition:all .2s; box-shadow:0 4px 10px rgba(0,0,0,.08); }
     .ov-fan-peek:hover { opacity:1 !important; }
     .ov-fan-peek.today { border-color:var(--accent); }
     .ov-fan-peek-month { font-size:.6rem; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
     .ov-fan-peek-day { font-size:1rem; font-weight:800; color:var(--text); }
     .ov-fan-peek.today .ov-fan-peek-day { color:var(--accent); }
+    .ov-fan-peek-preview { font-size:.6rem; color:var(--muted); text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; margin-top:2px; }
     .ov-day-detail { animation:fadeIn .2s ease; }
     .ov-journal-note { background:rgba(245,158,11,.07); border:1px solid rgba(245,158,11,.15); border-radius:8px; padding:7px 11px; font-size:.82rem; color:var(--text); font-style:italic; margin-top:4px; }
     .ov-city-divider { text-align:center; margin:0 0 16px; }
@@ -422,7 +423,7 @@
     .ov-card-body { padding:1.2rem 1.3rem; }
     .ov-card-date-header { margin-bottom:.75rem; }
     .ov-card-day-badge { font-size:.68rem; font-weight:800; text-transform:uppercase; letter-spacing:.1em; color:var(--accent); background:rgba(124,58,237,.18); padding:3px 10px; border-radius:10px; display:inline-block; margin-bottom:5px; }
-    .ov-card-date-str { font-size:1rem; font-weight:700; line-height:1.2; display:flex; align-items:center; gap:8px; }
+    .ov-card-date-str { font-size:1rem; font-weight:700; line-height:1.2; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
     .ov-dest-pills { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:.85rem; }
     .ov-dest-pill { display:inline-flex; align-items:center; gap:4px; background:rgba(124,58,237,.1); border:1px solid rgba(124,58,237,.2); border-radius:20px; padding:5px 12px; font-size:.82rem; font-weight:500; white-space:nowrap; }
     .ov-card-activities { list-style:none; margin-bottom:.85rem; display:flex; flex-direction:column; gap:7px; }
@@ -2224,8 +2225,12 @@ function renderOverview() {
     const opacity = adist === 1 ? .85 : .55;
     const z = 4 - adist;
     const overlapSide = dist < 0 ? 'margin-right' : 'margin-left';
+    const dDests = (t.destinations||[]).filter(x => x.day === d);
+    const dActs  = (t.itinerary||[]).filter(x => x.day === d).sort((a,b) => (a.time||'').localeCompare(b.time||''));
+    const previewText = dDests.length ? dDests[0].name : (dActs.length ? dActs[0].name : '');
     return `<div class="ov-fan-peek${d===today?' today':''}" onclick="selectOvDay('${d}')" style="transform:rotate(${rot}deg) scale(${scale});opacity:${opacity};z-index:${z};${overlapSide}:-16px">
       <span class="ov-fan-peek-month">${monthLbl}</span><span class="ov-fan-peek-day">${dayNum}</span>
+      ${previewText ? `<span class="ov-fan-peek-preview">${escHtml(previewText)}</span>` : ''}
     </div>`;
   };
   let leftPeeks = '';
@@ -2369,6 +2374,23 @@ function renderOverview() {
   </div>`;
 
   wrap.innerHTML = detailHtml;
+
+  // ── Swipe left/right to change day ───────────
+  const fanWrap = wrap.querySelector('.ov-fan-wrap');
+  if (fanWrap) {
+    let touchStartX = 0, touchStartY = 0;
+    fanWrap.addEventListener('touchstart', e => {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+    fanWrap.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      const dy = e.changedTouches[0].clientY - touchStartY;
+      if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return;
+      if (dx < 0 && nextDay) selectOvDay(nextDay);
+      else if (dx > 0 && prevDay) selectOvDay(prevDay);
+    }, { passive: true });
+  }
 }
 
 // ══════════════════════════════════════════════
