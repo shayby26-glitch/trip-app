@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>מתכונים שלי</title>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#c0622a" />
+  <link rel="icon" href="icons/icon-512.png" type="image/png" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="מתכונים" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #fdf8f0;
+      --card: #ffffff;
+      --primary: #c0622a;
+      --primary-light: #f5ece3;
+      --primary-dark: #9e4f22;
+      --text: #2c1a0e;
+      --text-muted: #7a5c44;
+      --border: #e8d8c8;
+      --tag-bg: #fde8d8;
+      --tag-text: #8b3a1a;
+      --step-num: #c0622a;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+      --radius: 16px;
+    }
+
+    body {
+      font-family: 'Segoe UI', 'Arial Hebrew', Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 60px;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--primary);
+      color: #fff;
+      padding: 20px 24px 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    header h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: 0.02em; }
+    header p  { font-size: 0.85rem; opacity: 0.85; margin-top: 2px; }
+
+    /* ── Search ── */
+    .search-bar {
+      padding: 16px 20px;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+    }
+    .search-bar input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-size: 0.95rem;
+      color: var(--text);
+      background: var(--bg);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .search-bar input:focus { border-color: var(--primary); }
+
+    /* ── Recipe list ── */
+    .recipe-list {
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .recipe-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      border: 1.5px solid var(--border);
+      overflow: hidden;
+      cursor: pointer;
+      transition: box-shadow 0.2s, transform 0.15s;
+    }
+    .recipe-card:hover { box-shadow: 0 6px 24px rgba(0,0,0,0.12); transform: translateY(-1px); }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 16px 18px;
+    }
+    .card-icon {
+      font-size: 2.2rem;
+      width: 52px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--primary-light);
+      border-radius: 12px;
+      flex-shrink: 0;
+    }
+    .card-info { flex: 1; min-width: 0; }
+    .card-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .card-meta {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .card-meta span { display: flex; align-items: center; gap: 3px; }
+    .card-chevron {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      transition: transform 0.25s;
+      flex-shrink: 0;
+    }
+    .recipe-card.open .card-chevron { transform: rotate(90deg); }
+
+    .card-tags {
+      padding: 0 18px 12px;
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .tag {
+      background: var(--tag-bg);
+      color: var(--tag-text);
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 20px;
+    }
+
+    /* ── Expanded recipe body ── */
+    .recipe-body {
+      display: none;
+      border-top: 1.5px solid var(--border);
+    }
+    .recipe-card.open .recipe-body { display: block; }
+
+    .recipe-body section {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    .recipe-body section:last-child { border-bottom: none; }
+
+    .section-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--primary);
+      margin-bottom: 10px;
+    }
+
+    /* ingredients */
+    .ingredient-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .ingredient-list li {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 0.9rem;
+      gap: 8px;
+    }
+    .ingredient-list li .name { color: var(--text); flex: 1; }
+    .ingredient-list li .amount {
+      font-weight: 700;
+      color: var(--primary-dark);
+      white-space: nowrap;
+    }
+
+    /* steps */
+    .step-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .step-list li {
+      display: flex;
+      gap: 12px;
+      font-size: 0.9rem;
+      line-height: 1.55;
+    }
+    .step-num {
+      width: 24px;
+      height: 24px;
+      min-width: 24px;
+      background: var(--primary);
+      color: #fff;
+      border-radius: 50%;
+      font-size: 0.75rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 1px;
+    }
+
+    /* tip box */
+    .tip-box {
+      background: #fff8ee;
+      border-right: 4px solid #e8a84e;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.85rem;
+      color: #6b4a10;
+      line-height: 1.55;
+    }
+    .tip-box strong { color: #8b5e10; }
+
+    /* baking info pills */
+    .bake-info {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .bake-pill {
+      background: var(--primary-light);
+      border: 1.5px solid #e8c4a8;
+      border-radius: 10px;
+      padding: 8px 14px;
+      font-size: 0.88rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      flex: 1;
+      min-width: 90px;
+    }
+    .bake-pill .pill-label { font-size: 0.7rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+    .bake-pill .pill-val { font-weight: 700; color: var(--primary-dark); font-size: 1rem; }
+
+    /* ── FAB – add recipe ── */
+    #fab {
+      position: fixed;
+      bottom: 24px;
+      left: 24px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      font-size: 1.8rem;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(192,98,42,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s, transform 0.15s;
+      z-index: 200;
+    }
+    #fab:hover { background: var(--primary-dark); transform: scale(1.07); }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 300;
+      align-items: flex-end;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--card);
+      border-radius: 20px 20px 0 0;
+      padding: 24px 20px 36px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      animation: slideUp 0.28s ease;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(60px); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+    .modal h2 { font-size: 1.15rem; font-weight: 700; margin-bottom: 18px; color: var(--primary-dark); }
+
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-bottom: 5px; }
+    .form-group input, .form-group textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-size: 0.9rem;
+      color: var(--text);
+      background: var(--bg);
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+      resize: vertical;
+    }
+    .form-group input:focus, .form-group textarea:focus { border-color: var(--primary); }
+
+    .modal-actions { display: flex; gap: 10px; margin-top: 6px; }
+    .btn-primary {
+      flex: 1;
+      padding: 12px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-secondary {
+      padding: 12px 20px;
+      background: var(--bg);
+      color: var(--text-muted);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-size: 0.95rem;
+      cursor: pointer;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+    .empty-state .emoji { font-size: 3rem; margin-bottom: 12px; }
+    .empty-state p { font-size: 0.95rem; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>📖 המתכונים שלי</h1>
+  <p>שמור, חפש ובשל</p>
+</header>
+
+<div class="search-bar">
+  <input type="search" id="searchInput" placeholder="🔍  חיפוש מתכון..." />
+</div>
+
+<div class="recipe-list" id="recipeList"></div>
+
+<button id="fab" title="הוסף מתכון">+</button>
+
+<!-- Add Recipe Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h2>➕ מתכון חדש</h2>
+    <div class="form-group">
+      <label>שם המתכון *</label>
+      <input type="text" id="newTitle" placeholder="למשל: עוגת שוקולד" />
+    </div>
+    <div class="form-group">
+      <label>אמוג׳י / סמל</label>
+      <input type="text" id="newEmoji" placeholder="🍰" maxlength="4" />
+    </div>
+    <div class="form-group">
+      <label>מרכיבים (שורה אחת לכל מרכיב, פורמט: שם | כמות)</label>
+      <textarea id="newIngredients" rows="5" placeholder="קמח | 500 גרם&#10;ביצים | 3&#10;חמאה | 200 גרם"></textarea>
+    </div>
+    <div class="form-group">
+      <label>הוראות הכנה (שורה לכל שלב)</label>
+      <textarea id="newSteps" rows="5" placeholder="מחממים תנור ל-180°C&#10;מערבבים את כל המרכיבים&#10;אופים 35 דקות"></textarea>
+    </div>
+    <div class="form-group">
+      <label>טיפ (אופציונלי)</label>
+      <input type="text" id="newTip" placeholder="טיפ שימושי..." />
+    </div>
+    <div class="form-group">
+      <label>תגיות (מופרדות בפסיק)</label>
+      <input type="text" id="newTags" placeholder="אפייה, לחם, קל" />
+    </div>
+    <div class="form-group">
+      <label>זמן הכנה</label>
+      <input type="text" id="newPrepTime" placeholder="20 דקות" />
+    </div>
+    <div class="form-group">
+      <label>זמן אפייה / בישול</label>
+      <input type="text" id="newCookTime" placeholder="45 דקות" />
+    </div>
+    <div class="form-group">
+      <label>טמפרטורה</label>
+      <input type="text" id="newTemp" placeholder="180°C" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="modalCancel">ביטול</button>
+      <button class="btn-primary" id="modalSave">שמור מתכון</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'my_recipes_v1';
+
+const BREAD_RECIPE = {
+  id: 'bread_tin_30pct',
+  emoji: '🍞',
+  title: 'לחם תבנית – מנה מוגדלת (×1.3)',
+  tags: ['אפייה', 'לחם', 'בסיסי'],
+  prepTime: '20 דקות + 90 דקות התפחה',
+  cookTime: '38–45 דקות',
+  temp: '200°C',
+  yields: '2 כיכרות בינוניות',
+  ingredients: [
+    { name: 'קמח לבן ללחם',          amount: '1.3 ק״ג'    },
+    { name: 'מים פושרים',             amount: '845 מ״ל'    },
+    { name: 'שמרים יבשים (או 39 גר׳ טריים)', amount: '13 גרם'     },
+    { name: 'מלח',                    amount: '26 גרם'     },
+    { name: 'סוכר',                   amount: '39 גרם'     },
+    { name: 'שמן ניטרלי (או חמאה רכה)', amount: '52 גר׳ שמן / 65 גר׳ חמאה' },
+  ],
+  steps: [
+    'מערבבים מים פושרים + שמרים + סוכר בקערה גדולה. ממתינים 5 דקות עד שהתערובת מתחילה לקצוף.',
+    'מוסיפים את הקמח ומתחילים ללוש.',
+    'אחרי שהבצק מתחיל להתאחד — מוסיפים מלח ושמן (או חמאה רכה).',
+    'לשים 10–12 דקות עד שהבצק חלק, גמיש ולא נדבק ליד.',
+    'התפחה ראשונה: מכסים ומניחים 60–90 דקות עד שהבצק מכפיל נפחו.',
+    'מחלקים לשני חלקים שווים (≈1.1 ק״ג כל אחד), מעצבים ומניחים בתבניות.',
+    'התפחה סופית (proofing): ממתינים עד שהבצק עולה לכ-1–2 ס״מ מתחת לשפת התבנית. לא יותר! סוגרים מכסה.',
+    'אופים ב-200°C כ-38–45 דקות עד להשחמה יפה.',
+    'מוציאים, מצננים על רשת לפחות 20 דקות לפני פריסה.',
+  ],
+  tip: 'proofing = התפחה סופית לפני אפייה. בתבנית עם מכסה זה קריטי — אל תתן לבצק לעלות מעל גובה התבנית לפני שסוגרים.',
+};
+
+const AREEK_RECIPE = {
+  id: 'areek_veg_chicken_patties',
+  emoji: '🥔',
+  title: 'ערוק – קציצות ירק עם חזה עוף',
+  tags: ['מטוגן', 'קציצות', 'עיראקי'],
+  yields: 'כ-25 קציצות',
+  cookTime: '3–4 דקות לכל צד',
+  ingredients: [
+    { name: 'תפוחי אדמה גדולים, מבושלים למחצה ומקולפים', amount: '3'           },
+    { name: 'בצל גדול, מגורד וסחוט מהנוזלים',           amount: '1'           },
+    { name: 'בצל ירוק קצוץ',                            amount: '3 גבעולים'   },
+    { name: 'פטרוזיליה קצוצה',                          amount: '½ חבילה'     },
+    { name: 'כוסברה קצוצה',                             amount: '½ חבילה'     },
+    { name: 'חזה עוף חתוך לקוביות קטנות',                amount: '½ פרגית (כ-200 גרם)' },
+    { name: 'ביצים',                                    amount: '3'           },
+    { name: 'קמח',                                      amount: '3 כפות'      },
+    { name: 'כמון',                                     amount: '½ כפית'      },
+    { name: 'כורכום',                                   amount: '½ כפית'      },
+    { name: 'מלח',                                      amount: '1 כפית'      },
+    { name: 'פלפל שחור',                                amount: '½ כפית'      },
+    { name: 'שמן לטיגון',                               amount: 'לפי הצורך'   },
+  ],
+  steps: [
+    'לתוך קערה, לגרד את תפוחי האדמה בעזרת מגרדת.',
+    'להוסיף את כל שאר המצרכים ולערבב בעדינות עם הידיים לתערובת אחידה. להשתדל לא לדחוס את התערובת.',
+    'לחמם במחבת גדולה שמן חצי עמוק.',
+    'לקחת כף מהתערובת ולהניח בעדינות בתוך השמן החם, לשטח מעט את הקציצה.',
+    'לטגן עד השחמה משני הצדדים, כ-3–4 דקות כל צד.',
+    'להוציא לצלחת גדולה מרופדת בנייר סופג.',
+  ],
+  tip: 'לבישול תפוחי האדמה: לבשל עם הקליפה (עדיף עם קליפה אדומה) בהרבה מים עד שהם רכים מבחוץ אבל עדיין קצת קשים באמצע, כ-15 דקות. לקלף מיד עם סיום הבישול — להחזיק בעזרת מגבת כדי שלא יהיה חם ביד.',
+};
+
+// ── תפריט "מסביב לים התיכון" – שף אלה חורי רקאנטי ──
+
+const THAI_FISH_SOUP = {
+  id: 'med_thai_fish_soup',
+  emoji: '🍲',
+  title: 'שוט מרק דגים תאילנדי חריף',
+  tags: ['ים תיכוני', 'מרק', 'דגים', 'אלה רקאנטי'],
+  ingredients: [
+    { name: 'שידרה ועצמות דג ים טרי שלמות', amount: '5' },
+    { name: 'שיני שום', amount: '8' },
+    { name: 'כוסברה', amount: 'זר' },
+    { name: 'גבעולי סלרי טרי', amount: '6' },
+    { name: 'חופנים עלי ליים טרי או יבש (או קליפת לימון)', amount: '3' },
+    { name: 'שורש למון גראס', amount: '3' },
+    { name: 'בצל חתוך גס', amount: '1' },
+    { name: 'עגבניות שרי חצויות (או מיכל עגבניות תמר איטלקי)', amount: '8' },
+    { name: 'פלפל צ׳ילי טרי חתוך גס', amount: '4' },
+    { name: 'פלפל שאטה שלם יבש', amount: '4' },
+    { name: 'חלב קוקוס', amount: 'מיכל' },
+    { name: 'מים', amount: '2 ליטר' },
+    { name: 'מלח ים, פלפל שחור', amount: 'לפי הטעם' },
+  ],
+  steps: [
+    'שמים את כל המרכיבים בסיר גדול ומביאים לרתיחה עדינה.',
+    'מבשלים כ-35 דקות.',
+    'מסננים, מתקנים תיבול ומגישים חם.',
+  ],
+};
+
+const GNOCCHI_MULLET = {
+  id: 'med_gnocchi_mullet',
+  emoji: '🍤',
+  title: 'ניוקי מוקפץ עם ברבוניה, אפונה ולימון',
+  tags: ['ים תיכוני', 'ניוקי', 'דגים', 'אלה רקאנטי'],
+  ingredients: [
+    { name: 'תפוחי אדמה אפויים 1.5–2 שעות עד ריכוך, מקוררים מעט', amount: 'לבצק' },
+    { name: 'קמח לבן', amount: '1–1.5 כוס' },
+    { name: 'חלמונים', amount: '2' },
+    { name: 'שמן זית', amount: '2 כף' },
+    { name: 'מלח', amount: 'כפית' },
+    { name: 'אגוז מוסקט מגורד', amount: 'מעט' },
+    { name: 'פרמזן', amount: '3 כפות' },
+    { name: 'ברבוניה מופשרת, פילה נקי ללא עצמות, חתוך לאלכסונים 2×2', amount: 'חבילה' },
+    { name: 'שיני שום קצוץ', amount: '4' },
+    { name: 'צ׳ילי טרי קצוץ דק', amount: '1' },
+    { name: 'עירית קצוצה', amount: '2 חופנים' },
+    { name: 'פטרוזיליה קצוצה', amount: '2 חופנים' },
+    { name: 'יין לבן', amount: '½ כוס' },
+    { name: 'אפונה קפואה מופשרת', amount: '2 כוסות' },
+    { name: 'גרידת לימון', amount: 'מ-2 לימונים' },
+    { name: 'מיץ לימון', amount: '4 כפות' },
+  ],
+  steps: [
+    'ניוקי: מועכים היטב את תפוחי האדמה, מוסיפים את השמן, המלח, המוסקט והביצה ומערבבים.',
+    'מוסיפים את הקמח ומערבבים עד ליצירת בצק רך. מגלגלים לגליל וחותכים לחתיכות.',
+    'מבשלים במים רותחים מאוד וממולחים, מסננים ומעבירים לתבנית עם נייר אפייה משומן.',
+    'לרוטב (להכין סמוך לאכילה): מחממים בווק/סוטאז׳ 3 כפות שמן, צורבים את הברבוניה עם מעט מלח ופלפל ומוציאים.',
+    'מוסיפים למחבת שום ומעט שמן, מזהיבים כמה שניות, מוסיפים אפונה ומערבבים כמה שניות.',
+    'מוסיפים יין, מצמצמים לגמרי, מנמיכים חום, מוסיפים ברבוניה, צ׳ילי ושמנת ומערבבים בעדינות.',
+    'במקביל מחממים היטב מחבת, צורבים את הניוקי עד חימום קל ומוסיפים לרוטב בעדינות.',
+    'מגישים עם פטרוזיליה, עירית, גרידת לימון, פרמזן ומיץ לימון.',
+  ],
+};
+
+const PHYLLO_FISH = {
+  id: 'med_phyllo_fish',
+  emoji: '🥟',
+  title: 'מאפה פילו ממולא בחציל שרוף ודג ים פטה, על קרם פלפלים קלויים',
+  tags: ['ים תיכוני', 'מאפה', 'דגים', 'אלה רקאנטי'],
+  ingredients: [
+    { name: 'חבילת פילו מופשרת (אפשר לחתוך בעודו קפוא ולהחזיר חצי למקפיא)', amount: '½' },
+    { name: 'חצילים שרופים על האש/בתנור, קלופים, מסוננים עם מעט לימון', amount: '2' },
+    { name: 'דג ים טרי, פילה ללא עור, חתוך למנות 4×4', amount: 'ק״ג' },
+    { name: 'פטה כבשים', amount: '200 גרם' },
+    { name: 'שיני שום כתוש', amount: '5' },
+    { name: 'אורגנו ופטרוזיליה קצוצים', amount: 'כ-4 כפות' },
+    { name: 'גרידת לימון', amount: 'מ-2 לימונים' },
+    { name: 'מיץ לימון', amount: 'מלימון אחד' },
+    { name: 'מלח ים, פלפל שחור', amount: 'לפי הטעם' },
+    { name: 'חמאה מומסת + שמן זית (לציפוי)', amount: '100 גר׳ + ½ כוס' },
+    { name: 'אבקת שקדים + פירורי לחם (לציפוי)', amount: 'כוס + כף' },
+    { name: 'ביצה טרופה + שמן זית + קורט מלח (לציפוי)', amount: '1 + 2 כפות' },
+    { name: 'פלפלים אדומים קלויים ב-200°C כ-15 דק׳ (לקרם)', amount: '4' },
+    { name: 'שמן זית (לקרם)', amount: '½ כוס' },
+    { name: 'שמן קנולה (לקרם)', amount: '2 כפות' },
+    { name: 'צ׳ילי טרי (לקרם)', amount: 'מעט' },
+    { name: 'חומץ תפוחים או חומץ יין לבן (לקרם)', amount: '2 כפות' },
+    { name: 'סוכר (לקרם)', amount: '¼ כפית' },
+    { name: 'יוגורט כבשים/עיזים מעורבב עם קורט מלח (להגשה)', amount: 'כוס' },
+  ],
+  steps: [
+    'ממליחים ומפלפלים את פילה הדג, מפזרים מעט מיץ לימון, שום וגרידת לימון.',
+    'לחציל: חותכים לקוביות, ממליחים ומפלפלים בעדינות.',
+    'מאפה: על כל עלה פילו מורחים מעט חמאה + שמן זית, מפזרים אבקת שקדים, מניחים חציל, דג, מעט פטה, אורגנו ופטרוזיליה ומקפלים.',
+    'מזגגים כל גלילה בביצה, מניחים בתבנית עם נייר אפייה ואופים ב-175°C כ-10 דקות.',
+    'רוטב פלפלים: קולפים את הפלפלים ומסננים. טוחנים במעבד מזון את הפלפל, חומץ, סוכר, צ׳ילי ומלח היטב.',
+    'מוסיפים שמן בקילוח עדין עד ליצירת קרם חלק. אם סמיך מדי מוסיפים טיפה מים.',
+    'מגישים את המאפה על קרם הפלפלים ולצד יוגורט.',
+  ],
+};
+
+const FISH_TEMPURA = {
+  id: 'med_fish_tempura',
+  emoji: '🐟',
+  title: 'פילה דג בטמפורה ירוקה עם איולי לימון ושום',
+  tags: ['ים תיכוני', 'דגים', 'מטוגן', 'אלה רקאנטי'],
+  ingredients: [
+    { name: 'דג ים פילה ללא עור, חתוך לאלכסונים', amount: '600 גרם' },
+    { name: 'פטרוזיליה עלים (לטמפורה)', amount: 'כוס' },
+    { name: 'אורגנו טרי עלים (לטמפורה)', amount: '½ כוס' },
+    { name: 'עלי מרווה (לטמפורה)', amount: '8' },
+    { name: 'גרידת ליים/לימון (לטמפורה)', amount: 'מאחד' },
+    { name: 'קמח טמפורה', amount: '4 כוסות' },
+    { name: 'קארי צהוב (לטמפורה)', amount: '¼ כפית' },
+    { name: 'מלח (לטמפורה)', amount: '½ כפית' },
+    { name: 'מי קרח (לטמפורה)', amount: 'כ-2.24 כוסות' },
+    { name: 'חלמונים (לאיולי)', amount: '2' },
+    { name: 'מיץ לימון (לאיולי)', amount: '2 כפות' },
+    { name: 'חומץ יין לבן / חומץ תפוחים (לאיולי)', amount: '2 כפות' },
+    { name: 'חרדל דיז׳ון גרגרים (לאיולי)', amount: 'כפית' },
+    { name: 'גרידת לימון (לאיולי)', amount: 'מאחד' },
+    { name: 'שיני שום כתוש (לאיולי)', amount: '3' },
+    { name: 'שמן זית (לאיולי)', amount: '100 מ״ל' },
+    { name: 'שמן סויה (לאיולי)', amount: '400 מ״ל' },
+    { name: 'מלח ים, פלפל שחור (לאיולי)', amount: 'לפי הטעם' },
+    { name: 'פטרוזיליה קצוצה (לאיולי)', amount: 'חופן' },
+    { name: 'צ׳ילי טרי קצוץ (לאיולי)', amount: 'מעט' },
+    { name: 'שמן לטיגון עמוק', amount: 'לפי הצורך' },
+  ],
+  steps: [
+    'איולי: בקערת מיקסר עם מקצף שמים חלמונים, מלח, פלפל וחרדל ומקציפים דקה.',
+    'מוסיפים בקילוח עדין ובהדרגה לימון, חומץ ושמן זית — מעט כל פעם עד היטמעות מלאה. מקציפים עד קרם חלק ומבריק.',
+    'טמפורה: טוחנים במעבד מזון את הקמח עם הירוקים וגרידת הלימון. מוסיפים מי קרח ומערבבים עד מרקם של סולת (כ-2.24 כוסות מים).',
+    'דג: מחממים שמן עמוק, טובלים את הדג בטמפורה, מנערים מעודפים ומטגנים.',
+    'מעבירים למסננת ואז לנייר סופג. מגישים מיד חם לצד האיולי ופלחי לימון.',
+  ],
+};
+
+const MAQLUBA = {
+  id: 'med_maqluba',
+  emoji: '🍚',
+  title: 'מקלובה – אורז, ירקות ודגים בסומאק',
+  tags: ['ים תיכוני', 'אורז', 'דגים', 'אלה רקאנטי'],
+  ingredients: [
+    { name: 'דג ים פילה חתוך לרצועות 1 ס״מ', amount: '400 גרם' },
+    { name: 'שמן זית (למשרה) + מלח, פלפל גרוס', amount: '2 כפות' },
+    { name: 'פפריקה מתוקה (למשרה)', amount: 'כפית' },
+    { name: 'כמון (למשרה)', amount: '¼ כפית' },
+    { name: 'זרעי קימל טחונים (למשרה)', amount: '¼ כפית' },
+    { name: 'מיץ לימון (למשרה)', amount: '2 כפות' },
+    { name: 'כוסברה קצוצה', amount: 'חופן' },
+    { name: 'שומר פרוס דק', amount: '2' },
+    { name: 'שורש סלרי מגורר', amount: '1' },
+    { name: 'בצל סגול פרוס חצאים', amount: '2' },
+    { name: 'תפוחי אדמה אדומים קלופים, פרוסות 1.5 ס״מ', amount: '4' },
+    { name: 'גבעולי סלרי + עלים קצוצים', amount: '3' },
+    { name: 'כרובית פרחים', amount: '½' },
+    { name: 'עגבניות קלופות קוביות', amount: '3' },
+    { name: 'אורז בסמטי מושרה במים 30 דק׳ ושטוף', amount: '2 כוסות' },
+    { name: 'סומאק (לתיבול)', amount: 'כפית' },
+    { name: 'כורכום (לתיבול)', amount: '½ כפית' },
+    { name: 'פפריקה חריפה (לתיבול)', amount: '¼ כפית' },
+    { name: 'זרעי כוסברה כתושים (לתיבול)', amount: 'כפית' },
+    { name: 'מלח ים, פלפל שחור', amount: 'לפי הטעם' },
+  ],
+  steps: [
+    'משרים את הדג בתערובת שמן הזית, הלימון והתבלינים.',
+    'מחממים הרבה מים (כמו לפסטה) עם מעט מלח, מבשלים את האורז עד שהוא רך בלבד (אל-דנטה) ומסננים.',
+    'מחממים סיר גדול עם ציפוי מונע הדבקה, מוסיפים 4 כפות שמן ומטגנים בצל עד שקיפות. מוסיפים שום ומטגנים עוד דקה ומוציאים.',
+    'מוסיפים שומר, כרובית ושורש סלרי ומעט שמן, מטגנים תוך ערבוב כ-10 דקות עד ריכוך.',
+    'מגבירים חום, מוסיפים עגבניות, עלי כוסברה וסלרי ומטגנים עוד 2–5 דקות (אפשר ב-2 סירים לחיסכון בזמן).',
+    'מוציאים הכל לקערה ענקית ומערבבים עם האורז והתיבול. מתקנים תיבול.',
+    'מחממים שוב את הסיר הריק, מוסיפים זרעי כוסברה, מעט מלח ו-5 כפות שמן ומסדרים מעל תפוחי אדמה. מניחים להיצרב 4–5 דקות והופכים.',
+    'מסדרים שכבת אורז (כחצי), דוחסים, מעל מוסיפים את הדג ומעל עוד אורז. יוצרים ארובות ומכסים היטב (רצוי בבד).',
+    'מבשלים בחום בינוני כ-15 דקות, מעבירים לחום נמוך לעוד 10 דקות ומכבים. מגישים עם פלחי לימון.',
+  ],
+};
+
+const CHOC_MOUSSE = {
+  id: 'med_choc_nougat_mousse',
+  emoji: '🍫',
+  title: 'מוס שוקולד נוגט עם גאנש מריר',
+  tags: ['ים תיכוני', 'קינוח', 'שוקולד', 'אלה רקאנטי'],
+  ingredients: [
+    { name: 'שוקולד מריר 60% קצוץ (למוס)', amount: '300 גרם' },
+    { name: 'שמנת מתוקה (למוס)', amount: '650 מ״ל' },
+    { name: 'מחית נוגט (למוס)', amount: '2 כפות' },
+    { name: 'שמנת מתוקה (לרוטב)', amount: '100 מ״ל' },
+    { name: 'שוקולד מריר (לרוטב)', amount: '80 גרם' },
+    { name: 'ברנדי (לרוטב)', amount: 'כף' },
+    { name: 'חלב (לרוטב)', amount: '2 כפות' },
+  ],
+  steps: [
+    'מוס: מביאים לרתיחה עדינה בסיר קטן 350 מ״ל שמנת ומורידים מהאש.',
+    'מוסיפים 300 גר׳ שוקולד ומחית נוגט, מניחים לדקה וטורפים עד המסה.',
+    'מוסיפים בקילוח עדין את יתר השמנת (350 מ״ל הנותרים) וטורפים היטב עד אחידות.',
+    'מצננים 6 שעות, מקציפים לקצף רך ומזלפים לכוסות.',
+    'רוטב (גאנש): ממיסים בסיר שמנת וחלב ומורידים מהאש. מוסיפים שוקולד, מניחים דקה וטורפים.',
+    'מוסיפים ברנדי ומערבבים היטב. מוזגים על המוס הקר.',
+  ],
+};
+
+// ── סדנת לחמים – The Dusty Knuckle Bakery School ──
+
+const DUSTY_HOUSE_SOUR = {
+  id: 'dusty_house_sour',
+  emoji: '🍞',
+  title: 'האוס סאוּר – לחם מחמצת שיפון מהדאסטי נאקל',
+  tags: ['אפייה', 'לחם', 'מחמצת', 'Dusty Knuckle'],
+  ingredients: [
+    { name: 'קמח לחם לבן חזק', amount: '355 גרם' },
+    { name: 'קמח חיטה מלאה', amount: '70 גרם' },
+    { name: 'מים', amount: '275 גרם' },
+    { name: 'מחמצת שיפון פעילה', amount: '130 גרם' },
+    { name: 'מלח דק', amount: '10 גרם' },
+    { name: 'מים (תוספת)', amount: '10 גרם' },
+  ],
+  steps: [
+    'לוודא שהמחמצת מוכנה לשימוש – עלתה, מבעבעת ובעלת ריח מתוק.',
+    'למדוד את טמפרטורת המים – לכוון לטמפרטורת בצק של 24°C (מים קרים יותר בקיץ, חמים יותר בחורף).',
+    'לערבב את כל המרכיבים מלבד המלח ו-10 הגרם הנוספים של מים, עד שאין גושים יבשים או רטובים. הבצק יהיה דביק ולא ייראה טוב – זה תקין.',
+    'לתת לבצק להתפח מכוסה 20 דקות (אוטוליזה) – כדי שהקמח יספוג את המים והמחמצת תתחיל לעבוד.',
+    'להוסיף את המלח ו-10 גרם המים ולערבב לתוך הבצק בעזרת לחיצות אצבעות. הבצק יתפרק ואז יתאחד מחדש. ללוש בעדינות 1–2 דקות.',
+    'להעביר את הבצק לקערה משומנת מעט ולכסות. הבצק כעת "מתפח" בטמפרטורה של כ-24°C.',
+    'לקפל את הבצק כל 30 דקות – להקפיד על התזמון. בכל קיפול: להרים כל פינה ולקפל אותה לתוך מרכז הבצק, על כל ארבע הפינות, ואז להפוך את הבצק כך שהתפרים יהיו למטה.',
+    'לקפל את הבצק 4 פעמים בסך הכול – כך שזמן ההתפחה הכולל הוא כשעתיים.',
+    'הבצק מוכן כשהוא קל ואוורירי, התנפח (לא בהכרח הכפיל את נפחו) ויש לו מרקם "כרית". אם לא השתנה הרבה – לקפל פעם נוספת ולהמתין עוד חצי שעה. אם הוא רפה ורועד – זה תפח יותר מהדרוש.',
+    'להוציא את הבצק מהקערה ולעצב לכדור בעדינות: לקפל את כל הקצוות לכיוון המרכז כך שהתחתית מתהדקת, להפוך ולמשוך לכיוונכם, לסבב 90 מעלות ולחזור. לחזור עד שמתקבל כדור הדוק בלי קרעים.',
+    'לתת לבצק לנוח 10–20 דקות – הוא יירגע לצורת עיגול שטוח. לקמח את הבאנטון (סלסילת התפחה) בנדיבות.',
+    'לעצב את הבצק עיצוב סופי באותה טכניקה ולהניח אותו עם התפרים למעלה בבאנטון. להניח להתפחה סופית (פרוּבינג) 1–3 שעות בטמפרטורת החדר, או במקרר 8 שעות עד לילה.',
+    'הבצק מוכן כשהוא רגוע, מעט מנופח אך עדיין שומר על צורה – אצבע שתוחב תשאיר שקע קל. לחמם תנור ל-250°C. אם משתמשים בסיר דאצ\' אובן – להכניס אותו לתנור כעת לחימום.',
+    'להפוך את הבצק בעדינות על אבן אפייה / תבנית / דאצ\' אובן חם, לאחר פיזור סולת, סובין חיטה או קמח חיטה מלאה על המשטח. לחרוץ את הכיכר ולאפות 20 דקות. חשוב להוסיף קיטור לתנור (כמה קוביות קרח לתחתית התנור או מים רותחים למגש חם) – אחרת הקרום יתקשה מהר מדי ולא יישאר מקום לבצק לתפוח. לחלופין – לאפות בדאצ\' אובן עם המכסה.',
+    'אחרי 20 הדקות הראשונות, להוריד את הטמפרטורה ל-200°C (בדאצ\' אובן – להוריד את המכסה) ולאפות עוד 20 דקות.',
+    'הלחם מוכן כשצבעו כהה, הריח נהדר והוא נשמע "חלול" בהקשה על הבסיס.',
+  ],
+  tip: 'הכנת המחמצת מראש: לערבב 150 גרם מחמצת שיפון פעילה (יישארו 20 גרם לתחזוקה) ולהשאיר לעלות 4–12 שעות בטמפרטורת החדר, עד שהיא תפוחה, מבעבעת ובעלת ריח מתוק, לחמני וקצת "פראי" – אך לא חמוץ-אלכוהולי.',
+};
+
+const DUSTY_FOCACCIA = {
+  id: 'dusty_focaccia',
+  emoji: '🫒',
+  title: 'פוקאצ׳ה מהדאסטי נאקל',
+  tags: ['אפייה', 'לחם', 'פוקאצ׳ה', 'Dusty Knuckle'],
+  ingredients: [
+    { name: 'פוליש (ראו טיפ)', amount: '500 גרם' },
+    { name: 'קמח לחם לבן חזק', amount: '125 גרם' },
+    { name: 'קמח 00', amount: '125 גרם' },
+    { name: 'מים', amount: 'כ-140 גרם' },
+    { name: 'שמרים טריים', amount: '5 גרם' },
+    { name: 'מלח דק', amount: '10 גרם' },
+    { name: 'שמן זית כתית – לשימון ולתיבול', amount: 'לפי הצורך' },
+    { name: 'מלח ים גס + תוספות לבחירה (ירקות, עשבי תיבול, תבלינים)', amount: 'לפי הטעם' },
+  ],
+  steps: [
+    'לוודא שהפוליש מוכן – עלה, מבעבע ובעל ריח שמרי.',
+    'לערבב את כל המרכיבים עד שאין גושים יבשים או רטובים. הבצק יהיה רטוב מאוד.',
+    'להוציא את הבצק מהקערה וללוש כ-5 דקות – בעזרת "שטיפה וקיפול" על השולחן, או החזקת הבצק במקום אחד ומתיחתו מעלה-מטה בעזרת היד (היד תתעייף!). הבצק צריך להרגיש חזק – אז לא להתייאש מהלישה.',
+    'להעביר את הבצק לקערה משומנת בנדיבות בשמן זית. לסמן את גובה הבצק על הקערה. הבצק "מתפח" ויתפח מהר, אז לשים עליו עין.',
+    'לקפל את הבצק אחרי 20 דקות (4 קיפולים כמו במחמצת, ואז להפוך כדי שהתפרים יהיו למטה) – בעדינות, כי הבצק כבר אוורירי בשלב הזה. לשמן תבנית אפייה בשמן זית.',
+    'לקפל את הבצק שוב אחרי עוד 20 דקות.',
+    'כשהבצק הכפיל את נפחו, להעביר אותו בעדינות מהקערה לתבנית המשומנת, לקפל את ארבע הפינות לתוך המרכז ולהפוך כך שהתפרים למטה.',
+    'להשאיר מכוסה במקום חמים כחצי שעה, עד שהפוקאצ׳ה קלה וגזית אך לא נפוחה מדי. לחמם את התנור לחם ביותר, לפחות 250°C.',
+    'כשהבצק מבעבע, חזק אך רגוע – לפרוש אותו בעזרת האצבעות (מתחת לבצק) ולמתוח לצורת מלבן אחיד, בעדינות. לחפות בתוספות לבחירה, ללחוץ עם אצבעות משומנות בשמן ולפזר מלח ים גס. להכניס לתנור.',
+    'לאפות כ-15 דקות (תלוי בתנור) – מוכן כשצבעו זהוב יפה והריח נהדר.',
+  ],
+  tip: 'פוליש: לערבב 250 גרם קמח לחם לבן חזק, 250 גרם מים פושרים ו-2.5 גרם שמרים טריים עד שאין כתמים יבשים, רטובים או שמריים. להשאיר לתסיסה 2–4 שעות, עד שהתערובת מבעבעת, גדלה ובעלת ריח שמרי. אם יש הרבה בועות גדולות על פני השטח ("עיני עכביש") – הפוליש "בשל" מדי.',
+};
+
+const DUSTY_SODA_BREAD = {
+  id: 'dusty_soda_bread',
+  emoji: '🥖',
+  title: 'לחם סודה משאריות מחמצת',
+  tags: ['אפייה', 'לחם', 'מהיר', 'Dusty Knuckle'],
+  ingredients: [
+    { name: 'קמח חיטה מלאה', amount: '230 גרם' },
+    { name: 'סודה לשתייה (ביקרבונט)', amount: '5 גרם' },
+    { name: 'מלח', amount: '6 גרם' },
+    { name: 'שיבולת שועל', amount: '40 גרם' },
+    { name: 'תערובת זרעים (פשתן, גרעיני דלעת ושומשום)', amount: '40 גרם' },
+    { name: 'מחמצת שיפון (לא חובה פעילה)', amount: '80 גרם' },
+    { name: 'חלב חמוץ (באטרמילק)', amount: '175 גרם' },
+    { name: 'דבשת תמרים (טריאקל)', amount: '20 גרם' },
+  ],
+  steps: [
+    'לחמם תנור ל-200°C (180°C במצב טורבו) ולרפד תבנית אפייה בנייר אפייה.',
+    'בקערה גדולה, לפזר את המחמצת ואת דבשת התמרים בתוך החלב החמוץ עד שאין גושים או פסים.',
+    'בקערה גדולה נפרדת, לערבב את כל המרכיבים היבשים, ולהקפיד שהסודה לשתייה תתפזר היטב בקמח.',
+    'להוסיף את היבשים לרטובים ולערבב במרץ עם מרית עד היווצרות בצק.',
+    'להרטיב את הידיים ולעצב את הבצק לכדור רפוי, בלי לעבד יתר על המידה.',
+    'להניח את הבצק על תבנית האפייה, לפזר שיבולת שועל או זרעים, ולחרוץ צלב עם סכין לחם או מגרדת.',
+    'לאפות 25 דקות עד שהלחם זהוב כהה ומריח טוב. לצנן על רשת.',
+  ],
+  tip: 'מתכון מצוין לניצול מחמצת שיפון "ישנה" שלא הוזנה כמה ימים – הקמח התסוס מוסיף טעם ומאריך את חיי המדף של הלחם.',
+};
+
+const DUSTY_RYE_BREAD = {
+  id: 'dusty_rye_bread',
+  emoji: '🍞',
+  title: 'לחם שיפון מהדאסטי נאקל',
+  tags: ['אפייה', 'לחם', 'שיפון', 'מחמצת', 'Dusty Knuckle'],
+  ingredients: [
+    { name: 'קמח שיפון בהיר', amount: '230 גרם' },
+    { name: 'מים חמים מאוד (30°C ומעלה)', amount: '230 גרם' },
+    { name: 'מלח', amount: '8 גרם' },
+    { name: 'מחמצת שיפון פעילה', amount: '290 גרם' },
+  ],
+  steps: [
+    'לשמן היטב תבנית לחם מלבנית. לערבב את כל המרכיבים בקערה עד שאין גושי קמח יבשים או חלקי מחמצת. להשתמש במים חמים מאוד (30°C+) כדי שטמפרטורת הבצק תהיה מעל 30°C. לא ללוש יותר מהצורך – קמח שיפון דל בגלוטן, ולישה רבה רק תפרק את הבצק.',
+    'להעביר את תערובת השיפון לתבנית, להחליק את החלק העליון עם מגרדת רטובה ולדחוף את הצדדים למטה. לפזר קמח שיפון מעל.',
+    'להתפיח את הבצק עד שהוא מתקרב לשפת התבנית, עם בועות על פני השטח אך לא "חצוב" מדי – אמורים להיווצר סדקים בקמח השיפון על פני הבצק. ייקח 2–5 שעות. לחמם תנור ל-250°C.',
+    'להכניס לתנור ב-250°C ומיד להוריד ל-200°C, ולאפות 40 דקות.',
+    'להוציא מהתנור, להוציא מהתבנית ולהחזיר לתנור לעוד 5 דקות אחרונות (ללא תבנית).',
+    'לצנן לילה שלם עד שהלחם קר לחלוטין והמיבה (הפנים) מתייצבת.',
+  ],
+  tip: 'הכנת המחמצת מראש: לערבב 310 גרם מחמצת שיפון פעילה (יישארו 20 גרם לתחזוקה) ולהשאיר לעלות 4–12 שעות בטמפרטורת החדר, עד שהיא תפוחה, מבעבעת ובעלת ריח מתוק ולחמני.',
+};
+
+const SEED_RECIPES = [
+  BREAD_RECIPE, AREEK_RECIPE,
+  THAI_FISH_SOUP, GNOCCHI_MULLET, PHYLLO_FISH,
+  FISH_TEMPURA, MAQLUBA, CHOC_MOUSSE,
+  DUSTY_HOUSE_SOUR, DUSTY_FOCACCIA, DUSTY_SODA_BREAD, DUSTY_RYE_BREAD,
+];
+
+function loadRecipes() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    let changed = false;
+    SEED_RECIPES.forEach(seed => {
+      if (!stored.find(r => r.id === seed.id)) {
+        stored.unshift(seed);
+        changed = true;
+      }
+    });
+    if (changed) saveRecipes(stored);
+    return stored;
+  } catch {
+    return [...SEED_RECIPES];
+  }
+}
+
+function saveRecipes(list) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+}
+
+function renderRecipes(filter = '') {
+  const list = loadRecipes();
+  const q = filter.trim().toLowerCase();
+  const filtered = q
+    ? list.filter(r =>
+        r.title.toLowerCase().includes(q) ||
+        (r.tags || []).some(t => t.toLowerCase().includes(q))
+      )
+    : list;
+
+  const container = document.getElementById('recipeList');
+  if (!filtered.length) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="emoji">🍳</div>
+        <p>לא נמצאו מתכונים תואמים</p>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map(r => buildCard(r)).join('');
+
+  container.querySelectorAll('.recipe-card').forEach(card => {
+    card.addEventListener('click', () => {
+      card.classList.toggle('open');
+    });
+  });
+}
+
+function buildCard(r) {
+  const tags = (r.tags || []).map(t => `<span class="tag">${t}</span>`).join('');
+  const meta = [
+    r.yields ? `<span>🍽 ${r.yields}</span>` : '',
+    r.prepTime ? `<span>⏱ ${r.prepTime}</span>` : '',
+  ].filter(Boolean).join('');
+
+  const ingredients = (r.ingredients || []).map(i =>
+    `<li><span class="name">${i.name}</span><span class="amount">${i.amount}</span></li>`
+  ).join('');
+
+  const steps = (r.steps || []).map((s, idx) =>
+    `<li><span class="step-num">${idx + 1}</span><span>${s}</span></li>`
+  ).join('');
+
+  const tipHtml = r.tip
+    ? `<section>
+        <div class="section-title">💡 טיפ</div>
+        <div class="tip-box">${r.tip}</div>
+       </section>`
+    : '';
+
+  const bakeHtml = (r.temp || r.cookTime)
+    ? `<section>
+        <div class="section-title">🔥 אפייה</div>
+        <div class="bake-info">
+          ${r.temp     ? `<div class="bake-pill"><span class="pill-label">טמפרטורה</span><span class="pill-val">${r.temp}</span></div>` : ''}
+          ${r.cookTime ? `<div class="bake-pill"><span class="pill-label">זמן</span><span class="pill-val">${r.cookTime}</span></div>` : ''}
+        </div>
+       </section>`
+    : '';
+
+  return `
+    <div class="recipe-card" data-id="${r.id}">
+      <div class="card-header">
+        <div class="card-icon">${r.emoji || '🍽'}</div>
+        <div class="card-info">
+          <div class="card-title">${r.title}</div>
+          <div class="card-meta">${meta}</div>
+        </div>
+        <span class="card-chevron">›</span>
+      </div>
+      ${tags ? `<div class="card-tags">${tags}</div>` : ''}
+      <div class="recipe-body">
+        ${ingredients ? `<section>
+          <div class="section-title">🛒 מרכיבים</div>
+          <ul class="ingredient-list">${ingredients}</ul>
+        </section>` : ''}
+        ${steps ? `<section>
+          <div class="section-title">👨‍🍳 הכנה</div>
+          <ol class="step-list">${steps}</ol>
+        </section>` : ''}
+        ${bakeHtml}
+        ${tipHtml}
+      </div>
+    </div>`;
+}
+
+// Search
+document.getElementById('searchInput').addEventListener('input', e => {
+  renderRecipes(e.target.value);
+});
+
+// FAB / Modal
+const overlay = document.getElementById('modalOverlay');
+document.getElementById('fab').addEventListener('click', () => overlay.classList.add('open'));
+document.getElementById('modalCancel').addEventListener('click', () => overlay.classList.remove('open'));
+overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
+
+document.getElementById('modalSave').addEventListener('click', () => {
+  const title = document.getElementById('newTitle').value.trim();
+  if (!title) { alert('נא להזין שם מתכון'); return; }
+
+  const rawIngredients = document.getElementById('newIngredients').value.trim();
+  const ingredients = rawIngredients
+    ? rawIngredients.split('\n').map(line => {
+        const [name = '', amount = ''] = line.split('|').map(s => s.trim());
+        return { name, amount };
+      }).filter(i => i.name)
+    : [];
+
+  const rawSteps = document.getElementById('newSteps').value.trim();
+  const steps = rawSteps ? rawSteps.split('\n').map(s => s.trim()).filter(Boolean) : [];
+
+  const recipe = {
+    id: 'r_' + Date.now(),
+    emoji: document.getElementById('newEmoji').value.trim() || '🍽',
+    title,
+    tags: document.getElementById('newTags').value.split(',').map(t => t.trim()).filter(Boolean),
+    prepTime: document.getElementById('newPrepTime').value.trim(),
+    cookTime: document.getElementById('newCookTime').value.trim(),
+    temp: document.getElementById('newTemp').value.trim(),
+    tip: document.getElementById('newTip').value.trim(),
+    ingredients,
+    steps,
+  };
+
+  const list = loadRecipes();
+  list.unshift(recipe);
+  saveRecipes(list);
+  renderRecipes(document.getElementById('searchInput').value);
+  overlay.classList.remove('open');
+
+  ['newTitle','newEmoji','newIngredients','newSteps','newTip','newTags','newPrepTime','newCookTime','newTemp']
+    .forEach(id => document.getElementById(id).value = '');
+});
+
+// Init
+renderRecipes();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js');
+  });
+}
+</script>
+</body>
+</html>
