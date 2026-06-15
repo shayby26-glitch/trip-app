@@ -2436,6 +2436,23 @@ function renderOverview() {
       else if (dx > 0 && prevDay) selectOvDay(prevDay);
     }, { passive: true });
   }
+
+  // ── Swipe right outside the day card → back to My Trips ───
+  if (!wrap.dataset.swipeBound) {
+    wrap.dataset.swipeBound = '1';
+    let outerStartX = 0, outerStartY = 0, outerStartedOnCard = false;
+    wrap.addEventListener('touchstart', e => {
+      outerStartX = e.touches[0].clientX;
+      outerStartY = e.touches[0].clientY;
+      outerStartedOnCard = !!e.target.closest('.ov-fan-wrap');
+    }, { passive: true });
+    wrap.addEventListener('touchend', e => {
+      if (outerStartedOnCard) return;
+      const dx = e.changedTouches[0].clientX - outerStartX;
+      const dy = e.changedTouches[0].clientY - outerStartY;
+      if (dx > 60 && Math.abs(dx) > Math.abs(dy)) showPage('home');
+    }, { passive: true });
+  }
 }
 
 // ══════════════════════════════════════════════
