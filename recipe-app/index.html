@@ -349,6 +349,89 @@
     }
     .empty-state .emoji { font-size: 3rem; margin-bottom: 12px; }
     .empty-state p { font-size: 0.95rem; }
+
+    /* ── Tag filter bar ── */
+    .tag-bar {
+      padding: 10px 16px;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 7px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    .tag-bar::-webkit-scrollbar { display: none; }
+    .tag-filter-btn {
+      background: var(--tag-bg);
+      color: var(--tag-text);
+      font-size: 0.76rem;
+      font-weight: 600;
+      padding: 5px 12px;
+      border-radius: 20px;
+      border: 1.5px solid transparent;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.17s;
+      flex-shrink: 0;
+    }
+    .tag-filter-btn:hover { border-color: var(--primary); }
+    .tag-filter-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+    /* Clickable tags on cards */
+    .tag { cursor: pointer; transition: background 0.15s, color 0.15s; }
+    .tag:hover { background: var(--primary); color: #fff; }
+    .tag.active-tag { background: var(--primary); color: #fff; }
+
+    /* ── Attachments section ── */
+    .attach-section { padding: 14px 18px; }
+    .attach-grid { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; align-items: flex-start; }
+    .attach-thumb-wrap, .attach-pdf-wrap { position: relative; }
+    .attach-thumb {
+      width: 72px; height: 72px; object-fit: cover;
+      border-radius: 8px; border: 1.5px solid var(--border);
+      cursor: pointer; display: block;
+    }
+    .attach-pdf-card {
+      display: flex; align-items: center; gap: 6px;
+      background: var(--primary-light); border: 1.5px solid var(--border);
+      border-radius: 8px; padding: 7px 10px;
+      font-size: 0.78rem; color: var(--primary-dark); font-weight: 600;
+      text-decoration: none; max-width: 170px;
+    }
+    .attach-pdf-card .pdf-icon { font-size: 1.3rem; flex-shrink: 0; }
+    .attach-pdf-name {
+      overflow: hidden; text-overflow: ellipsis;
+      white-space: nowrap; display: block;
+    }
+    .attach-delete {
+      position: absolute; top: -5px; right: -5px;
+      width: 18px; height: 18px; background: #e53935; color: #fff;
+      border: none; border-radius: 50%; font-size: 0.6rem;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      line-height: 1; z-index: 1;
+    }
+    .attach-upload-btn {
+      display: flex; align-items: center; gap: 5px;
+      padding: 7px 12px; background: var(--bg);
+      border: 1.5px dashed var(--primary); border-radius: 8px;
+      color: var(--primary); font-size: 0.8rem; font-weight: 600;
+      cursor: pointer; transition: background 0.15s; white-space: nowrap;
+    }
+    .attach-upload-btn:hover { background: var(--primary-light); }
+
+    /* ── Image lightbox ── */
+    .lightbox-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.87); z-index: 500;
+      align-items: center; justify-content: center; cursor: zoom-out;
+    }
+    .lightbox-overlay.open { display: flex; }
+    .lightbox-overlay img {
+      max-width: 94vw; max-height: 90vh;
+      border-radius: 8px; object-fit: contain;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+    }
   </style>
 </head>
 <body>
@@ -362,9 +445,16 @@
   <input type="search" id="searchInput" placeholder="🔍  חיפוש מתכון..." />
 </div>
 
+<div id="tagBar" class="tag-bar"></div>
+
 <div class="recipe-list" id="recipeList"></div>
 
 <button id="fab" title="הוסף מתכון">+</button>
+
+<!-- Image Lightbox -->
+<div class="lightbox-overlay" id="lightboxOverlay">
+  <img src="" alt="" />
+</div>
 
 <!-- Add Recipe Modal -->
 <div class="modal-overlay" id="modalOverlay">
@@ -797,11 +887,126 @@ const DUSTY_RYE_BREAD = {
   tip: 'הכנת המחמצת מראש: לערבב 310 גרם מחמצת שיפון פעילה (יישארו 20 גרם לתחזוקה) ולהשאיר לעלות 4–12 שעות בטמפרטורת החדר, עד שהיא תפוחה, מבעבעת ובעלת ריח מתוק ולחמני.',
 };
 
+// ── שיעור מאפים – The Dusty Knuckle Pastry Class ──
+
+const DUSTY_CROISSANT = {
+  id: 'dusty_croissant',
+  emoji: '🥐',
+  title: 'קרואסון מהדאסטי נאקל',
+  tags: ['אפייה', 'מאפה', 'בצק שמרים', 'Dusty Knuckle'],
+  ingredients: [
+    { name: 'חלב מלא קר (לבצק)', amount: '140 גרם' },
+    { name: 'מים קרים (לבצק)', amount: '140 גרם' },
+    { name: 'שמרים טריים (לבצק)', amount: '22 גרם' },
+    { name: 'סוכר (לבצק)', amount: '55 גרם' },
+    { name: 'מלח (לבצק)', amount: '12 גרם' },
+    { name: 'קמח לחם חזק (לבצק)', amount: '500 גרם' },
+    { name: 'חמאה לא מלוחה (לבצק)', amount: '40 גרם' },
+    { name: 'חמאה לא מלוחה (לבלוק)', amount: '250 גרם' },
+    { name: 'ביצה + קורט מלח + מעט חלב (לציפוי)', amount: 'לפי הצורך' },
+  ],
+  steps: [
+    'ערב לפני: להמיס את השמרים בחלב ובמים. בקערה נפרדת לשים קמח, סוכר ומלח ולשפשף פנימה את החמאה עד לפירורים. להוסיף את תערובת השמרים ולערבב לבצק אחיד.',
+    'להוציא את הבצק וללוש 2 דקות בלבד – לא לוש יותר! לדחוס לתוך קופסת טאפרוור מלבנית כך שהבצק מכסה את הבסיס, לסגור מכסה ולהכניס למקרר ללילה.',
+    'ביום ההכנה: להוציא את בלוק החמאה מהמקרר לרכך מעט – חשוב שתישאר קרה ופלסטית, לא שמנוגרת. למקם בין שני דפי נייר אפייה ולרדד למלבן A5 (15×21 ס"מ) בעובי אחיד.',
+    'לרדד את הבצק על משטח מקומח קלות לגודל A4 (21×30 ס"מ). להניח את בלוק החמאה על מחצית הבצק, לחתוך את המחצית השנייה ולהניח מעל – "כריך" עם הבצק כלחם והחמאה כגבינה.',
+    'עם הצד הקצר לכיוונכם, לשחרר את הגלגלת בלחיצות סדרתיות לאורך הבצק (לא לגלגל ישר). לרדד בכיוון אחד בלבד עד שהבצק ארוך פי שלוש, תוך שמירה על קצוות ישרים. להשתמש בכמה שפחות קמח.',
+    'לקפל את השליש העליון למטה ואת השליש התחתון למעלה, לסובב 90° ימינה. לחזור על הרידוד והקיפול (2 קיפולים), לעטוף בניילון ולהכניס למקפיא 15 דקות.',
+    'לחזור על רידוד וקיפול פעם שלישית (סה"כ 3 קיפולים). לרדד שוב לאורך ולהכניס למקפיא 30–40 דקות.',
+    'לרדד את הבצק לעובי 5 מ"מ, בגודל 44×21 ס"מ. אם הבצק מתנגד – מנוחה של 10 דקות במקרר בין הרידודים. ניתן להפוך ולרדד בכיוונים שונים.',
+    'לחתוך למשולשים (בסיס 9 ס"מ, גובה 26 ס"מ). להתחיל מהצד הרחב ולגלגל בעדינות לכיוון הקצה. להניח על תבנית עם נייר אפייה.',
+    'להתפיח 2–3 שעות במקום חמים עד שהקרואסונים זזים בעדינות כשמנענעים את התבנית.',
+    'לערבב ביצה עם קורט מלח ומעט חלב ולמרוח על הקרואסונים. לאפות ב-200°C (180°C טורבו) כ-16 דקות עד הזהבה מוחלטת.',
+  ],
+  tip: 'המפתח: לשמור על הכול קר! אם הבצק מתחיל להרגיש שמנוגר או מתנפח – להכניס מיד למקרר 10 דקות. בקיץ ניתן לשמור את כל החומרים במקרר לפני הערבוב. בגלגול בין הקיפולים – תמיד לנוע בכיוון אחד בלבד, בתנועות חזקות ובטוחות.',
+};
+
+const DUSTY_PAIN_AU_CHOCOLAT = {
+  id: 'dusty_pain_au_chocolat',
+  emoji: '🍫',
+  title: 'פאן או שוקולא מהדאסטי נאקל',
+  tags: ['אפייה', 'מאפה', 'שוקולד', 'Dusty Knuckle'],
+  ingredients: [
+    { name: 'בצק קרואסון מוכן (ראו מתכון קרואסון)', amount: 'כמות אחת' },
+    { name: 'מקלות שוקולד לאפייה (או שוקולד מריר קצוץ לרצועות 8×1 ס"מ)', amount: '24 יחידות' },
+    { name: 'ביצה + קורט מלח + מעט חלב (לציפוי)', amount: 'לפי הצורך' },
+  ],
+  steps: [
+    'להכין בצק קרואסון לפי המתכון, כולל שלב הלמינציה (3 קיפולים).',
+    'לרדד את הבצק למלבן מעט גדול יותר מהרגיל – כ-48×30 ס"מ.',
+    'לחתוך ל-12 מלבנים בגודל 8×15 ס"מ כל אחד.',
+    'להניח מקל שוקולד על הקצה הקצר של כל מלבן, לגלגל מעליו, להניח מקל שוקולד נוסף ולגלגל עוד פעם עד לקצה. התפר יישאר למטה – משקל הבצק אוטם אותו.',
+    'להניח על תבנית עם נייר אפייה עם התפר למטה.',
+    'להתפיח ולאפות בדיוק כמו קרואסונים: 2–3 שעות התפחה, ציפוי ביצה, ואפייה ב-200°C (180°C טורבו) כ-16 דקות.',
+  ],
+  tip: 'ניתן למצוא מקלות שוקולד מיוחדים לאפייה באונליין. לחלופין, שוקולד מריר קצוץ לרצועות של 8 ס"מ אורך ו-1 ס"מ עובי עובד מצוין.',
+};
+
+const DUSTY_FETA_HONEY_SWIRL = {
+  id: 'dusty_feta_honey_swirl',
+  emoji: '🧀',
+  title: 'גלגל פטה ודבש מהדאסטי נאקל',
+  tags: ['אפייה', 'מאפה', 'גבינה', 'Dusty Knuckle'],
+  ingredients: [
+    { name: 'בצק קרואסון מוכן (ראו מתכון קרואסון)', amount: 'כמות אחת' },
+    { name: 'גבינת פטה (למילוי)', amount: '300 גרם' },
+    { name: 'זרעי שומר, כוסברה שחורה ושומשום מעורבבים (למילוי)', amount: '2 כפות מכל אחד' },
+    { name: 'דבש (לציפוי)', amount: '4 כפות' },
+    { name: 'שמן זית (לציפוי)', amount: '2 כפות' },
+    { name: 'ביצה + קורט מלח + מעט חלב (לציפוי ביצה)', amount: 'לפי הצורך' },
+  ],
+  steps: [
+    'להכין בצק קרואסון לפי המתכון, כולל שלב הלמינציה.',
+    'להכין ציפוי דבש: לחמם דבש ושמן זית בעדינות בסיר קטן על אש נמוכה עד שמתאחדים. להניח בצד ולטרוף היטב לפני השימוש.',
+    'לפזר פטה מפורר בנדיבות על הבצק המרודד בשכבה עבה, תוך השארת רצועה נקייה בקצה העליון לאיטום.',
+    'לגלגל את הבצק מהצד הארוך, תוך הידוק בזמן הגלגול ומתן אפשרות למשקל הבצק לשבת על התפר ולאטום אותו.',
+    'לפרוס ל-8 גלגלים בעובי שתי אצבעות. להניח עם הצד החתוך כלפי מעלה, עם רווח ביניהם, על תבנית מרופדת בנייר אפייה.',
+    'להתפיח במקום חמים, לצפות בביצה ולאפות ב-200°C (180°C טורבו) כ-16 דקות עד הזהבה מוחלטת.',
+    'מיד עם יציאה מהתנור – לצפות בנדיבות בתערובת דבש-שמן זית ולפזר מעל את תערובת הזרעים.',
+  ],
+  tip: 'לגלגל את הבצק היטב כדי שמשקלו יאטום את התפר – כך לא צריך קיסמות או חיצוניות לאיטום.',
+};
+
+const DUSTY_PASTEL_DE_NATA = {
+  id: 'dusty_pastel_de_nata',
+  emoji: '🥧',
+  title: 'פסטל דה נטה – עוגיות קרם פורטוגזיות (x24)',
+  tags: ['אפייה', 'קינוח', 'פסטל דה נטה', 'Dusty Knuckle'],
+  ingredients: [
+    { name: 'חלב (לקרם)', amount: '850 גרם' },
+    { name: 'סוכר (לקרם)', amount: '280 גרם' },
+    { name: 'מים (לקרם)', amount: '160 גרם' },
+    { name: 'קורנפלור (לקרם)', amount: '18 גרם' },
+    { name: 'קמח (לקרם)', amount: '36 גרם' },
+    { name: 'חלמונים (לקרם)', amount: '190 גרם (כ-10 חלמונים)' },
+    { name: 'קליפת לימון (לקרם)', amount: '2 יחידות' },
+    { name: 'מקלות קינמון (לקרם)', amount: '4 יחידות' },
+    { name: 'קמח (לבצק)', amount: '440 גרם' },
+    { name: 'מים (לבצק)', amount: '250 גרם' },
+    { name: 'מלח (לבצק)', amount: '8 גרם' },
+    { name: 'חמאה ללמינציה (לבצק)', amount: '250 גרם' },
+    { name: 'חמאה למריחה (לבצק)', amount: '25 גרם' },
+  ],
+  steps: [
+    'קרם – שלב 1: לשים סוכר, מים, קינמון וקליפת לימון בסיר, להביא לרתיחה עד שהתערובת מגיעה ל-107°C. להניח בצד.',
+    'קרם – שלב 2: בקערה לשקול קמח וקורנפלור ולהוסיף את החלב בהדרגה, תוך ערבוב, עד שמתאחד ואין גושים.',
+    'קרם – שלב 3: להעביר את תערובת החלב לסיר ולבשל תוך ערבוב עד לסמיכות של שמנת מתוקה כפולה.',
+    'קרם – שלב 4: להסיר מהאש, להוסיף את סירופ הסוכר ולערבב. להוסיף את החלמונים ולערבב עד שאחיד. לסנן דרך מסננת לתוך קנקן ולהניח לצינון.',
+    'בצק – שלב 1: לערבב קמח ומלח, להוסיף מים ולערבב עד לבצק אחיד. לתת לבצק לנוח 20 דקות במקרר.',
+    'בצק – שלב 2: לבצע 2 קיפולים בודדים עם בלוק חמאה (כמו בטכניקת הקרואסון).',
+    'בצק – שלב 3: לרדד לעובי 1.5 ס"מ, בגודל 40×20 ס"מ. למרוח חמאה (25 גרם) עם סכין ולגלגל לגליל הדוק. לקרר 20 דקות.',
+    'לחתוך לחתיכות של 15 גרם ולרפד בהן את תבניות הטארט הקטנות (ניתן לעצב את הבצק בתוך התבנית עם האגודל).',
+    'למלא כל תבנית בקרם עד לשוליים. לאפות 9 דקות ב-300°C עד להשחמה כהה כמעט (הכהה אמיתית – כמו בפורטוגל!).',
+  ],
+  tip: 'הסוד: לאפות בטמפרטורה גבוהה מאוד (300°C) לזמן קצר מאוד – כך הקרם מתבשל ונשאר רך ורוטט ובצק הטארט מקבל שכבות פריכות וצבע כהה אותנטי.',
+};
+
 const SEED_RECIPES = [
   BREAD_RECIPE, AREEK_RECIPE,
   THAI_FISH_SOUP, GNOCCHI_MULLET, PHYLLO_FISH,
   FISH_TEMPURA, MAQLUBA, CHOC_MOUSSE,
   DUSTY_HOUSE_SOUR, DUSTY_FOCACCIA, DUSTY_SODA_BREAD, DUSTY_RYE_BREAD,
+  DUSTY_CROISSANT, DUSTY_PAIN_AU_CHOCOLAT, DUSTY_FETA_HONEY_SWIRL, DUSTY_PASTEL_DE_NATA,
 ];
 
 function loadRecipes() {
@@ -825,39 +1030,107 @@ function saveRecipes(list) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
 }
 
-function renderRecipes(filter = '') {
-  const list = loadRecipes();
-  const q = filter.trim().toLowerCase();
-  const filtered = q
-    ? list.filter(r =>
-        r.title.toLowerCase().includes(q) ||
-        (r.tags || []).some(t => t.toLowerCase().includes(q))
-      )
-    : list;
+/* ─── State ─── */
+let activeTag = '';
+let openCards = new Set();
 
-  const container = document.getElementById('recipeList');
-  if (!filtered.length) {
-    container.innerHTML = `
-      <div class="empty-state">
-        <div class="emoji">🍳</div>
-        <p>לא נמצאו מתכונים תואמים</p>
-      </div>`;
-    return;
-  }
+/* ─── Attachment storage ─── */
+const ATTACH_KEY = 'my_recipes_attach_v1';
+function loadAllAttachments() {
+  try { return JSON.parse(localStorage.getItem(ATTACH_KEY) || '{}'); } catch { return {}; }
+}
+function saveAllAttachments(d) { localStorage.setItem(ATTACH_KEY, JSON.stringify(d)); }
+function getAttachments(id) { return loadAllAttachments()[id] || []; }
+function addAttachment(id, name, type, dataUrl) {
+  const all = loadAllAttachments();
+  (all[id] = all[id] || []).push({ name, type, dataUrl });
+  saveAllAttachments(all);
+}
+function removeAttachment(id, idx) {
+  const all = loadAllAttachments();
+  if (all[id]) { all[id].splice(idx, 1); saveAllAttachments(all); }
+}
 
-  container.innerHTML = filtered.map(r => buildCard(r)).join('');
+/* ─── Tag bar ─── */
+function getAllTags(list) {
+  const seen = new Set();
+  list.forEach(r => (r.tags || []).forEach(t => seen.add(t)));
+  return [...seen];
+}
 
-  container.querySelectorAll('.recipe-card').forEach(card => {
-    card.addEventListener('click', () => {
-      card.classList.toggle('open');
+function renderTagBar() {
+  const tags = getAllTags(loadRecipes());
+  const bar = document.getElementById('tagBar');
+  bar.innerHTML = [
+    `<button class="tag-filter-btn${activeTag === '' ? ' active' : ''}" data-tag="">כל המתכונים</button>`,
+    ...tags.map(t => `<button class="tag-filter-btn${activeTag === t ? ' active' : ''}" data-tag="${escHtml(t)}">${escHtml(t)}</button>`)
+  ].join('');
+  bar.querySelectorAll('.tag-filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeTag = btn.dataset.tag;
+      renderTagBar();
+      renderRecipes();
     });
   });
 }
 
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ─── Render ─── */
+function renderRecipes(filter) {
+  const q = (filter !== undefined ? filter : document.getElementById('searchInput').value).trim().toLowerCase();
+  const list = loadRecipes();
+  const filtered = list.filter(r => {
+    const matchTag = !activeTag || (r.tags || []).includes(activeTag);
+    const matchQ   = !q || r.title.toLowerCase().includes(q) || (r.tags || []).some(t => t.toLowerCase().includes(q));
+    return matchTag && matchQ;
+  });
+
+  const container = document.getElementById('recipeList');
+  if (!filtered.length) {
+    container.innerHTML = `<div class="empty-state"><div class="emoji">🍳</div><p>לא נמצאו מתכונים תואמים</p></div>`;
+    return;
+  }
+  container.innerHTML = filtered.map(r => buildCard(r)).join('');
+  attachCardEvents(container);
+}
+
+/* ─── Build attachment section HTML ─── */
+function buildAttachSection(recipeId) {
+  const attachments = getAttachments(recipeId);
+  const items = attachments.map((a, idx) => {
+    if (a.type && a.type.startsWith('image/')) {
+      return `<div class="attach-thumb-wrap">
+        <img class="attach-thumb" src="${a.dataUrl}" alt="${escHtml(a.name)}" data-idx="${idx}" />
+        <button class="attach-delete" data-idx="${idx}" title="מחק">✕</button>
+      </div>`;
+    }
+    return `<div class="attach-pdf-wrap">
+      <a class="attach-pdf-card" href="${a.dataUrl}" download="${escHtml(a.name)}" onclick="event.stopPropagation()">
+        <span class="pdf-icon">📄</span><span class="attach-pdf-name">${escHtml(a.name)}</span>
+      </a>
+      <button class="attach-delete" data-idx="${idx}" title="מחק">✕</button>
+    </div>`;
+  }).join('');
+
+  return `<div class="attach-section">
+    <div class="section-title">📎 קבצים ותמונות</div>
+    <div class="attach-grid">
+      ${items}
+      <button class="attach-upload-btn">＋ הוסף קובץ<input class="attach-file-input" type="file" accept="image/*,.pdf" multiple style="display:none"/></button>
+    </div>
+  </div>`;
+}
+
+/* ─── Build card HTML ─── */
 function buildCard(r) {
-  const tags = (r.tags || []).map(t => `<span class="tag">${t}</span>`).join('');
+  const tags = (r.tags || []).map(t =>
+    `<span class="tag${activeTag === t ? ' active-tag' : ''}" data-tag="${escHtml(t)}">${escHtml(t)}</span>`
+  ).join('');
   const meta = [
-    r.yields ? `<span>🍽 ${r.yields}</span>` : '',
+    r.yields   ? `<span>🍽 ${r.yields}</span>`   : '',
     r.prepTime ? `<span>⏱ ${r.prepTime}</span>` : '',
   ].filter(Boolean).join('');
 
@@ -870,54 +1143,119 @@ function buildCard(r) {
   ).join('');
 
   const tipHtml = r.tip
-    ? `<section>
-        <div class="section-title">💡 טיפ</div>
-        <div class="tip-box">${r.tip}</div>
-       </section>`
-    : '';
+    ? `<section><div class="section-title">💡 טיפ</div><div class="tip-box">${r.tip}</div></section>` : '';
 
   const bakeHtml = (r.temp || r.cookTime)
-    ? `<section>
-        <div class="section-title">🔥 אפייה</div>
-        <div class="bake-info">
-          ${r.temp     ? `<div class="bake-pill"><span class="pill-label">טמפרטורה</span><span class="pill-val">${r.temp}</span></div>` : ''}
-          ${r.cookTime ? `<div class="bake-pill"><span class="pill-label">זמן</span><span class="pill-val">${r.cookTime}</span></div>` : ''}
-        </div>
-       </section>`
-    : '';
+    ? `<section><div class="section-title">🔥 אפייה</div><div class="bake-info">
+        ${r.temp     ? `<div class="bake-pill"><span class="pill-label">טמפרטורה</span><span class="pill-val">${r.temp}</span></div>` : ''}
+        ${r.cookTime ? `<div class="bake-pill"><span class="pill-label">זמן</span><span class="pill-val">${r.cookTime}</span></div>` : ''}
+       </div></section>` : '';
 
-  return `
-    <div class="recipe-card" data-id="${r.id}">
-      <div class="card-header">
-        <div class="card-icon">${r.emoji || '🍽'}</div>
-        <div class="card-info">
-          <div class="card-title">${r.title}</div>
-          <div class="card-meta">${meta}</div>
-        </div>
-        <span class="card-chevron">›</span>
+  return `<div class="recipe-card${openCards.has(r.id) ? ' open' : ''}" data-id="${r.id}">
+    <div class="card-header">
+      <div class="card-icon">${r.emoji || '🍽'}</div>
+      <div class="card-info">
+        <div class="card-title">${r.title}</div>
+        <div class="card-meta">${meta}</div>
       </div>
-      ${tags ? `<div class="card-tags">${tags}</div>` : ''}
-      <div class="recipe-body">
-        ${ingredients ? `<section>
-          <div class="section-title">🛒 מרכיבים</div>
-          <ul class="ingredient-list">${ingredients}</ul>
-        </section>` : ''}
-        ${steps ? `<section>
-          <div class="section-title">👨‍🍳 הכנה</div>
-          <ol class="step-list">${steps}</ol>
-        </section>` : ''}
-        ${bakeHtml}
-        ${tipHtml}
-      </div>
-    </div>`;
+      <span class="card-chevron">›</span>
+    </div>
+    ${tags ? `<div class="card-tags">${tags}</div>` : ''}
+    <div class="recipe-body">
+      ${ingredients ? `<section><div class="section-title">🛒 מרכיבים</div><ul class="ingredient-list">${ingredients}</ul></section>` : ''}
+      ${steps       ? `<section><div class="section-title">👨‍🍳 הכנה</div><ol class="step-list">${steps}</ol></section>` : ''}
+      ${bakeHtml}${tipHtml}
+      ${buildAttachSection(r.id)}
+    </div>
+  </div>`;
 }
 
-// Search
+/* ─── Event wiring ─── */
+function attachCardEvents(container) {
+  container.querySelectorAll('.recipe-card').forEach(card => {
+    const id = card.dataset.id;
+
+    // Toggle expand via header
+    card.querySelector('.card-header').addEventListener('click', () => {
+      card.classList.toggle('open');
+      if (card.classList.contains('open')) openCards.add(id); else openCards.delete(id);
+    });
+
+    // Tag chips → filter
+    card.querySelectorAll('.card-tags .tag').forEach(tagEl => {
+      tagEl.addEventListener('click', e => {
+        e.stopPropagation();
+        activeTag = activeTag === tagEl.dataset.tag ? '' : tagEl.dataset.tag;
+        renderTagBar();
+        renderRecipes();
+        if (activeTag) {
+          document.getElementById('tagBar')
+            .querySelector(`[data-tag="${escHtml(activeTag)}"]`)
+            ?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        }
+      });
+    });
+
+    wireAttachSection(card, id);
+  });
+}
+
+function wireAttachSection(card, id) {
+  // Delete buttons
+  card.querySelectorAll('.attach-delete').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      removeAttachment(id, parseInt(btn.dataset.idx));
+      refreshAttachSection(card, id);
+    });
+  });
+
+  // Image lightbox
+  card.querySelectorAll('.attach-thumb').forEach(img => {
+    img.addEventListener('click', e => {
+      e.stopPropagation();
+      const lb = document.getElementById('lightboxOverlay');
+      lb.querySelector('img').src = img.src;
+      lb.classList.add('open');
+    });
+  });
+
+  // Upload button
+  const uploadBtn = card.querySelector('.attach-upload-btn');
+  const fileInput  = card.querySelector('.attach-file-input');
+  if (uploadBtn && fileInput) {
+    uploadBtn.addEventListener('click', e => { e.stopPropagation(); fileInput.click(); });
+    fileInput.addEventListener('change', e => {
+      e.stopPropagation();
+      const files = Array.from(fileInput.files);
+      if (!files.length) return;
+      let remaining = files.length;
+      files.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = ev => {
+          addAttachment(id, file.name, file.type, ev.target.result);
+          if (--remaining === 0) refreshAttachSection(card, id);
+        };
+        reader.readAsDataURL(file);
+      });
+      fileInput.value = '';
+    });
+  }
+}
+
+function refreshAttachSection(card, id) {
+  const old = card.querySelector('.attach-section');
+  if (!old) return;
+  old.outerHTML = buildAttachSection(id);
+  wireAttachSection(card, id);
+}
+
+/* ─── Search ─── */
 document.getElementById('searchInput').addEventListener('input', e => {
   renderRecipes(e.target.value);
 });
 
-// FAB / Modal
+/* ─── FAB / Modal ─── */
 const overlay = document.getElementById('modalOverlay');
 document.getElementById('fab').addEventListener('click', () => overlay.classList.add('open'));
 document.getElementById('modalCancel').addEventListener('click', () => overlay.classList.remove('open'));
@@ -945,8 +1283,8 @@ document.getElementById('modalSave').addEventListener('click', () => {
     tags: document.getElementById('newTags').value.split(',').map(t => t.trim()).filter(Boolean),
     prepTime: document.getElementById('newPrepTime').value.trim(),
     cookTime: document.getElementById('newCookTime').value.trim(),
-    temp: document.getElementById('newTemp').value.trim(),
-    tip: document.getElementById('newTip').value.trim(),
+    temp:     document.getElementById('newTemp').value.trim(),
+    tip:      document.getElementById('newTip').value.trim(),
     ingredients,
     steps,
   };
@@ -954,14 +1292,20 @@ document.getElementById('modalSave').addEventListener('click', () => {
   const list = loadRecipes();
   list.unshift(recipe);
   saveRecipes(list);
-  renderRecipes(document.getElementById('searchInput').value);
+  renderTagBar();
+  renderRecipes();
   overlay.classList.remove('open');
-
   ['newTitle','newEmoji','newIngredients','newSteps','newTip','newTags','newPrepTime','newCookTime','newTemp']
     .forEach(id => document.getElementById(id).value = '');
 });
 
-// Init
+/* ─── Lightbox ─── */
+document.getElementById('lightboxOverlay').addEventListener('click', () => {
+  document.getElementById('lightboxOverlay').classList.remove('open');
+});
+
+/* ─── Init ─── */
+renderTagBar();
 renderRecipes();
 
 if ('serviceWorker' in navigator) {
