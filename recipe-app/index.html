@@ -432,6 +432,122 @@
       border-radius: 8px; object-fit: contain;
       box-shadow: 0 8px 40px rgba(0,0,0,0.5);
     }
+
+    /* ── Toolbar (sort / export / import) ── */
+    .toolbar-row {
+      padding: 10px 16px;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .toolbar-row select#sortSelect {
+      padding: 7px 10px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-size: 0.82rem;
+      color: var(--text);
+      background: var(--bg);
+      outline: none;
+    }
+    .toolbar-btn {
+      padding: 7px 12px;
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--primary-dark);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .toolbar-btn:hover { background: var(--primary-light); }
+
+    /* ── Card cover image / actions ── */
+    .card-icon { overflow: hidden; padding: 0; }
+    .card-cover-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .card-actions { display: flex; gap: 2px; flex-shrink: 0; }
+    .icon-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 1.05rem;
+      padding: 6px;
+      border-radius: 8px;
+      line-height: 1;
+      transition: background 0.15s;
+    }
+    .icon-btn:hover { background: var(--primary-light); }
+
+    /* ── Cooking mode trigger ── */
+    .cook-mode-trigger { padding: 16px 18px 0; }
+    .cook-mode-btn {
+      width: 100%;
+      padding: 11px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .cook-mode-btn:hover { background: var(--primary-dark); }
+
+    /* ── Cooking mode overlay ── */
+    .cook-mode-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      z-index: 400;
+      flex-direction: column;
+    }
+    .cook-mode-overlay.open { display: flex; }
+    .cook-mode-panel { display: flex; flex-direction: column; height: 100%; }
+    .cook-mode-header {
+      background: var(--primary);
+      color: #fff;
+      padding: 16px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .cook-mode-header h2 { font-size: 1.1rem; font-weight: 700; }
+    .cook-mode-close {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: #fff;
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      font-size: 1rem;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .cook-mode-body { flex: 1; overflow-y: auto; padding: 18px; }
+    .cook-mode-body section { margin-bottom: 22px; }
+    .cook-list { display: flex; flex-direction: column; gap: 10px; }
+    .cook-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 1.05rem;
+      line-height: 1.5;
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      cursor: pointer;
+    }
+    .cook-item input { width: 20px; height: 20px; flex-shrink: 0; margin-top: 1px; cursor: pointer; }
+    .cook-item.done { opacity: 0.5; text-decoration: line-through; }
   </style>
 </head>
 <body>
@@ -442,7 +558,18 @@
 </header>
 
 <div class="search-bar">
-  <input type="search" id="searchInput" placeholder="🔍  חיפוש מתכון..." />
+  <input type="search" id="searchInput" placeholder="🔍  חיפוש מתכון, מרכיב או שלב..." />
+</div>
+
+<div class="toolbar-row">
+  <select id="sortSelect" aria-label="מיון מתכונים">
+    <option value="">מיון: נוספו לאחרונה</option>
+    <option value="alpha">מיון: א-ב</option>
+    <option value="prep">מיון: זמן הכנה</option>
+  </select>
+  <button id="exportBtn" class="toolbar-btn" type="button">📤 גיבוי</button>
+  <label class="toolbar-btn" for="importInput">📥 ייבוא</label>
+  <input type="file" id="importInput" accept="application/json" style="display:none" aria-label="ייבוא קובץ גיבוי" />
 </div>
 
 <div id="tagBar" class="tag-bar"></div>
@@ -456,10 +583,21 @@
   <img src="" alt="" />
 </div>
 
-<!-- Add Recipe Modal -->
+<!-- Cooking Mode -->
+<div class="cook-mode-overlay" id="cookModeOverlay">
+  <div class="cook-mode-panel">
+    <div class="cook-mode-header">
+      <h2 id="cookModeTitle"></h2>
+      <button class="cook-mode-close" id="cookModeClose" aria-label="סגור מצב בישול" title="סגור">✕</button>
+    </div>
+    <div class="cook-mode-body" id="cookModeBody"></div>
+  </div>
+</div>
+
+<!-- Add / Edit Recipe Modal -->
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal">
-    <h2>➕ מתכון חדש</h2>
+    <h2 id="modalTitle">➕ מתכון חדש</h2>
     <div class="form-group">
       <label>שם המתכון *</label>
       <input type="text" id="newTitle" placeholder="למשל: עוגת שוקולד" />
@@ -483,6 +621,10 @@
     <div class="form-group">
       <label>תגיות (מופרדות בפסיק)</label>
       <input type="text" id="newTags" placeholder="אפייה, לחם, קל" />
+    </div>
+    <div class="form-group">
+      <label>תפוקה (כמה מנות / יחידות)</label>
+      <input type="text" id="newYields" placeholder="4 מנות" />
     </div>
     <div class="form-group">
       <label>זמן הכנה</label>
@@ -1009,12 +1151,22 @@ const SEED_RECIPES = [
   DUSTY_CROISSANT, DUSTY_PAIN_AU_CHOCOLAT, DUSTY_FETA_HONEY_SWIRL, DUSTY_PASTEL_DE_NATA,
 ];
 
+const DELETED_KEY = 'my_recipes_deleted_v1';
+function loadDeletedIds() {
+  try { return new Set(JSON.parse(localStorage.getItem(DELETED_KEY) || '[]')); } catch { return new Set(); }
+}
+function saveDeletedIds(set) {
+  try { localStorage.setItem(DELETED_KEY, JSON.stringify([...set])); return true; }
+  catch { return false; }
+}
+
 function loadRecipes() {
   try {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    const deleted = loadDeletedIds();
     let changed = false;
     SEED_RECIPES.forEach(seed => {
-      if (!stored.find(r => r.id === seed.id)) {
+      if (!stored.find(r => r.id === seed.id) && !deleted.has(seed.id)) {
         stored.unshift(seed);
         changed = true;
       }
@@ -1027,24 +1179,53 @@ function loadRecipes() {
 }
 
 function saveRecipes(list) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    return true;
+  } catch (e) {
+    alert('שמירת המתכון נכשלה — אין מקום פנוי באחסון המקומי.');
+    return false;
+  }
+}
+
+function deleteRecipe(id) {
+  const list = loadRecipes().filter(r => r.id !== id);
+  if (!saveRecipes(list)) return;
+  const deleted = loadDeletedIds();
+  deleted.add(id);
+  saveDeletedIds(deleted);
+  const allAttach = loadAllAttachments();
+  if (allAttach[id]) { delete allAttach[id]; saveAllAttachments(allAttach); }
+  openCards.delete(id);
+  renderTagBar();
+  renderRecipes();
 }
 
 /* ─── State ─── */
 let activeTag = '';
 let openCards = new Set();
+let editingId = null;
+let sortMode = '';
 
 /* ─── Attachment storage ─── */
 const ATTACH_KEY = 'my_recipes_attach_v1';
 function loadAllAttachments() {
   try { return JSON.parse(localStorage.getItem(ATTACH_KEY) || '{}'); } catch { return {}; }
 }
-function saveAllAttachments(d) { localStorage.setItem(ATTACH_KEY, JSON.stringify(d)); }
+function saveAllAttachments(d) {
+  try {
+    localStorage.setItem(ATTACH_KEY, JSON.stringify(d));
+    return true;
+  } catch (e) {
+    alert('שמירת הקובץ נכשלה — אין מקום פנוי באחסון המקומי. נסה למחוק קבצים מצורפים ישנים.');
+    return false;
+  }
+}
 function getAttachments(id) { return loadAllAttachments()[id] || []; }
 function addAttachment(id, name, type, dataUrl) {
   const all = loadAllAttachments();
   (all[id] = all[id] || []).push({ name, type, dataUrl });
-  saveAllAttachments(all);
+  return saveAllAttachments(all);
 }
 function removeAttachment(id, idx) {
   const all = loadAllAttachments();
@@ -1079,14 +1260,30 @@ function escHtml(s) {
 }
 
 /* ─── Render ─── */
+function parseMinutes(str) {
+  if (!str) return Infinity;
+  const m = String(str).match(/\d+/);
+  return m ? parseInt(m[0], 10) : Infinity;
+}
+
 function renderRecipes(filter) {
   const q = (filter !== undefined ? filter : document.getElementById('searchInput').value).trim().toLowerCase();
   const list = loadRecipes();
   const filtered = list.filter(r => {
     const matchTag = !activeTag || (r.tags || []).includes(activeTag);
-    const matchQ   = !q || r.title.toLowerCase().includes(q) || (r.tags || []).some(t => t.toLowerCase().includes(q));
+    const matchQ   = !q
+      || r.title.toLowerCase().includes(q)
+      || (r.tags || []).some(t => t.toLowerCase().includes(q))
+      || (r.ingredients || []).some(i => (i.name || '').toLowerCase().includes(q))
+      || (r.steps || []).some(s => (s || '').toLowerCase().includes(q));
     return matchTag && matchQ;
   });
+
+  if (sortMode === 'alpha') {
+    filtered.sort((a, b) => a.title.localeCompare(b.title, 'he'));
+  } else if (sortMode === 'prep') {
+    filtered.sort((a, b) => parseMinutes(a.prepTime) - parseMinutes(b.prepTime));
+  }
 
   const container = document.getElementById('recipeList');
   if (!filtered.length) {
@@ -1104,14 +1301,14 @@ function buildAttachSection(recipeId) {
     if (a.type && a.type.startsWith('image/')) {
       return `<div class="attach-thumb-wrap">
         <img class="attach-thumb" src="${a.dataUrl}" alt="${escHtml(a.name)}" data-idx="${idx}" />
-        <button class="attach-delete" data-idx="${idx}" title="מחק">✕</button>
+        <button class="attach-delete" data-idx="${idx}" aria-label="מחק קובץ" title="מחק">✕</button>
       </div>`;
     }
     return `<div class="attach-pdf-wrap">
       <a class="attach-pdf-card" href="${a.dataUrl}" download="${escHtml(a.name)}" onclick="event.stopPropagation()">
         <span class="pdf-icon">📄</span><span class="attach-pdf-name">${escHtml(a.name)}</span>
       </a>
-      <button class="attach-delete" data-idx="${idx}" title="מחק">✕</button>
+      <button class="attach-delete" data-idx="${idx}" aria-label="מחק קובץ" title="מחק">✕</button>
     </div>`;
   }).join('');
 
@@ -1119,7 +1316,7 @@ function buildAttachSection(recipeId) {
     <div class="section-title">📎 קבצים ותמונות</div>
     <div class="attach-grid">
       ${items}
-      <button class="attach-upload-btn">＋ הוסף קובץ<input class="attach-file-input" type="file" accept="image/*,.pdf" multiple style="display:none"/></button>
+      <button class="attach-upload-btn" aria-label="הוסף קובץ או תמונה">＋ הוסף קובץ<input class="attach-file-input" type="file" accept="image/*,.pdf" multiple style="display:none"/></button>
     </div>
   </div>`;
 }
@@ -1151,17 +1348,29 @@ function buildCard(r) {
         ${r.cookTime ? `<div class="bake-pill"><span class="pill-label">זמן</span><span class="pill-val">${r.cookTime}</span></div>` : ''}
        </div></section>` : '';
 
+  const coverImg = getAttachments(r.id).find(a => a.type && a.type.startsWith('image/'));
+  const iconHtml = coverImg
+    ? `<img class="card-cover-img" src="${coverImg.dataUrl}" alt="" />`
+    : (r.emoji || '🍽');
+
+  const hasBody = ingredients || steps;
+
   return `<div class="recipe-card${openCards.has(r.id) ? ' open' : ''}" data-id="${r.id}">
     <div class="card-header">
-      <div class="card-icon">${r.emoji || '🍽'}</div>
+      <div class="card-icon">${iconHtml}</div>
       <div class="card-info">
         <div class="card-title">${r.title}</div>
         <div class="card-meta">${meta}</div>
       </div>
-      <span class="card-chevron">›</span>
+      <div class="card-actions">
+        <button class="icon-btn card-edit" aria-label="ערוך מתכון" title="ערוך">✏️</button>
+        <button class="icon-btn card-delete" aria-label="מחק מתכון" title="מחק">🗑️</button>
+      </div>
+      <span class="card-chevron" aria-hidden="true">›</span>
     </div>
     ${tags ? `<div class="card-tags">${tags}</div>` : ''}
     <div class="recipe-body">
+      ${hasBody ? `<div class="cook-mode-trigger"><button class="cook-mode-btn">👨‍🍳 מצב בישול</button></div>` : ''}
       ${ingredients ? `<section><div class="section-title">🛒 מרכיבים</div><ul class="ingredient-list">${ingredients}</ul></section>` : ''}
       ${steps       ? `<section><div class="section-title">👨‍🍳 הכנה</div><ol class="step-list">${steps}</ol></section>` : ''}
       ${bakeHtml}${tipHtml}
@@ -1196,6 +1405,30 @@ function attachCardEvents(container) {
       });
     });
 
+    // Edit / delete recipe
+    card.querySelector('.card-edit').addEventListener('click', e => {
+      e.stopPropagation();
+      const recipe = loadRecipes().find(r => r.id === id);
+      if (recipe) openEditModal(recipe);
+    });
+    card.querySelector('.card-delete').addEventListener('click', e => {
+      e.stopPropagation();
+      const recipe = loadRecipes().find(r => r.id === id);
+      if (recipe && confirm(`למחוק את "${recipe.title}"? לא ניתן לשחזר.`)) {
+        deleteRecipe(id);
+      }
+    });
+
+    // Cooking mode
+    const cookBtn = card.querySelector('.cook-mode-btn');
+    if (cookBtn) {
+      cookBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        const recipe = loadRecipes().find(r => r.id === id);
+        if (recipe) openCookMode(recipe);
+      });
+    }
+
     wireAttachSection(card, id);
   });
 }
@@ -1205,6 +1438,7 @@ function wireAttachSection(card, id) {
   card.querySelectorAll('.attach-delete').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
+      if (!confirm('למחוק את הקובץ?')) return;
       removeAttachment(id, parseInt(btn.dataset.idx));
       refreshAttachSection(card, id);
     });
@@ -1250,16 +1484,53 @@ function refreshAttachSection(card, id) {
   wireAttachSection(card, id);
 }
 
-/* ─── Search ─── */
+/* ─── Search / Sort ─── */
 document.getElementById('searchInput').addEventListener('input', e => {
   renderRecipes(e.target.value);
 });
+document.getElementById('sortSelect').addEventListener('change', e => {
+  sortMode = e.target.value;
+  renderRecipes();
+});
 
-/* ─── FAB / Modal ─── */
+/* ─── FAB / Modal (add + edit) ─── */
 const overlay = document.getElementById('modalOverlay');
-document.getElementById('fab').addEventListener('click', () => overlay.classList.add('open'));
-document.getElementById('modalCancel').addEventListener('click', () => overlay.classList.remove('open'));
-overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
+const MODAL_FIELDS = ['newTitle','newEmoji','newIngredients','newSteps','newTip','newTags','newYields','newPrepTime','newCookTime','newTemp'];
+
+function closeModal() {
+  overlay.classList.remove('open');
+  editingId = null;
+  MODAL_FIELDS.forEach(id => document.getElementById(id).value = '');
+}
+
+function openAddModal() {
+  editingId = null;
+  MODAL_FIELDS.forEach(id => document.getElementById(id).value = '');
+  document.getElementById('modalTitle').textContent = '➕ מתכון חדש';
+  document.getElementById('modalSave').textContent = 'שמור מתכון';
+  overlay.classList.add('open');
+}
+
+function openEditModal(recipe) {
+  editingId = recipe.id;
+  document.getElementById('newTitle').value = recipe.title || '';
+  document.getElementById('newEmoji').value = recipe.emoji || '';
+  document.getElementById('newIngredients').value = (recipe.ingredients || []).map(i => `${i.name} | ${i.amount}`).join('\n');
+  document.getElementById('newSteps').value = (recipe.steps || []).join('\n');
+  document.getElementById('newTip').value = recipe.tip || '';
+  document.getElementById('newTags').value = (recipe.tags || []).join(', ');
+  document.getElementById('newYields').value = recipe.yields || '';
+  document.getElementById('newPrepTime').value = recipe.prepTime || '';
+  document.getElementById('newCookTime').value = recipe.cookTime || '';
+  document.getElementById('newTemp').value = recipe.temp || '';
+  document.getElementById('modalTitle').textContent = '✏️ עריכת מתכון';
+  document.getElementById('modalSave').textContent = 'שמור שינויים';
+  overlay.classList.add('open');
+}
+
+document.getElementById('fab').addEventListener('click', openAddModal);
+document.getElementById('modalCancel').addEventListener('click', closeModal);
+overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
 
 document.getElementById('modalSave').addEventListener('click', () => {
   const title = document.getElementById('newTitle').value.trim();
@@ -1276,11 +1547,11 @@ document.getElementById('modalSave').addEventListener('click', () => {
   const rawSteps = document.getElementById('newSteps').value.trim();
   const steps = rawSteps ? rawSteps.split('\n').map(s => s.trim()).filter(Boolean) : [];
 
-  const recipe = {
-    id: 'r_' + Date.now(),
+  const recipeData = {
     emoji: document.getElementById('newEmoji').value.trim() || '🍽',
     title,
     tags: document.getElementById('newTags').value.split(',').map(t => t.trim()).filter(Boolean),
+    yields:   document.getElementById('newYields').value.trim(),
     prepTime: document.getElementById('newPrepTime').value.trim(),
     cookTime: document.getElementById('newCookTime').value.trim(),
     temp:     document.getElementById('newTemp').value.trim(),
@@ -1290,18 +1561,104 @@ document.getElementById('modalSave').addEventListener('click', () => {
   };
 
   const list = loadRecipes();
-  list.unshift(recipe);
-  saveRecipes(list);
+  if (editingId) {
+    const idx = list.findIndex(r => r.id === editingId);
+    if (idx >= 0) list[idx] = { ...list[idx], ...recipeData };
+  } else {
+    list.unshift({ id: 'r_' + Date.now(), ...recipeData });
+  }
+  if (!saveRecipes(list)) return;
   renderTagBar();
   renderRecipes();
-  overlay.classList.remove('open');
-  ['newTitle','newEmoji','newIngredients','newSteps','newTip','newTags','newPrepTime','newCookTime','newTemp']
-    .forEach(id => document.getElementById(id).value = '');
+  closeModal();
 });
 
 /* ─── Lightbox ─── */
 document.getElementById('lightboxOverlay').addEventListener('click', () => {
   document.getElementById('lightboxOverlay').classList.remove('open');
+});
+
+/* ─── Cooking mode ─── */
+function buildCookModeBody(r) {
+  const ingredients = (r.ingredients || []).map((i, idx) => `
+    <label class="cook-item" data-kind="ing" data-idx="${idx}">
+      <input type="checkbox" />
+      <span><strong>${i.amount}</strong> ${i.name}</span>
+    </label>`).join('');
+  const steps = (r.steps || []).map((s, idx) => `
+    <label class="cook-item" data-kind="step" data-idx="${idx}">
+      <input type="checkbox" />
+      <span>${s}</span>
+    </label>`).join('');
+  return `
+    ${ingredients ? `<section><div class="section-title">🛒 מרכיבים</div><div class="cook-list">${ingredients}</div></section>` : ''}
+    ${steps ? `<section><div class="section-title">👨‍🍳 הכנה</div><div class="cook-list">${steps}</div></section>` : ''}
+  `;
+}
+
+function openCookMode(r) {
+  document.getElementById('cookModeTitle').textContent = r.title;
+  const body = document.getElementById('cookModeBody');
+  body.innerHTML = buildCookModeBody(r);
+  body.querySelectorAll('.cook-item').forEach(label => {
+    const cb = label.querySelector('input');
+    cb.addEventListener('change', () => label.classList.toggle('done', cb.checked));
+  });
+  document.getElementById('cookModeOverlay').classList.add('open');
+}
+
+document.getElementById('cookModeClose').addEventListener('click', () => {
+  document.getElementById('cookModeOverlay').classList.remove('open');
+});
+
+/* ─── Export / Import ─── */
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const data = {
+    recipes: loadRecipes(),
+    attachments: loadAllAttachments(),
+    exportedAt: new Date().toISOString(),
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `recipes-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('importInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!Array.isArray(data.recipes)) throw new Error('invalid format');
+      if (!confirm(`לייבא ${data.recipes.length} מתכונים? מתכונים עם מזהה קיים יוחלפו.`)) return;
+
+      const existing = loadRecipes();
+      data.recipes.forEach(rec => {
+        const idx = existing.findIndex(r => r.id === rec.id);
+        if (idx >= 0) existing[idx] = rec; else existing.unshift(rec);
+      });
+      if (!saveRecipes(existing)) return;
+
+      if (data.attachments && typeof data.attachments === 'object') {
+        const existingAttach = loadAllAttachments();
+        Object.assign(existingAttach, data.attachments);
+        saveAllAttachments(existingAttach);
+      }
+
+      renderTagBar();
+      renderRecipes();
+      alert('הייבוא הושלם בהצלחה');
+    } catch (err) {
+      alert('קובץ הגיבוי לא תקין');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
 });
 
 /* ─── Init ─── */
