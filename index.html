@@ -1090,11 +1090,13 @@
       <label>Choose a Template</label>
       <select id="tmpl-select" onchange="previewTemplate(this.value)" style="margin-bottom:12px">
         <option value="">— Select —</option>
+        <option value="Essentials">🎒 Essentials</option>
         <option value="Beach">🏖 Beach Vacation</option>
         <option value="City">🏙 City Break</option>
         <option value="Winter">❄️ Winter Trip</option>
         <option value="Business">💼 Business Travel</option>
         <option value="Adventure">🥾 Adventure / Hiking</option>
+        <option value="MedSummer">🏛 Mediterranean Summer</option>
       </select>
     </div>
     <div id="tmpl-preview" style="max-height:260px;overflow-y:auto;display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px"></div>
@@ -3937,6 +3939,8 @@ const PACK_TEMPLATES = {
   Winter:   [{name:'Heavy winter coat',cat:'Clothing'},{name:'Thermal underlayer',cat:'Clothing'},{name:'Gloves',cat:'Clothing'},{name:'Scarf',cat:'Clothing'},{name:'Warm hat / beanie',cat:'Clothing'},{name:'Waterproof boots',cat:'Clothing'},{name:'Thick socks (x5)',cat:'Clothing'},{name:'Lip balm',cat:'Toiletries'},{name:'Moisturizer',cat:'Toiletries'},{name:'Hand warmers',cat:'Essentials'},{name:'Portable charger',cat:'Electronics'}],
   Business: [{name:'Laptop + charger',cat:'Electronics'},{name:'Business cards',cat:'Documents'},{name:'Smart shoes',cat:'Clothing'},{name:'Dress shirts (x3)',cat:'Clothing'},{name:'Blazer / suit jacket',cat:'Clothing'},{name:'Portable charger',cat:'Electronics'},{name:'Travel adapter',cat:'Electronics'},{name:'Headphones',cat:'Electronics'},{name:'Notebook & pen',cat:'Essentials'},{name:'Toiletry bag',cat:'Toiletries'},{name:'Passport / ID',cat:'Documents'}],
   Adventure:[{name:'Hiking boots',cat:'Clothing'},{name:'Rain jacket',cat:'Clothing'},{name:'Hiking socks (x4)',cat:'Clothing'},{name:'Reusable water bottle',cat:'Essentials'},{name:'First aid kit',cat:'Essentials'},{name:'Sunscreen',cat:'Toiletries'},{name:'Insect repellent',cat:'Toiletries'},{name:'Headlamp + batteries',cat:'Essentials'},{name:'Energy snacks',cat:'Other'},{name:'Emergency whistle',cat:'Essentials'},{name:'Travel insurance docs',cat:'Documents'}],
+  MedSummer:[{name:'Light, breathable clothes (linen or cotton)',cat:'Clothing'},{name:'1–2 cover-ups for churches/monasteries (shoulders and knees covered)',cat:'Clothing'},{name:"A light layer for evenings — it cools down more than you'd expect",cat:'Clothing'},{name:"Swimwear (2–3 sets so one's always dry)",cat:'Clothing'},{name:'Comfortable walking sandals + one pair of closed shoes for cobblestones',cat:'Clothing'},{name:'High SPF sunscreen — reapply constantly, the Greek sun is brutal',cat:'Toiletries'},{name:'Sunglasses and a wide-brim hat',cat:'Essentials'},{name:"Reef-safe sunscreen if you're swimming in protected areas",cat:'Toiletries'},{name:'Reusable water bottle — stay very hydrated',cat:'Essentials'},{name:'Small day bag or crossbody',cat:'Essentials'},{name:'Power adapter (Type C/F plugs in Greece)',cat:'Electronics'},{name:'Portable charger',cat:'Electronics'},{name:'Any personal medications',cat:'Essentials'},{name:'Blister plasters — cobblestones and sandals are a rough combo',cat:'Toiletries'},{name:'Basic OTC meds (antihistamine, ibuprofen, stomach relief)',cat:'Toiletries'},{name:'Insect repellent for evenings',cat:'Toiletries'},{name:'Passport, travel insurance details, accommodation confirmations',cat:'Documents'},{name:'Some cash — smaller islands and tavernas often prefer it',cat:'Essentials'}],
+  Essentials:[{name:'Passport / ID',cat:'Documents'},{name:'Travel insurance documents',cat:'Documents'},{name:'Accommodation confirmations',cat:'Documents'},{name:'Wallet (cards & some cash)',cat:'Essentials'},{name:'Phone',cat:'Electronics'},{name:'Phone charger',cat:'Electronics'},{name:'Portable charger',cat:'Electronics'},{name:'Travel adapter',cat:'Electronics'},{name:'Headphones',cat:'Electronics'},{name:'Reusable water bottle',cat:'Essentials'},{name:'Any personal medications',cat:'Essentials'},{name:'Basic OTC meds (painkillers, antihistamine)',cat:'Toiletries'},{name:'Toothbrush & toothpaste',cat:'Toiletries'},{name:'Hand sanitizer',cat:'Toiletries'},{name:'Sunglasses',cat:'Essentials'},{name:'Small day bag',cat:'Essentials'},{name:'Snacks for the journey',cat:'Other'}],
 };
 function openPackTemplateModal() {
   document.getElementById('tmpl-select').value = '';
