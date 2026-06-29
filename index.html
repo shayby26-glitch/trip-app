@@ -1724,6 +1724,18 @@ function avatarColor(i) { return AVATAR_COLORS[i % AVATAR_COLORS.length]; }
 function initials(name) { return name.trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase(); }
 function personById(t, id) { return (t.people||[]).find(p=>p.id===id); }
 function currency(t) { return t.currency || '$'; }
+// Trips store a free-text display symbol ($, €, £…) in t.currency, but live
+// exchange-rate lookups need an ISO code. Map common symbols to a code, and
+// pass through anything that already looks like one.
+const CURRENCY_SYMBOL_TO_CODE = {
+  '$':'USD', 'US$':'USD', 'A$':'AUD', 'C$':'CAD', 'NZ$':'NZD', 'HK$':'HKD', 'S$':'SGD',
+  '€':'EUR', '£':'GBP', '¥':'JPY', '₪':'ILS', '₹':'INR', '₩':'KRW', '₿':'BTC', '฿':'THB', 'R$':'BRL',
+};
+function currencyCode(t) {
+  const cur = currency(t).toUpperCase();
+  if (/^[A-Z]{3}$/.test(cur)) return cur;
+  return CURRENCY_SYMBOL_TO_CODE[currency(t)] || CURRENCY_SYMBOL_TO_CODE[cur] || 'USD';
+}
 function fmtNum(n, decimals = 2) {
   return Number(n).toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
@@ -1778,7 +1790,7 @@ function renderHome() {
   grid.innerHTML = sorted.map(t => {
     const st = tripStatus(t), days = tripDays(t);
     const people = (t.people||[]);
-    const expenses = (t.expenses||[]).reduce((s,e)=>s+e.amount,0);
+    const expenses = sumConverted(t.expenses||[], currencyCode(t), _ratesCache[currencyCode(t)]?.rates || null);
     const gradBg = getDestGradient(t.destination);
     const meshBg = getDestSVG(t.destination);
 
@@ -2814,20 +2826,26 @@ async function fetchRates(base) {
   }
 }
 
+// Convert `amount` from `fromCur` to `toCur` using `rates` (the exchangerate-api
+// response for base=toCur, i.e. rates[X] = how many X per 1 toCur).
+function convertAmount(amount, fromCur, toCur, rates) {
+  fromCur = (fromCur || toCur || '').toUpperCase();
+  toCur = (toCur || '').toUpperCase();
+  if (!rates || !toCur || fromCur === toCur) return amount;
+  const rate = rates[fromCur];
+  return rate ? amount / rate : amount;
+}
+function sumConverted(expenses, toCur, rates) {
+  return expenses.reduce((s, e) => s + convertAmount(e.amount, e.currency || toCur, toCur, rates), 0);
+}
+
 function calculateBalances(t, rates, baseCur) {
   const bal = {};
   (t.people||[]).forEach(p => bal[p.id] = 0);
   for (const exp of (t.expenses||[])) {
     const split = exp.splitAmong || [];
     if (!split.length) continue;
-    let amount = exp.amount;
-    if (rates && baseCur) {
-      const expCur = (exp.currency || baseCur).toUpperCase();
-      if (expCur !== baseCur.toUpperCase() && rates[expCur]) {
-        // convert: expCur amount → baseCur amount
-        amount = amount / rates[expCur];
-      }
-    }
+    const amount = convertAmount(exp.amount, exp.currency, baseCur, rates);
     const share = Math.round((amount / split.length) * 100) / 100;
     bal[exp.paidBy] = Math.round(((bal[exp.paidBy]||0) + amount) * 100) / 100;
     split.forEach(pid => { bal[pid] = Math.round(((bal[pid]||0) - share) * 100) / 100; });
@@ -2854,11 +2872,43 @@ function simplifyDebts(balances) {
   return settlements;
 }
 
-function renderBalanceSection(t, rates, baseCur) {
+function renderBudgetHtml(t, curRates) {
+  const cur = currency(t);
+  const curCode = currencyCode(t);
+  const budget = t.budget || 0;
+  if (budget <= 0) return '';
+  const expenses = t.expenses || [];
+  const totalSpent = sumConverted(expenses, curCode, curRates);
+  const pct = Math.min(100, Math.round(totalSpent/budget*100));
+  const barColor = pct < 70 ? 'var(--green)' : pct < 90 ? 'var(--yellow)' : 'var(--red)';
+  const remaining = budget - totalSpent;
+  const convertedNote = curRates && expenses.some(e => (e.currency||curCode).toUpperCase() !== curCode)
+    ? ` <span style="color:var(--muted)">(converted)</span>` : '';
+  return `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:.85rem">
+        <span style="font-weight:700">💰 Budget</span>
+        <span style="color:${remaining>=0?'var(--green)':'var(--red)'};font-weight:700">${remaining>=0?'':'−'}${cur}${fmtNum(Math.abs(remaining))} ${remaining>=0?'remaining':'over budget'}</span>
+      </div>
+      <div style="background:var(--surface2);border-radius:4px;height:8px;overflow:hidden">
+        <div style="width:${pct}%;height:100%;background:${barColor};border-radius:4px;transition:width .3s"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:.75rem;color:var(--muted)">
+        <span>${cur}${fmtNum(totalSpent)} spent${convertedNote}</span><span>${cur}${fmtNum(budget)} budget</span>
+      </div>
+    </div>`;
+}
+
+function renderBalanceSection(t, rates, baseCur, curRates) {
   const cur = currency(t);
   const balSection = document.getElementById('balance-section');
   if (!balSection) return;
-  if ((t.people||[]).length <= 1) { balSection.innerHTML = ''; return; }
+  const budgetHtml = renderBudgetHtml(t, curRates);
+  if (!(t.people||[]).length) {
+    balSection.innerHTML = budgetHtml + `<div style="color:var(--muted);font-size:.875rem;margin-bottom:20px">Add people to the trip first to track balances.</div>`;
+    return;
+  }
+  if ((t.people||[]).length <= 1) { balSection.innerHTML = budgetHtml; return; }
 
   const balances = calculateBalances(t, rates, baseCur);
   const settlements = simplifyDebts(balances);
@@ -2899,7 +2949,7 @@ function renderBalanceSection(t, rates, baseCur) {
     ? `<div style="font-size:.72rem;color:var(--muted);margin-top:4px">Amounts converted to ${displayCur} at live rates</div>`
     : '';
 
-  balSection.innerHTML = `
+  balSection.innerHTML = budgetHtml + `
     <div class="balance-header">Balances</div>
     <div class="balance-grid">${balCards}</div>
     <div class="balance-header">Settlements${multiCurrency ? ` <span style="font-size:.72rem;font-weight:400;color:var(--muted)">(in ${displayCur})</span>` : ''}</div>
@@ -2911,62 +2961,42 @@ function renderBalanceSection(t, rates, baseCur) {
 function renderExpenses() {
   const t = getTrip();
   const cur = currency(t);
-  const balSection = document.getElementById('balance-section');
-
+  const curCode = currencyCode(t);
   const expenses = t.expenses || [];
   const expList = document.getElementById('expense-list');
   const summaryEl = document.getElementById('expense-summary');
 
-  if (!(t.people||[]).length) {
-    balSection.innerHTML = `<div style="color:var(--muted);font-size:.875rem;margin-bottom:20px">Add people to the trip first to track balances.</div>`;
-    renderExpenseSummary(expenses, cur, summaryEl);
-    renderExpenseList(t, expenses, cur, expList);
-    return;
-  }
-
-  // Budget meter
-  const totalSpent = (t.expenses||[]).reduce((s,e)=>s+e.amount,0);
-  const budget = t.budget || 0;
-  balSection.innerHTML = '';
-  if (budget > 0) {
-    const pct = Math.min(100, Math.round(totalSpent/budget*100));
-    const barColor = pct < 70 ? 'var(--green)' : pct < 90 ? 'var(--yellow)' : 'var(--red)';
-    const remaining = budget - totalSpent;
-    balSection.insertAdjacentHTML('afterbegin', `
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:20px">
-        <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:.85rem">
-          <span style="font-weight:700">💰 Budget</span>
-          <span style="color:${remaining>=0?'var(--green)':'var(--red)'};font-weight:700">${remaining>=0?'':'−'}${cur}${fmtNum(Math.abs(remaining))} ${remaining>=0?'remaining':'over budget'}</span>
-        </div>
-        <div style="background:var(--surface2);border-radius:4px;height:8px;overflow:hidden">
-          <div style="width:${pct}%;height:100%;background:${barColor};border-radius:4px;transition:width .3s"></div>
-        </div>
-        <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:.75rem;color:var(--muted)">
-          <span>${cur}${fmtNum(totalSpent)} spent</span><span>${cur}${fmtNum(budget)} budget</span>
-        </div>
-      </div>`);
-  }
-
-  // Determine if multiple currencies are in use
-  const currencies = [...new Set((expenses).map(e => (e.currency || cur).toUpperCase()))];
+  // Determine if multiple currencies are in use (compare by ISO code, not display symbol)
+  const currencies = [...new Set(expenses.map(e => (e.currency || curCode).toUpperCase()))];
   const multiCurrency = currencies.length > 1;
-  // Use user-selected summary currency if set, otherwise trip default
+  // Label shown to the user: the trip's symbol by default, or the user-picked code
   const baseCur = (_summaryCurrency || cur).toUpperCase();
+  // ISO code actually sent to the exchange-rate API (a symbol like "$" isn't a valid base)
+  const rateCur = (_summaryCurrency || curCode).toUpperCase();
+  const cachedBaseRates = _ratesCache[rateCur]?.rates || null;
+  const cachedCurRates  = _ratesCache[curCode]?.rates || null;
 
-  // Render with no conversion first (instant)
-  renderBalanceSection(t, null, baseCur);
+  // Render with cached/no conversion first (instant)
+  renderBalanceSection(t, cachedBaseRates, baseCur, cachedCurRates);
+  renderExpenseSummary(expenses, cur, summaryEl, cachedBaseRates, baseCur, curCode);
+  renderExpenseList(t, expenses, cur, expList, cachedCurRates);
 
-  renderExpenseSummary(expenses, cur, summaryEl, null, baseCur);
-  renderExpenseList(t, expenses, cur, expList);
-
-  // Fetch rates and re-render summary + balance with conversion
+  // Fetch live rates and re-render with conversion applied
   if (multiCurrency || _summaryCurrency) {
-    fetchRates(baseCur).then(rates => {
+    fetchRates(rateCur).then(rates => {
       if (!rates) return;
       if (getTrip().id !== t.id) return;
-      if (_summaryCurrency && _summaryCurrency !== baseCur) return; // user changed mid-flight
-      renderExpenseSummary(expenses, cur, summaryEl, rates, baseCur);
-      renderBalanceSection(t, rates, baseCur);
+      if (_summaryCurrency && _summaryCurrency.toUpperCase() !== rateCur) return; // user changed mid-flight
+      renderExpenseSummary(expenses, cur, summaryEl, rates, baseCur, curCode);
+      renderBalanceSection(t, rates, baseCur, _ratesCache[curCode]?.rates || null);
+    });
+  }
+  if (multiCurrency) {
+    fetchRates(curCode).then(rates => {
+      if (!rates) return;
+      if (getTrip().id !== t.id) return;
+      renderExpenseList(t, expenses, cur, expList, rates);
+      renderBalanceSection(t, _ratesCache[rateCur]?.rates || null, baseCur, rates);
     });
   }
 }
@@ -2982,8 +3012,10 @@ function exportExpensesToExcel() {
 
   function doExport() {
     const cur = currency(t);
+    const codeCur = currencyCode(t);
     const displayCur = (_summaryCurrency || cur).toUpperCase();
-    const cachedRates = _ratesCache[displayCur]?.rates || null;
+    const rateCur = (_summaryCurrency || codeCur).toUpperCase();
+    const cachedRates = _ratesCache[rateCur]?.rates || null;
 
     // ── Sheet 1: all expenses ────────────────────────────────────────────
     const expHeaders = ['Date', 'Description', 'Category', 'Amount', 'Currency', 'Paid By', 'Split Among'];
@@ -2992,7 +3024,7 @@ function exportExpensesToExcel() {
     const expRows = [...expenses].sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map(exp => {
       const paidBy = personById(t, exp.paidBy)?.name || '';
       const splitNames = (exp.splitAmong||[]).map(id => personById(t,id)?.name||'').join(', ');
-      const expCur = (exp.currency || cur).toUpperCase();
+      const expCur = (exp.currency || codeCur).toUpperCase();
       const row = [
         exp.date || '',
         exp.desc || EXP_CAT_LABELS[exp.category||'other'],
@@ -3003,9 +3035,8 @@ function exportExpensesToExcel() {
         splitNames,
       ];
       if (cachedRates) {
-        const converted = expCur === displayCur ? exp.amount
-          : cachedRates[expCur] ? exp.amount / cachedRates[expCur] : '';
-        row.push(typeof converted === 'number' ? Math.round(converted * 100) / 100 : converted);
+        const converted = convertAmount(exp.amount, expCur, rateCur, cachedRates);
+        row.push(Math.round(converted * 100) / 100);
       }
       return row;
     });
@@ -3023,11 +3054,8 @@ function exportExpensesToExcel() {
       const c = EXP_CAT_LABELS[exp.category||'other'];
       if (!byCategory[c]) byCategory[c] = { count:0, total:0 };
       byCategory[c].count++;
-      let amount = exp.amount;
-      if (cachedRates) {
-        const ec = (exp.currency||cur).toUpperCase();
-        if (ec !== displayCur && cachedRates[ec]) amount = amount / cachedRates[ec];
-      }
+      const ec = (exp.currency||codeCur).toUpperCase();
+      const amount = cachedRates ? convertAmount(exp.amount, ec, rateCur, cachedRates) : exp.amount;
       byCategory[c].total += amount;
     }
     const grandTotal = Object.values(byCategory).reduce((s,v)=>s+v.total,0);
@@ -3069,7 +3097,7 @@ const EXP_CAT_ORDER  = ['food','transport','hotel','activity','shopping','attrac
 
 const SUMMARY_CURRENCIES = ['GBP','USD','EUR','JPY','ILS','AUD','CAD','CHF','SGD','HKD','INR','KRW','THB'];
 
-function renderExpenseSummary(expenses, cur, summaryEl, rates, baseCur) {
+function renderExpenseSummary(expenses, cur, summaryEl, rates, baseCur, codeCur) {
   if (!expenses.length) { summaryEl.innerHTML = ''; return; }
   const displayCur = (_summaryCurrency || baseCur || cur).toUpperCase();
   const hasRates = !!(rates);
@@ -3088,12 +3116,15 @@ function renderExpenseSummary(expenses, cur, summaryEl, rates, baseCur) {
     byCategory[c].total += amount;
   }
   const grandTotal = Object.values(byCategory).reduce((s, v) => s + v.total, 0);
-  const multiCurrency = expenses.some(e => (e.currency || cur).toUpperCase() !== displayCur);
+  // Compare by ISO code, not the display symbol, so a single-currency trip
+  // never gets falsely flagged as needing conversion.
+  const targetCode = (_summaryCurrency || codeCur || displayCur).toUpperCase();
+  const multiCurrency = expenses.some(e => (e.currency || codeCur).toUpperCase() !== targetCode);
   const convNote = (hasRates && multiCurrency)
     ? `<span style="font-size:.7rem;font-weight:400;color:var(--muted);margin-left:6px">converted to ${displayCur}</span>`
     : (!hasRates && multiCurrency ? `<span style="font-size:.7rem;font-weight:400;color:var(--muted);margin-left:6px">loading rates…</span>` : '');
 
-  const allCurOptions = [...new Set([...SUMMARY_CURRENCIES, (baseCur||cur).toUpperCase(), displayCur])];
+  const allCurOptions = [...new Set([...SUMMARY_CURRENCIES, codeCur, displayCur])];
   const selHtml = `<select onchange="changeSummaryCurrency(this.value)"
     style="font-size:.78rem;font-weight:700;background:var(--surface2);border:1px solid var(--border);
            border-radius:6px;padding:3px 6px;color:var(--text);cursor:pointer">
@@ -3149,15 +3180,16 @@ function changeSummaryCurrency(newCur) {
   const t = getTrip();
   const expenses = t.expenses || [];
   const cur = currency(t);
+  const codeCur = currencyCode(t);
   const summaryEl = document.getElementById('expense-summary');
   // Immediately re-render both sections without rates (shows unconverted while loading)
-  renderExpenseSummary(expenses, cur, summaryEl, null, newCur);
-  renderBalanceSection(t, null, newCur);
+  renderExpenseSummary(expenses, cur, summaryEl, null, newCur, codeCur);
+  renderBalanceSection(t, null, newCur, _ratesCache[codeCur]?.rates || null);
   // Fetch rates for the selected currency and re-render both
   fetchRates(newCur).then(rates => {
     if (_summaryCurrency !== newCur) return; // user changed again
-    renderExpenseSummary(expenses, cur, summaryEl, rates, newCur);
-    renderBalanceSection(t, rates, newCur);
+    renderExpenseSummary(expenses, cur, summaryEl, rates, newCur, codeCur);
+    renderBalanceSection(t, rates, newCur, _ratesCache[codeCur]?.rates || null);
   });
 }
 
@@ -3169,7 +3201,7 @@ function toggleExpenseList(headerEl) {
   if (arrow) arrow.style.transform = expListCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
 }
 
-function renderExpenseList(t, expenses, cur, expList) {
+function renderExpenseList(t, expenses, cur, expList, rates) {
   if (!expenses.length) {
     expList.innerHTML = `<div class="empty-state" style="padding:30px 0"><div class="ei">💳</div><p>No expenses yet.</p></div>`;
     expList.style.display = expListCollapsed ? 'none' : '';
@@ -3177,6 +3209,7 @@ function renderExpenseList(t, expenses, cur, expList) {
     if (arrow) arrow.style.transform = expListCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
     return;
   }
+  const curCode = currencyCode(t);
   expList.innerHTML = [...expenses].reverse().map(exp => {
     const paidBy  = personById(t, exp.paidBy);
     const paidIdx = (t.people||[]).findIndex(p=>p.id===exp.paidBy);
@@ -3192,6 +3225,9 @@ function renderExpenseList(t, expenses, cur, expList) {
     const perPerson = splitCount > 1
       ? `<div style="font-size:.7rem;color:var(--muted)">÷${splitCount} · ${exp.currency||cur} ${fmtNum(exp.amount/splitCount)} ea</div>`
       : '';
+    const expCur = (exp.currency || curCode).toUpperCase();
+    const converted = rates && expCur !== curCode
+      ? `<div style="font-size:.7rem;color:var(--muted)">≈ ${cur}${fmtNum(convertAmount(exp.amount, expCur, curCode, rates))}</div>` : '';
     return `<div class="expense-item">
       <div class="avatar" style="flex-shrink:0;background:${avatarColor(paidIdx)}" title="${escHtml(paidBy?.name||'?')}">${initials(paidBy?.name||'?')}</div>
       <div style="flex:1;min-width:0">
@@ -3201,6 +3237,7 @@ function renderExpenseList(t, expenses, cur, expList) {
       <span class="cat-pill cat-${cat}" style="flex-shrink:0" title="${EXP_CAT_LABELS[cat]}">${getCatIcon(cat)}</span>
       <div style="text-align:right;flex-shrink:0">
         <div class="exp-amount">${exp.currency||cur} ${fmtNum(exp.amount)}</div>
+        ${converted}
         ${perPerson}
       </div>
       <button class="btn-icon" onclick="openEditExpenseModal('${exp.id}')" title="Edit">✏️</button>
@@ -3249,7 +3286,7 @@ function openExpenseModal() {
   document.getElementById('exp-date').value = localDate();
   document.getElementById('exp-cat').value = 'other';
   // Default currency to last used expense currency, then trip currency, then empty
-  const lastCur = [...(t.expenses||[])].reverse().find(e => e.currency)?.currency || currency(t);
+  const lastCur = [...(t.expenses||[])].reverse().find(e => e.currency)?.currency || currencyCode(t);
   document.getElementById('exp-currency').value = (lastCur || '').toUpperCase();
   document.getElementById('modal-expense').classList.add('open');
   setTimeout(() => document.getElementById('exp-desc').focus(), 100);
@@ -3261,7 +3298,7 @@ function submitExpense() {
   const paidBy   = document.getElementById('exp-paid-by').value;
   const date     = document.getElementById('exp-date').value;
   const category = document.getElementById('exp-cat').value || 'other';
-  const expCur   = document.getElementById('exp-currency').value.trim().toUpperCase() || currency(getTrip());
+  const expCur   = document.getElementById('exp-currency').value.trim().toUpperCase() || currencyCode(getTrip());
   const splitAmong = [...document.querySelectorAll('.split-chip.on')].map(el=>el.dataset.id);
   if (!desc)   return toast('Enter a description');
   if (!amount || amount <= 0) return toast('Enter a valid amount');
