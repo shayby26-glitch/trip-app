@@ -825,6 +825,7 @@
       <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
         <button class="btn btn-ghost btn-sm" onclick="openPackTemplateModal()">📋 Use Template</button>
       </div>
+      <div id="pack-person-tabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px"></div>
       <div class="pack-progress-row"><span>Packing progress</span><span id="pack-pct">0%</span></div>
       <div class="progress-bar"><div class="progress-fill" id="pack-bar" style="width:0%"></div></div>
       <div id="packing-content"></div>
@@ -834,6 +835,7 @@
           <option>Essentials</option><option>Clothing</option><option>Toiletries</option>
           <option>Electronics</option><option>Documents</option><option>Other</option>
         </select>
+        <select id="new-pack-person"></select>
         <button class="btn btn-primary btn-sm" onclick="addPackItem()">Add</button>
       </div>
     </div>
@@ -1297,6 +1299,7 @@ let ovTimeFilter      = null;
 let itinTimeFilter    = null;
 let ovSelectedDay     = null;
 let editingStayId     = null;
+let packingPersonFilter = 'all';
 let editingStayOriginalDates = null; // {checkin, checkout} of the stay before editing
 // Undo delete
 let undoState = null;
@@ -1951,15 +1954,18 @@ function addEditTripPerson() {
   input.value = '';
   renderEditTripPeople();
   renderPeople();
+  renderPacking();
 }
 function removeEditTripPerson(id) {
   const t = getTrip();
   const hasExp = (t.expenses||[]).some(e => e.paidBy === id || (e.splitAmong||[]).includes(id));
   if (hasExp) return toast("Remove this person’s expenses first");
   t.people = (t.people||[]).filter(p => p.id !== id);
+  (t.packing||[]).forEach(i => { if (i.person === id) i.person = null; });
   save();
   renderEditTripPeople();
   renderPeople();
+  renderPacking();
 }
 let pendingTripEdit = null;
 
@@ -2115,6 +2121,7 @@ function openTrip(id) {
   ovTimeFilter   = null;
   itinTimeFilter = null;
   ovSelectedDay  = null;
+  packingPersonFilter = 'all';
   const t = getTrip();
   document.getElementById('d-banner').textContent = t.emoji;
   document.getElementById('d-title').textContent  = t.destination;
@@ -2228,7 +2235,7 @@ function saveEditPerson(id) {
   const p = t.people.find(x => x.id === id);
   if (p) p.name = name;
   editingPersonId = null;
-  save(); renderPeople(); renderExpenses(); renderOverview(); renderStay(); renderItinerary();
+  save(); renderPeople(); renderExpenses(); renderOverview(); renderStay(); renderItinerary(); renderPacking();
 }
 function addPerson() {
   const name = document.getElementById('new-person-name').value.trim();
@@ -2239,13 +2246,15 @@ function addPerson() {
   t.people.push({ id: Date.now().toString(), name });
   save(); document.getElementById('new-person-name').value = '';
   renderPeople();
+  renderPacking();
 }
 function removePerson(id) {
   const t = getTrip();
   const hasExp = (t.expenses||[]).some(e => e.paidBy === id || (e.splitAmong||[]).includes(id));
   if (hasExp) return toast("Remove this person\u2019s expenses first");
   t.people = t.people.filter(p => p.id !== id);
-  save(); renderPeople();
+  (t.packing||[]).forEach(i => { if (i.person === id) i.person = null; });
+  save(); renderPeople(); renderPacking();
 }
 
 // ══════════════════════════════════════════════
@@ -3339,9 +3348,31 @@ function applyCopyExpenses() {
 // ══════════════════════════════════════════════
 // PACKING
 // ══════════════════════════════════════════════
+function setPackingPersonFilter(id) { packingPersonFilter = id; renderPacking(); }
 function renderPacking() {
   const t = getTrip();
-  const items = t.packing || [];
+  const people = t.people || [];
+  const allItems = t.packing || [];
+
+  // Person filter tabs
+  const tabsEl = document.getElementById('pack-person-tabs');
+  const tabs = [{ id:'all', label:'🧳 Everyone' }, ...people.map(p => ({ id:p.id, label:p.name }))];
+  if (allItems.some(i => !i.person)) tabs.push({ id:'shared', label:'🌐 Shared' });
+  if (!tabs.some(tb => tb.id === packingPersonFilter)) packingPersonFilter = 'all';
+  tabsEl.innerHTML = tabs.map(tb => `<button onclick="setPackingPersonFilter('${tb.id}')" style="padding:6px 12px;border-radius:16px;font-size:.78rem;font-weight:700;border:1px solid ${packingPersonFilter===tb.id?'transparent':'var(--border)'};cursor:pointer;background:${packingPersonFilter===tb.id?'var(--grad)':'var(--surface)'};color:${packingPersonFilter===tb.id?'#fff':'var(--text)'}">${escHtml(tb.label)}</button>`).join('');
+
+  // Person picker for the "add item" row — mirrors the active tab so it never
+  // silently keeps a stale person selected from a previously-viewed tab.
+  const addSel = document.getElementById('new-pack-person');
+  if (addSel) {
+    addSel.innerHTML = `<option value="">Shared</option>` + people.map(p => `<option value="${p.id}">${escHtml(p.name)}</option>`).join('');
+    addSel.value = people.some(p => p.id === packingPersonFilter) ? packingPersonFilter : '';
+  }
+
+  const items = packingPersonFilter === 'all' ? allItems
+    : packingPersonFilter === 'shared' ? allItems.filter(i => !i.person)
+    : allItems.filter(i => i.person === packingPersonFilter);
+
   const checked = items.filter(i=>i.checked).length;
   const pct = items.length ? Math.round(checked/items.length*100) : 0;
   document.getElementById('pack-pct').textContent = pct + '%';
@@ -3360,6 +3391,13 @@ function renderPacking() {
     </div>` : '';
   const byCat = {};
   items.forEach(i => { if (!byCat[i.category]) byCat[i.category]=[]; byCat[i.category].push(i); });
+  const personTag = item => {
+    if (packingPersonFilter !== 'all') return '';
+    const p = people.find(p => p.id === item.person);
+    return p
+      ? `<span class="cat-pill" style="background:rgba(91,141,238,.15);color:var(--accent)">${escHtml(p.name)}</span>`
+      : `<span class="cat-pill" style="background:var(--surface2);color:var(--muted)">Shared</span>`;
+  };
   container.innerHTML = allPackedBanner + Object.entries(byCat).map(([cat, citems]) => `
     <div class="pack-section">
       <div class="pack-cat-label">${cat}</div>
@@ -3376,6 +3414,7 @@ function renderPacking() {
           return `<div class="pack-item${item.checked?' checked':''}" id="pi-${item.id}">
             <input type="checkbox" ${item.checked?'checked':''} onchange="togglePack('${item.id}',this.checked)" />
             <span class="pack-name">${escHtml(item.name)}</span>
+            ${personTag(item)}
             <button class="btn-icon" onclick="startEditPackItem('${item.id}')">✏️</button>
             <button class="btn-icon" onclick="removePack('${item.id}')">✕</button>
           </div>`;
@@ -3386,10 +3425,12 @@ function renderPacking() {
 function addPackItem() {
   const name = document.getElementById('new-pack-name').value.trim();
   const cat  = document.getElementById('new-pack-cat').value;
+  const personSel = document.getElementById('new-pack-person');
+  const person = personSel && personSel.value ? personSel.value : null;
   if (!name) return toast('Enter an item');
   const t = getTrip();
   if (!t.packing) t.packing = [];
-  t.packing.push({ id: Date.now().toString(), name, category: cat, checked: false });
+  t.packing.push({ id: Date.now().toString(), name, category: cat, checked: false, person });
   save(); document.getElementById('new-pack-name').value = ''; renderPacking();
 }
 function togglePack(id, checked) {
@@ -3963,10 +4004,11 @@ function applyPackTemplate() {
   const t = getTrip();
   if (!t.packing) t.packing = [];
   const existing = new Set(t.packing.map(i=>i.name.toLowerCase()));
+  const person = (t.people||[]).some(p=>p.id===packingPersonFilter) ? packingPersonFilter : null;
   let added = 0;
   items.forEach(item => {
     if (!existing.has(item.name.toLowerCase())) {
-      t.packing.push({ id: Date.now().toString() + Math.random(), name: item.name, category: item.cat, checked: false });
+      t.packing.push({ id: Date.now().toString() + Math.random(), name: item.name, category: item.cat, checked: false, person });
       added++;
     }
   });
