@@ -1914,7 +1914,7 @@ function createTrip() {
   const trip = {
     id: Date.now().toString(), destination: dest, start, end, description: desc, emoji, currency: cur,
     color: colors[Math.floor(Math.random()*colors.length)],
-    people: _newTripPeople.map(p => ({ id: p.id, name: p.name })), itinerary: [], destinations: [], expenses: [], stays: [], packing: [], notes: '', budget: 0, transport: [], archived: false
+    people: _newTripPeople.map(p => ({ id: p.id, name: p.name })), itinerary: [], destinations: [], expenses: [], stays: [], privatePacking: {}, notes: '', budget: 0, transport: [], archived: false
   };
   trips.unshift(trip); save();
   closeModal('modal-new');
@@ -1973,7 +1973,7 @@ function removeEditTripPerson(id) {
   const hasExp = (t.expenses||[]).some(e => e.paidBy === id || (e.splitAmong||[]).includes(id));
   if (hasExp) return toast("Remove this person’s expenses first");
   t.people = (t.people||[]).filter(p => p.id !== id);
-  (t.packing||[]).forEach(i => { if (i.person === id) i.person = null; });
+  clearPackingPersonTag(t, id);
   save();
   renderEditTripPeople();
   renderPeople();
@@ -2265,7 +2265,7 @@ function removePerson(id) {
   const hasExp = (t.expenses||[]).some(e => e.paidBy === id || (e.splitAmong||[]).includes(id));
   if (hasExp) return toast("Remove this person\u2019s expenses first");
   t.people = t.people.filter(p => p.id !== id);
-  (t.packing||[]).forEach(i => { if (i.person === id) i.person = null; });
+  clearPackingPersonTag(t, id);
   save(); renderPeople(); renderPacking();
 }
 
@@ -3385,11 +3385,35 @@ function applyCopyExpenses() {
 // ══════════════════════════════════════════════
 // PACKING
 // ══════════════════════════════════════════════
+// Packing lists are private per signed-in account: each account gets its own
+// t.privatePacking[uid] array, invisible to other people viewing the same trip.
+// Older trips kept their items in a single shared t.packing array — the first
+// time an account opens Packing on such a trip, that legacy list is copied in
+// as their private starting point (read-only afterwards, never written again).
+function getMyPacking(t) {
+  if (!currentUser) return null;
+  const uid = currentUser.uid;
+  if (!t.privatePacking) t.privatePacking = {};
+  if (!t.privatePacking[uid]) t.privatePacking[uid] = (t.packing || []).map(i => ({ ...i }));
+  return t.privatePacking[uid];
+}
+function clearPackingPersonTag(t, personId) {
+  (t.packing || []).forEach(i => { if (i.person === personId) i.person = null; });
+  Object.values(t.privatePacking || {}).forEach(arr => (arr || []).forEach(i => { if (i.person === personId) i.person = null; }));
+}
 function setPackingPersonFilter(id) { packingPersonFilter = id; renderPacking(); }
 function renderPacking() {
   const t = getTrip();
+  const container = document.getElementById('packing-content');
+  if (!currentUser) {
+    document.getElementById('pack-person-tabs').innerHTML = '';
+    document.getElementById('pack-pct').textContent = '0%';
+    document.getElementById('pack-bar').style.width = '0%';
+    container.innerHTML = `<div class="empty-state" style="padding:30px 0"><div class="ei">🔒</div><p>Sign in to see your personal packing list.</p><button class="btn btn-primary btn-sm" style="margin-top:10px" onclick="signInWithGoogle()">Continue with Google</button></div>`;
+    return;
+  }
   const people = t.people || [];
-  const allItems = t.packing || [];
+  const allItems = getMyPacking(t) || [];
 
   // Person filter tabs
   const tabsEl = document.getElementById('pack-person-tabs');
@@ -3414,7 +3438,6 @@ function renderPacking() {
   const pct = items.length ? Math.round(checked/items.length*100) : 0;
   document.getElementById('pack-pct').textContent = pct + '%';
   document.getElementById('pack-bar').style.width = pct + '%';
-  const container = document.getElementById('packing-content');
   if (!items.length) {
     container.innerHTML = `<div class="empty-state" style="padding:30px 0"><div class="ei">🎒</div><p>Nothing added yet.</p></div>`;
     return;
@@ -3460,18 +3483,18 @@ function renderPacking() {
     </div>`).join('');
 }
 function addPackItem() {
+  if (!currentUser) return toast('Sign in to keep a packing list');
   const name = document.getElementById('new-pack-name').value.trim();
   const cat  = document.getElementById('new-pack-cat').value;
   const personSel = document.getElementById('new-pack-person');
   const person = personSel && personSel.value ? personSel.value : null;
   if (!name) return toast('Enter an item');
   const t = getTrip();
-  if (!t.packing) t.packing = [];
-  t.packing.push({ id: Date.now().toString(), name, category: cat, checked: false, person });
+  getMyPacking(t).push({ id: Date.now().toString(), name, category: cat, checked: false, person });
   save(); document.getElementById('new-pack-name').value = ''; renderPacking();
 }
 function togglePack(id, checked) {
-  const t = getTrip(); const item = t.packing.find(i=>i.id===id);
+  const t = getTrip(); const item = (getMyPacking(t)||[]).find(i=>i.id===id);
   if (item) item.checked = checked; save(); renderPacking();
 }
 function startEditPackItem(id)  { editingPackItemId = id; renderPacking(); }
@@ -3482,20 +3505,20 @@ function saveEditPackItem(id) {
   const name = inp.value.trim();
   if (!name) return toast('Enter an item name');
   const t = getTrip();
-  const item = (t.packing||[]).find(i => i.id === id);
+  const item = (getMyPacking(t)||[]).find(i => i.id === id);
   if (item) item.name = name;
   editingPackItemId = null;
   save(); renderPacking();
 }
 function removePack(id) {
   const t = getTrip();
-  const item = (t.packing||[]).find(i => i.id === id);
+  const myPacking = getMyPacking(t) || [];
+  const item = myPacking.find(i => i.id === id);
   deleteWithUndo('Packing item', item, () => {
-    t.packing = t.packing.filter(i=>i.id!==id);
+    t.privatePacking[currentUser.uid] = myPacking.filter(i=>i.id!==id);
     save(); renderPacking();
   }, () => {
-    if (!t.packing) t.packing = [];
-    t.packing.push(item);
+    getMyPacking(t).push(item);
     save(); renderPacking();
   });
 }
@@ -4028,24 +4051,25 @@ function openPackTemplateModal() {
 function previewTemplate(key) {
   const items = PACK_TEMPLATES[key] || [];
   const t = getTrip();
-  const existing = new Set((t.packing||[]).map(i=>i.name.toLowerCase()));
+  const existing = new Set((getMyPacking(t)||[]).map(i=>i.name.toLowerCase()));
   document.getElementById('tmpl-preview').innerHTML = items.map(item => {
     const has = existing.has(item.name.toLowerCase());
     return `<span style="padding:4px 10px;border-radius:16px;font-size:.78rem;background:${has?'var(--surface2)':'rgba(91,141,238,.15)'};color:${has?'var(--muted)':'var(--accent)'};border:1px solid var(--border)">${has?'✓ ':'+'}${escHtml(item.name)}</span>`;
   }).join('');
 }
 function applyPackTemplate() {
+  if (!currentUser) return toast('Sign in to keep a packing list');
   const key = document.getElementById('tmpl-select').value;
   if (!key) return toast('Select a template first');
   const items = PACK_TEMPLATES[key] || [];
   const t = getTrip();
-  if (!t.packing) t.packing = [];
-  const existing = new Set(t.packing.map(i=>i.name.toLowerCase()));
+  const myPacking = getMyPacking(t);
+  const existing = new Set(myPacking.map(i=>i.name.toLowerCase()));
   const person = (t.people||[]).some(p=>p.id===packingPersonFilter) ? packingPersonFilter : null;
   let added = 0;
   items.forEach(item => {
     if (!existing.has(item.name.toLowerCase())) {
-      t.packing.push({ id: Date.now().toString() + Math.random(), name: item.name, category: item.cat, checked: false, person });
+      myPacking.push({ id: Date.now().toString() + Math.random(), name: item.name, category: item.cat, checked: false, person });
       added++;
     }
   });
@@ -4225,7 +4249,8 @@ function showImportPreview(trip) {
   const activities = (trip.itinerary||[]).length;
   const expenses = (trip.expenses||[]).length;
   const stays = (trip.stays||[]).length;
-  const packing = (trip.packing||[]).length;
+  const ppCount = Object.values(trip.privatePacking||{}).reduce((s,a)=>s+(a?.length||0),0);
+  const packing = ppCount || (trip.packing||[]).length;
 
   document.getElementById('import-preview').innerHTML = `
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
