@@ -1090,19 +1090,27 @@
     <div class="modal-title">📋 Packing Templates</div>
     <div class="form-group">
       <label>Choose a Template</label>
-      <select id="tmpl-select" onchange="previewTemplate(this.value)" style="margin-bottom:12px">
-        <option value="">— Select —</option>
-        <option value="Essentials">🎒 Essentials</option>
-        <option value="Beach">🏖 Beach Vacation</option>
-        <option value="City">🏙 City Break</option>
-        <option value="Winter">❄️ Winter Trip</option>
-        <option value="Business">💼 Business Travel</option>
-        <option value="Adventure">🥾 Adventure / Hiking</option>
-        <option value="MedSummer">🏛 Mediterranean Summer</option>
-      </select>
+      <select id="tmpl-select" onchange="previewTemplate(this.value)" style="margin-bottom:12px"></select>
     </div>
     <div id="tmpl-preview" style="max-height:260px;overflow-y:auto;display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px"></div>
-    <div style="font-size:.75rem;color:var(--muted);margin-bottom:12px">Already-added items are skipped automatically.</div>
+    <div style="font-size:.75rem;color:var(--muted);margin:8px 0">Already-added items are skipped automatically.</div>
+    <div class="add-inline" id="tmpl-add-item-row" style="display:none">
+      <input type="text" id="tmpl-new-item-name" placeholder="Add item to this template…" />
+      <select id="tmpl-new-item-cat">
+        <option>Essentials</option><option>Clothing</option><option>Toiletries</option>
+        <option>Electronics</option><option>Documents</option><option>Other</option>
+      </select>
+      <button class="btn btn-ghost btn-sm" onclick="addItemToTemplate()">+ Add</button>
+    </div>
+    <div class="add-inline" id="tmpl-new-form" style="display:none">
+      <input type="text" id="tmpl-new-name" placeholder="New template name…" />
+      <button class="btn btn-primary btn-sm" onclick="createCustomTemplate()">Create</button>
+      <button class="btn btn-ghost btn-sm" onclick="cancelNewTemplate()">Cancel</button>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0 4px">
+      <button class="btn btn-ghost btn-sm" id="tmpl-new-btn" onclick="openNewTemplateForm()">+ New Template</button>
+      <button class="btn btn-ghost btn-sm" id="tmpl-delete-btn" style="display:none;color:#ef4444" onclick="deleteCustomTemplate()">🗑 Delete Template</button>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('modal-pack-template')">Cancel</button>
       <button class="btn btn-primary" onclick="applyPackTemplate()">Add to Packing List</button>
@@ -4044,25 +4052,98 @@ const PACK_TEMPLATES = {
   MedSummer:[{name:'Light, breathable clothes (linen or cotton)',cat:'Clothing'},{name:'1–2 cover-ups for churches/monasteries (shoulders and knees covered)',cat:'Clothing'},{name:"A light layer for evenings — it cools down more than you'd expect",cat:'Clothing'},{name:"Swimwear (2–3 sets so one's always dry)",cat:'Clothing'},{name:'Comfortable walking sandals + one pair of closed shoes for cobblestones',cat:'Clothing'},{name:'High SPF sunscreen — reapply constantly, the Greek sun is brutal',cat:'Toiletries'},{name:'Sunglasses and a wide-brim hat',cat:'Essentials'},{name:"Reef-safe sunscreen if you're swimming in protected areas",cat:'Toiletries'},{name:'Reusable water bottle — stay very hydrated',cat:'Essentials'},{name:'Small day bag or crossbody',cat:'Essentials'},{name:'Power adapter (Type C/F plugs in Greece)',cat:'Electronics'},{name:'Portable charger',cat:'Electronics'},{name:'Any personal medications',cat:'Essentials'},{name:'Blister plasters — cobblestones and sandals are a rough combo',cat:'Toiletries'},{name:'Basic OTC meds (antihistamine, ibuprofen, stomach relief)',cat:'Toiletries'},{name:'Insect repellent for evenings',cat:'Toiletries'},{name:'Passport, travel insurance details, accommodation confirmations',cat:'Documents'},{name:'Some cash — smaller islands and tavernas often prefer it',cat:'Essentials'}],
   Essentials:[{name:'Passport / ID',cat:'Documents'},{name:'Travel insurance documents',cat:'Documents'},{name:'Accommodation confirmations',cat:'Documents'},{name:'Wallet (cards & some cash)',cat:'Essentials'},{name:'Phone',cat:'Electronics'},{name:'Phone charger',cat:'Electronics'},{name:'Portable charger',cat:'Electronics'},{name:'Travel adapter',cat:'Electronics'},{name:'Headphones',cat:'Electronics'},{name:'Reusable water bottle',cat:'Essentials'},{name:'Any personal medications',cat:'Essentials'},{name:'Basic OTC meds (painkillers, antihistamine)',cat:'Toiletries'},{name:'Toothbrush & toothpaste',cat:'Toiletries'},{name:'Hand sanitizer',cat:'Toiletries'},{name:'Sunglasses',cat:'Essentials'},{name:'Small day bag',cat:'Essentials'},{name:'Snacks for the journey',cat:'Other'}],
 };
+// Built-in templates (PACK_TEMPLATES) are fixed; user customizations layer on
+// top in customPackTemplates, persisted locally per browser. For a built-in
+// key, customPackTemplates[key].items holds the user's *additional* items on
+// top of the base list. For a user-created key (not in PACK_TEMPLATES), it
+// holds the template's full item list plus its label/icon.
+let customPackTemplates = JSON.parse(localStorage.getItem('customPackTemplates') || '{}');
+const PACK_TEMPLATE_META = {
+  Essentials: '🎒 Essentials', Beach: '🏖 Beach Vacation', City: '🏙 City Break',
+  Winter: '❄️ Winter Trip', Business: '💼 Business Travel', Adventure: '🥾 Adventure / Hiking',
+  MedSummer: '🏛 Mediterranean Summer',
+};
+function saveCustomTemplates() { localStorage.setItem('customPackTemplates', JSON.stringify(customPackTemplates)); }
+function getTemplateItems(key) {
+  const base = PACK_TEMPLATES[key] || [];
+  const extra = (customPackTemplates[key] && customPackTemplates[key].items) || [];
+  return [...base, ...extra];
+}
+function renderTemplateSelect(selectedKey) {
+  const builtinOpts = Object.keys(PACK_TEMPLATES).map(k => `<option value="${k}">${PACK_TEMPLATE_META[k]}</option>`);
+  const customOpts = Object.keys(customPackTemplates)
+    .filter(k => !PACK_TEMPLATES[k])
+    .map(k => `<option value="${k}">${escHtml(customPackTemplates[k].icon || '⭐')} ${escHtml(customPackTemplates[k].label)}</option>`);
+  document.getElementById('tmpl-select').innerHTML = `<option value="">— Select —</option>` + builtinOpts.join('') + customOpts.join('');
+  document.getElementById('tmpl-select').value = selectedKey || '';
+}
 function openPackTemplateModal() {
-  document.getElementById('tmpl-select').value = '';
+  renderTemplateSelect('');
   document.getElementById('tmpl-preview').innerHTML = '';
+  document.getElementById('tmpl-add-item-row').style.display = 'none';
+  document.getElementById('tmpl-delete-btn').style.display = 'none';
+  cancelNewTemplate();
   document.getElementById('modal-pack-template').classList.add('open');
 }
 function previewTemplate(key) {
-  const items = PACK_TEMPLATES[key] || [];
+  const items = getTemplateItems(key);
   const t = getTrip();
   const existing = new Set((getMyPacking(t)||[]).map(i=>i.name.toLowerCase()));
   document.getElementById('tmpl-preview').innerHTML = items.map(item => {
     const has = existing.has(item.name.toLowerCase());
     return `<span style="padding:4px 10px;border-radius:16px;font-size:.78rem;background:${has?'var(--surface2)':'rgba(91,141,238,.15)'};color:${has?'var(--muted)':'var(--accent)'};border:1px solid var(--border)">${has?'✓ ':'+'}${escHtml(item.name)}</span>`;
   }).join('');
+  document.getElementById('tmpl-add-item-row').style.display = key ? 'flex' : 'none';
+  document.getElementById('tmpl-delete-btn').style.display = (key && !PACK_TEMPLATES[key]) ? 'inline-flex' : 'none';
+}
+function addItemToTemplate() {
+  const key = document.getElementById('tmpl-select').value;
+  if (!key) return toast('Select a template first');
+  const name = document.getElementById('tmpl-new-item-name').value.trim();
+  if (!name) return toast('Enter an item name');
+  const cat = document.getElementById('tmpl-new-item-cat').value;
+  if (!customPackTemplates[key]) customPackTemplates[key] = { items: [] };
+  if (!customPackTemplates[key].items) customPackTemplates[key].items = [];
+  customPackTemplates[key].items.push({ name, cat });
+  saveCustomTemplates();
+  document.getElementById('tmpl-new-item-name').value = '';
+  previewTemplate(key);
+  toast('Added to template ✓');
+}
+function openNewTemplateForm() {
+  document.getElementById('tmpl-new-form').style.display = 'flex';
+  document.getElementById('tmpl-new-name').value = '';
+  document.getElementById('tmpl-new-name').focus();
+}
+function cancelNewTemplate() {
+  document.getElementById('tmpl-new-form').style.display = 'none';
+}
+function createCustomTemplate() {
+  const name = document.getElementById('tmpl-new-name').value.trim();
+  if (!name) return toast('Enter a template name');
+  const key = 'custom_' + Date.now();
+  customPackTemplates[key] = { label: name, icon: '⭐', items: [] };
+  saveCustomTemplates();
+  cancelNewTemplate();
+  renderTemplateSelect(key);
+  previewTemplate(key);
+  toast('Template created ✓');
+}
+function deleteCustomTemplate() {
+  const key = document.getElementById('tmpl-select').value;
+  if (!key || PACK_TEMPLATES[key]) return;
+  if (!confirm('Delete this template?')) return;
+  delete customPackTemplates[key];
+  saveCustomTemplates();
+  renderTemplateSelect('');
+  previewTemplate('');
+  toast('Template deleted');
 }
 function applyPackTemplate() {
   if (!currentUser) return toast('Sign in to keep a packing list');
   const key = document.getElementById('tmpl-select').value;
   if (!key) return toast('Select a template first');
-  const items = PACK_TEMPLATES[key] || [];
+  const items = getTemplateItems(key);
   const t = getTrip();
   const myPacking = getMyPacking(t);
   const existing = new Set(myPacking.map(i=>i.name.toLowerCase()));
