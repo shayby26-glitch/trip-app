@@ -3415,24 +3415,25 @@ function renderPacking() {
   const people = t.people || [];
   const allItems = getMyPacking(t) || [];
 
-  // Person filter tabs
+  // Filter tabs — this list is private to you, so the only useful split is
+  // "everything I'm tracking" vs "items not tagged to a specific traveler".
+  // Per-traveler tags still exist (see personTag below) but don't get their
+  // own tab, since other travelers' lists aren't visible here anyway.
   const tabsEl = document.getElementById('pack-person-tabs');
-  const tabs = [{ id:'all', label:'🧳 Everyone' }, ...people.map(p => ({ id:p.id, label:p.name }))];
+  const tabs = [{ id:'all', label:'🧳 My Items' }];
   if (allItems.some(i => !i.person)) tabs.push({ id:'shared', label:'🌐 Shared' });
   if (!tabs.some(tb => tb.id === packingPersonFilter)) packingPersonFilter = 'all';
   tabsEl.innerHTML = tabs.map(tb => `<button onclick="setPackingPersonFilter('${tb.id}')" style="padding:6px 12px;border-radius:16px;font-size:.78rem;font-weight:700;border:1px solid ${packingPersonFilter===tb.id?'transparent':'var(--border)'};cursor:pointer;background:${packingPersonFilter===tb.id?'var(--grad)':'var(--surface)'};color:${packingPersonFilter===tb.id?'#fff':'var(--text)'}">${escHtml(tb.label)}</button>`).join('');
 
-  // Person picker for the "add item" row — mirrors the active tab so it never
-  // silently keeps a stale person selected from a previously-viewed tab.
+  // Person picker for the "add item" row — lets you tag an item as being for
+  // a specific traveler (shown as a small pill in the list) within your own list.
   const addSel = document.getElementById('new-pack-person');
   if (addSel) {
     addSel.innerHTML = `<option value="">Shared</option>` + people.map(p => `<option value="${p.id}">${escHtml(p.name)}</option>`).join('');
-    addSel.value = people.some(p => p.id === packingPersonFilter) ? packingPersonFilter : '';
+    addSel.value = '';
   }
 
-  const items = packingPersonFilter === 'all' ? allItems
-    : packingPersonFilter === 'shared' ? allItems.filter(i => !i.person)
-    : allItems.filter(i => i.person === packingPersonFilter);
+  const items = packingPersonFilter === 'shared' ? allItems.filter(i => !i.person) : allItems;
 
   const checked = items.filter(i=>i.checked).length;
   const pct = items.length ? Math.round(checked/items.length*100) : 0;
@@ -4065,11 +4066,10 @@ function applyPackTemplate() {
   const t = getTrip();
   const myPacking = getMyPacking(t);
   const existing = new Set(myPacking.map(i=>i.name.toLowerCase()));
-  const person = (t.people||[]).some(p=>p.id===packingPersonFilter) ? packingPersonFilter : null;
   let added = 0;
   items.forEach(item => {
     if (!existing.has(item.name.toLowerCase())) {
-      myPacking.push({ id: Date.now().toString() + Math.random(), name: item.name, category: item.cat, checked: false, person });
+      myPacking.push({ id: Date.now().toString() + Math.random(), name: item.name, category: item.cat, checked: false, person: null });
       added++;
     }
   });
