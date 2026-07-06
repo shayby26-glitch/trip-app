@@ -2902,6 +2902,34 @@ function calculateBalances(t, rates, baseCur) {
   return bal;
 }
 
+// Compute raw pairwise debts (before settlement optimization/netting).
+// Returns { debtorId: { creditorId: amount } } — how much each person
+// owes each specific payer, derived directly from expense splitAmong data.
+function computePairwiseDebts(t, rates, baseCur) {
+  const matrix = {};
+  for (const exp of (t.expenses || [])) {
+    const split = exp.splitAmong || [];
+    if (!split.length || !exp.paidBy) continue;
+    const amount = convertAmount(exp.amount, exp.currency, baseCur, rates);
+    const share = Math.round((amount / split.length) * 100) / 100;
+    split.forEach(pid => {
+      if (pid === exp.paidBy) return;
+      if (!matrix[pid]) matrix[pid] = {};
+      matrix[pid][exp.paidBy] = Math.round(((matrix[pid][exp.paidBy] || 0) + share) * 100) / 100;
+    });
+  }
+  return matrix;
+}
+
+let _breakdownOpen = false;
+function toggleBreakdown() {
+  _breakdownOpen = !_breakdownOpen;
+  const el = document.getElementById('breakdown-detail');
+  const btn = document.getElementById('breakdown-toggle');
+  if (el) el.style.display = _breakdownOpen ? 'block' : 'none';
+  if (btn) btn.textContent = _breakdownOpen ? 'Hide breakdown ▲' : 'Show breakdown ▾';
+}
+
 function simplifyDebts(balances) {
   const cred = [], debt = [];
   for (const [id, b] of Object.entries(balances)) {
@@ -2998,12 +3026,44 @@ function renderBalanceSection(t, rates, baseCur, curRates) {
     ? `<div style="font-size:.72rem;color:var(--muted);margin-top:4px">Amounts converted to ${displayCur} at live rates</div>`
     : '';
 
+  // Pairwise breakdown — shows raw debts between each pair before optimization
+  const pairwise = computePairwiseDebts(t, rates, baseCur);
+  const debtors = (t.people||[]).filter(p => (Object.values(pairwise[p.id]||{})).some(v => v > 0.005));
+  const breakdownHtml = debtors.map(p => {
+    const pi = (t.people||[]).findIndex(x => x.id === p.id);
+    const rows = Object.entries(pairwise[p.id]||{})
+      .filter(([,v]) => v > 0.005)
+      .sort((a,b) => b[1]-a[1])
+      .map(([credId, amt]) => {
+        const cred = personById(t, credId);
+        const ci = (t.people||[]).findIndex(x => x.id === credId);
+        return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+          <div class="avatar" style="width:22px;height:22px;font-size:.6rem;flex-shrink:0;background:${avatarColor(pi)}">${initials(p.name)}</div>
+          <span style="flex-shrink:0;color:var(--muted);font-size:.8rem">owes</span>
+          <div class="avatar" style="width:22px;height:22px;font-size:.6rem;flex-shrink:0;background:${avatarColor(ci)}">${initials(cred?.name||'?')}</div>
+          <span style="font-size:.85rem;font-weight:600">${escHtml(cred?.name||'?')}</span>
+          <span style="margin-left:auto;font-weight:700;color:var(--accent);font-size:.85rem">${displayCur} ${fmtNum(amt)}</span>
+        </div>`;
+      }).join('');
+    return rows;
+  }).join('');
+
+  const breakdownSection = breakdownHtml ? `
+    <div style="margin-top:8px;margin-bottom:4px">
+      <button id="breakdown-toggle" onclick="toggleBreakdown()" style="background:none;border:none;color:var(--accent);font-size:.8rem;font-weight:600;cursor:pointer;padding:0">${_breakdownOpen ? 'Hide breakdown ▲' : 'Show breakdown ▾'}</button>
+      <div id="breakdown-detail" style="display:${_breakdownOpen ? 'block' : 'none'};margin-top:8px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px 14px">
+        <div style="font-size:.72rem;color:var(--muted);padding:8px 0 4px">Raw debts per expense — before settlement optimization</div>
+        ${breakdownHtml}
+      </div>
+    </div>` : '';
+
   balSection.innerHTML = budgetHtml + `
     <div class="balance-header">Balances</div>
     <div class="balance-grid">${balCards}</div>
     <div class="balance-header">Settlements${multiCurrency ? ` <span style="font-size:.72rem;font-weight:400;color:var(--muted)">(in ${displayCur})</span>` : ''}</div>
     ${convNote}
     <div class="settlement-list">${settHtml}</div>
+    ${breakdownSection}
     <div class="divider"></div>`;
 }
 
