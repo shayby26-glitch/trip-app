@@ -1328,6 +1328,44 @@ async function _getAuthSuffix() {
   return token ? '?auth=' + token : '';
 }
 
+// ── Two-way collaboration sync for shared trips ──────────────────────────────
+// When an owner shares a trip, collaborators can add expenses/itinerary via the
+// shared link. Their writes go to /shared/{id}. The owner subscribes to that
+// node and merges additions into their authoritative copy, then mirrors back.
+// _pushedBy tags each owner mirror so the listener can skip self-echoes.
+const _sharedTripListeners = {}; // tripId → true (already subscribed)
+
+function _mergeListById(localArr, remoteArr) {
+  const map = {};
+  (localArr  || []).forEach(i => { if (i && i.id) map[i.id] = i; });
+  (remoteArr || []).forEach(i => { if (i && i.id && !map[i.id]) map[i.id] = i; });
+  return Object.values(map);
+}
+
+function subscribeToSharedTripUpdates() {
+  if (sharedMode || !currentUser) return;
+  trips.filter(t => t.isShared && !_sharedTripListeners[t.id]).forEach(t => {
+    _sharedTripListeners[t.id] = true;
+    sharedRef.child(t.id).on('value', snap => {
+      if (sharedMode || !currentUser || pendingLocalSave) return;
+      const remote = snap.val();
+      if (!remote || remote._pushedBy === currentUser.uid) return;
+      const local = trips.find(x => x.id === t.id);
+      if (!local) return;
+      let changed = false;
+      ['expenses', 'itinerary', 'stays', 'transport', 'destinations'].forEach(field => {
+        const merged = _mergeListById(local[field], remote[field]);
+        if (merged.length !== (local[field] || []).length) {
+          local[field] = merged; changed = true;
+        }
+      });
+      if (!changed) return;
+      save();
+      if (currentTripId === t.id) { renderAllTabs(); toast('🔄 Synced with collaborators'); }
+    });
+  });
+}
+
 async function _pushToCloud() {
   if (!_isConnected || !currentUser) return;
   try {
@@ -1346,9 +1384,12 @@ async function _pushToCloud() {
         pendingLocalSave = false;
         setCloudStatus('connected');
         toast('☁️ Saved to cloud');
-        // Mirror any shared trips to /shared/{id} so viewers see live updates
+        // Mirror shared trips to /shared/{id} so collaborators see live updates.
+        // Tag with _pushedBy so our own subscribeToSharedTripUpdates listener
+        // can skip the self-echo and avoid an infinite save loop.
         trips.filter(t => t.isShared).forEach(t => {
-          fetch(`${DB}/shared/${t.id}.json${q}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(t) })
+          const mirror = { ...t, _pushedBy: uid };
+          fetch(`${DB}/shared/${t.id}.json${q}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(mirror) })
             .catch(err => console.warn('Shared mirror failed:', err));
         });
       }
@@ -4218,6 +4259,8 @@ function openShareModal() {
   save();
   // Publish trip to /shared/{id} so anyone with the link can read it
   sharedRef.child(t.id).set(t).catch(err => console.warn('Share publish error:', err));
+  // Start listening for collaborator edits on this newly-shared trip
+  subscribeToSharedTripUpdates();
   const baseUrl = window.location.origin + window.location.pathname;
   const shareUrl = baseUrl + '?shared=' + t.id;
   document.getElementById('share-link-input').value = shareUrl;
@@ -5025,6 +5068,10 @@ async function initialFirebaseSync() {
       await tripsRef.set(tripsObj);
     }
 
+    // Subscribe to /shared/{id} for each shared trip so collaborator edits
+    // (expenses, itinerary, etc.) flow back into the owner's authoritative copy.
+    subscribeToSharedTripUpdates();
+
     // Real-time listener — Firebase always wins, propagates changes across all devices
     tripsRef.on('value', snapshot => {
       if (sharedMode) return;
@@ -5036,6 +5083,8 @@ async function initialFirebaseSync() {
       saveBackup();
       trips = firebaseTrips;
       localStorage.setItem('trips', JSON.stringify(trips));
+      // Pick up subscriptions for any trips that just became shared on another device
+      subscribeToSharedTripUpdates();
       const activePage = document.querySelector('.page.active');
       if (activePage?.id === 'page-home') renderHome();
       else if (activePage?.id === 'page-detail' && currentTripId) {
