@@ -3277,11 +3277,14 @@ function renderExpenseList(t, expenses, cur, expList, rates) {
     const expCur = (exp.currency || curCode).toUpperCase();
     const converted = rates && expCur !== curCode
       ? `<div style="font-size:.7rem;color:var(--muted)">≈ ${cur}${fmtNum(convertAmount(exp.amount, expCur, curCode, rates))}</div>` : '';
+    const metaParts = [];
+    if (shortDate) metaParts.push('📅 ' + shortDate);
+    if (paidBy) metaParts.push('👤 ' + escHtml(paidBy.name));
     return `<div class="expense-item">
-      <div class="avatar" style="flex-shrink:0;background:${avatarColor(paidIdx)}" title="${escHtml(paidBy?.name||'?')}">${initials(paidBy?.name||'?')}</div>
+      <div class="avatar" style="flex-shrink:0;background:${avatarColor(paidIdx)}">${initials(paidBy?.name||'?')}</div>
       <div style="flex:1;min-width:0">
         <div class="exp-desc">${escHtml(label)}</div>
-        <div class="exp-meta" style="color:var(--accent);font-size:.75rem;margin-top:3px">${shortDate ? '📅 ' + shortDate : ''}</div>
+        <div class="exp-meta" style="color:var(--muted);font-size:.75rem;margin-top:3px">${metaParts.join(' · ')}</div>
       </div>
       <span class="cat-pill cat-${cat}" style="flex-shrink:0" title="${EXP_CAT_LABELS[cat]}">${getCatIcon(cat)}</span>
       <div style="text-align:right;flex-shrink:0">
@@ -3318,13 +3321,22 @@ function openEditExpenseModal(id) {
     document.querySelector('#modal-expense .modal-title').textContent = 'Edit Expense ✏️';
   }, 10);
 }
+function _findSelfInPeople(people) {
+  if (!currentUser || !currentUser.displayName) return null;
+  const dn = currentUser.displayName.trim().toLowerCase();
+  return people.find(p => p.name.trim().toLowerCase() === dn)
+    || people.find(p => p.name.trim().toLowerCase().split(/\s+/)[0] === dn.split(/\s+/)[0])
+    || null;
+}
 function openExpenseModal() {
   editingExpenseId = null;
   const t = getTrip();
   if (!(t.people||[]).length) return toast('Add people to the trip first');
-  // paid by
+  // paid by — default to the signed-in user if their name matches someone in the trip
   const pbSel = document.getElementById('exp-paid-by');
   pbSel.innerHTML = (t.people||[]).map(p=>`<option value="${p.id}">${escHtml(p.name)}</option>`).join('');
+  const self = _findSelfInPeople(t.people||[]);
+  if (self) pbSel.value = self.id;
   // split among chips
   const splitEl = document.getElementById('split-people-list');
   splitEl.innerHTML = (t.people||[]).map(p =>
