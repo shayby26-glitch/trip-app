@@ -1793,6 +1793,11 @@ function fmtNum(n, decimals = 2) {
 // PAGES
 // ══════════════════════════════════════════════
 function showPage(name) {
+  // Guests in shared mode have no home screen — redirect back to the trip
+  if (name === 'home' && sharedMode && currentTripId) {
+    openTrip(currentTripId);
+    return;
+  }
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('active');
   const bar = document.getElementById('bottom-tab-bar');
@@ -4570,7 +4575,7 @@ function checkUrlForSharedTrip() {
   return true;
 }
 
-function addSharedTripToAccount() {
+async function addSharedTripToAccount() {
   if (!currentUser) {
     // Not signed in — prompt sign-in then they can use the button after
     document.getElementById('signin-overlay').style.display = 'flex';
@@ -4579,8 +4584,19 @@ function addSharedTripToAccount() {
   const trip = getTrip();
   if (!trip) return;
 
-  // Check for duplicate
-  const ownTrips = JSON.parse(localStorage.getItem('trips') || '[]');
+  // Fetch this user's own trips from Firebase (not localStorage, which may
+  // contain another user's data if the browser was shared)
+  let ownTrips = [];
+  try {
+    const token = await currentUser.getIdToken().catch(() => null);
+    const q = token ? '?auth=' + token : '';
+    const resp = await fetch(`${DB}/users/${currentUser.uid}/trips.json${q}`);
+    if (resp.ok) {
+      const data = await resp.json();
+      ownTrips = data ? Object.values(data) : [];
+    }
+  } catch (_) { /* stay with empty */ }
+
   const dupe = ownTrips.find(t =>
     t.destination === trip.destination && t.start === trip.start && t.end === trip.end
   );
