@@ -482,6 +482,30 @@
     }
     .icon-btn:hover { background: var(--primary-light); }
 
+    /* ── Like button ── */
+    .card-like {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 0.95rem;
+    }
+    .card-like .like-heart { line-height: 1; display: inline-block; transition: transform 0.15s; }
+    .card-like .like-count {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--muted, #888);
+      min-width: 8px;
+      text-align: center;
+    }
+    .card-like.liked .like-count { color: #e0245e; }
+    .card-like:active .like-heart { transform: scale(1.35); }
+    .card-like.pop .like-heart { animation: heart-pop 0.3s ease; }
+    @keyframes heart-pop {
+      0% { transform: scale(1); }
+      40% { transform: scale(1.4); }
+      100% { transform: scale(1); }
+    }
+
     /* ── Cooking mode trigger ── */
     .cook-mode-trigger { padding: 16px 18px 0; }
     .cook-mode-btn {
@@ -1564,6 +1588,38 @@ function removeAttachment(id, idx) {
   if (all[id]) { all[id].splice(idx, 1); saveAllAttachments(all); }
 }
 
+/* ─── Likes storage ─── */
+const LIKES_KEY = 'my_recipes_likes_v1';  // { id: totalCount }
+const LIKED_KEY = 'my_recipes_liked_v1';  // ids this device has liked
+function loadLikes() {
+  try { return JSON.parse(localStorage.getItem(LIKES_KEY) || '{}'); } catch { return {}; }
+}
+function saveLikes(d) {
+  try { localStorage.setItem(LIKES_KEY, JSON.stringify(d)); } catch (e) {}
+}
+function loadLiked() {
+  try { return new Set(JSON.parse(localStorage.getItem(LIKED_KEY) || '[]')); } catch { return new Set(); }
+}
+function saveLiked(set) {
+  try { localStorage.setItem(LIKED_KEY, JSON.stringify([...set])); } catch (e) {}
+}
+function getLikeCount(id) { return loadLikes()[id] || 0; }
+function isLiked(id) { return loadLiked().has(id); }
+function toggleLike(id) {
+  const likes = loadLikes();
+  const liked = loadLiked();
+  if (liked.has(id)) {
+    liked.delete(id);
+    likes[id] = Math.max(0, (likes[id] || 0) - 1);
+  } else {
+    liked.add(id);
+    likes[id] = (likes[id] || 0) + 1;
+  }
+  saveLikes(likes);
+  saveLiked(liked);
+  return { count: likes[id], liked: liked.has(id) };
+}
+
 /* ─── Tag bar ─── */
 function getAllTags(list) {
   const seen = new Set();
@@ -1695,6 +1751,9 @@ function buildCard(r) {
         <div class="card-meta">${meta}</div>
       </div>
       <div class="card-actions">
+        <button class="icon-btn card-like${isLiked(r.id) ? ' liked' : ''}" aria-label="אהבתי" title="אהבתי" aria-pressed="${isLiked(r.id)}">
+          <span class="like-heart">${isLiked(r.id) ? '❤️' : '🤍'}</span><span class="like-count">${getLikeCount(r.id)}</span>
+        </button>
         <button class="icon-btn card-edit" aria-label="ערוך מתכון" title="ערוך">✏️</button>
         <button class="icon-btn card-delete" aria-label="מחק מתכון" title="מחק">🗑️</button>
       </div>
@@ -1736,6 +1795,22 @@ function attachCardEvents(container) {
         }
       });
     });
+
+    // Like toggle
+    const likeBtn = card.querySelector('.card-like');
+    if (likeBtn) {
+      likeBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        const { count, liked } = toggleLike(id);
+        likeBtn.classList.toggle('liked', liked);
+        likeBtn.setAttribute('aria-pressed', liked);
+        likeBtn.querySelector('.like-heart').textContent = liked ? '❤️' : '🤍';
+        likeBtn.querySelector('.like-count').textContent = count;
+        likeBtn.classList.remove('pop');
+        void likeBtn.offsetWidth; // restart animation
+        likeBtn.classList.add('pop');
+      });
+    }
 
     // Edit / delete recipe
     card.querySelector('.card-edit').addEventListener('click', e => {
