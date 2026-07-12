@@ -4621,6 +4621,34 @@ async function addSharedTripToAccount() {
   openTrip(copy.id);
 }
 
+// SWIPE RIGHT → back to trip list (on the detail page)
+// ══════════════════════════════════════════════
+(function () {
+  const detail = document.getElementById('page-detail');
+  let sx = 0, sy = 0, onScrollable = false;
+  function isHScrollable(el) {
+    while (el && el !== detail) {
+      const st = getComputedStyle(el);
+      const ox = st.overflowX;
+      if ((ox === 'auto' || ox === 'scroll') && el.scrollWidth > el.clientWidth) return true;
+      el = el.parentElement;
+    }
+    return false;
+  }
+  detail.addEventListener('touchstart', e => {
+    sx = e.touches[0].clientX;
+    sy = e.touches[0].clientY;
+    // Only trigger from the left 30 % of the screen
+    onScrollable = sx > window.innerWidth * 0.30 || isHScrollable(e.target);
+  }, { passive: true });
+  detail.addEventListener('touchend', e => {
+    if (onScrollable) return;
+    const dx = e.changedTouches[0].clientX - sx;
+    const dy = e.changedTouches[0].clientY - sy;
+    if (dx > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) showPage('home');
+  }, { passive: true });
+})();
+
 // KEYBOARD / OVERLAY
 // ══════════════════════════════════════════════
 document.querySelectorAll('.overlay').forEach(ov => {
