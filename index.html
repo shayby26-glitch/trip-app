@@ -1156,6 +1156,24 @@
 
 <!-- date-conflict modal removed — date changes now always keep all data -->
 
+<!-- ═══ MODAL: EXCEL EXPORT ═══ -->
+<div class="overlay" id="modal-export-excel">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-title">⬇ Export Expenses to Excel</div>
+    <div class="form-group">
+      <label>Convert all amounts to</label>
+      <select id="export-currency"></select>
+    </div>
+    <div style="font-size:.78rem;color:var(--muted);margin-bottom:14px;line-height:1.5">
+      Includes every expense, totals by category, who paid what, and a who-owes-who settlement summary — all converted with live exchange rates. Original amounts stay in the sheet too.
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-export-excel')">Cancel</button>
+      <button class="btn btn-primary" onclick="runExcelExport()">Export</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ MODAL: ADD STAY ═══ -->
 <div class="overlay" id="modal-stay">
   <div class="modal">
@@ -3163,89 +3181,213 @@ function renderExpenses() {
 function exportExpensesToExcel() {
   const t = getTrip();
   if (!t) return;
-  const expenses = t.expenses || [];
-  if (!expenses.length) { toast('No expenses to export'); return; }
+  if (!(t.expenses || []).length) { toast('No expenses to export'); return; }
+  const codeCur = currencyCode(t);
+  const sel = document.getElementById('export-currency');
+  const opts = [codeCur, ...SUMMARY_CURRENCIES.filter(c => c !== codeCur)];
+  sel.innerHTML = opts.map(c => `<option value="${c}">${c}${c === codeCur ? ' (trip currency)' : ''}</option>`).join('');
+  const preferred = (_summaryCurrency || codeCur).toUpperCase();
+  sel.value = opts.includes(preferred) ? preferred : codeCur;
+  document.getElementById('modal-export-excel').classList.add('open');
+}
 
-  function doExport() {
-    const cur = currency(t);
-    const codeCur = currencyCode(t);
-    const displayCur = (_summaryCurrency || cur).toUpperCase();
-    const rateCur = (_summaryCurrency || codeCur).toUpperCase();
-    const cachedRates = _ratesCache[rateCur]?.rates || null;
-
-    // ── Sheet 1: all expenses ────────────────────────────────────────────
-    const expHeaders = ['Date', 'Description', 'Category', 'Amount', 'Currency', 'Paid By', 'Split Among'];
-    if (cachedRates) expHeaders.push(`Converted (${displayCur})`);
-
-    const expRows = [...expenses].sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map(exp => {
-      const paidBy = personById(t, exp.paidBy)?.name || '';
-      const splitNames = (exp.splitAmong||[]).map(id => personById(t,id)?.name||'').join(', ');
-      const expCur = (exp.currency || codeCur).toUpperCase();
-      const row = [
-        exp.date || '',
-        exp.desc || EXP_CAT_LABELS[exp.category||'other'],
-        EXP_CAT_LABELS[exp.category||'other'] || exp.category,
-        Number(exp.amount),
-        expCur,
-        paidBy,
-        splitNames,
-      ];
-      if (cachedRates) {
-        const converted = convertAmount(exp.amount, expCur, rateCur, cachedRates);
-        row.push(Math.round(converted * 100) / 100);
-      }
-      return row;
-    });
-
-    const ws1Data = [expHeaders, ...expRows];
-    const ws1 = XLSX.utils.aoa_to_sheet(ws1Data);
-    ws1['!cols'] = [
-      {wch:12},{wch:32},{wch:18},{wch:12},{wch:10},{wch:18},{wch:28},
-      ...(cachedRates ? [{wch:18}] : [])
-    ];
-
-    // ── Sheet 2: summary by category ────────────────────────────────────
-    const byCategory = {};
-    for (const exp of expenses) {
-      const c = EXP_CAT_LABELS[exp.category||'other'];
-      if (!byCategory[c]) byCategory[c] = { count:0, total:0 };
-      byCategory[c].count++;
-      const ec = (exp.currency||codeCur).toUpperCase();
-      const amount = cachedRates ? convertAmount(exp.amount, ec, rateCur, cachedRates) : exp.amount;
-      byCategory[c].total += amount;
-    }
-    const grandTotal = Object.values(byCategory).reduce((s,v)=>s+v.total,0);
-    const sumHeaders = ['Category', 'Count', `Total (${displayCur})`, 'Share %'];
-    const sumRows = Object.entries(byCategory).map(([cat, {count, total}]) => [
-      cat, count,
-      Math.round(total * 100) / 100,
-      grandTotal > 0 ? Math.round(total / grandTotal * 1000) / 10 : 0
-    ]);
-    sumRows.push(['TOTAL', expenses.length, Math.round(grandTotal * 100) / 100, 100]);
-
-    const ws2 = XLSX.utils.aoa_to_sheet([sumHeaders, ...sumRows]);
-    ws2['!cols'] = [{wch:20},{wch:8},{wch:16},{wch:10}];
-
-    // ── Workbook ─────────────────────────────────────────────────────────
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws1, 'Expenses');
-    XLSX.utils.book_append_sheet(wb, ws2, 'Summary');
-
-    const filename = `${(t.dest||'Trip').replace(/[^a-z0-9]/gi,'_')}_expenses.xlsx`;
-    XLSX.writeFile(wb, filename);
-    toast('Excel file downloaded ✓');
-  }
-
-  if (window.XLSX) {
-    doExport();
-  } else {
-    toast('Preparing export…');
+// xlsx-js-style: drop-in SheetJS fork with cell styling support
+function _loadXlsxStyled() {
+  return new Promise((resolve, reject) => {
+    if (window.XLSX && window.XLSX.__styled) return resolve();
     const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-    s.onload = doExport;
-    s.onerror = () => toast('Could not load export library — check connection');
+    s.src = 'https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js';
+    s.onload = () => { window.XLSX.__styled = true; resolve(); };
+    s.onerror = () => reject(new Error('xlsx load failed'));
     document.head.appendChild(s);
+  });
+}
+
+async function runExcelExport() {
+  const t = getTrip();
+  if (!t) return;
+  closeModal('modal-export-excel');
+  const exportCur = (document.getElementById('export-currency').value || currencyCode(t)).toUpperCase();
+  toast('Preparing export…');
+  try { await _loadXlsxStyled(); }
+  catch (e) { toast('Could not load export library — check connection'); return; }
+  const rates = await fetchRates(exportCur);
+  if (!rates) toast('⚠️ Exchange rates unavailable — amounts left unconverted');
+  _buildExpenseWorkbook(t, exportCur, rates);
+}
+
+function _buildExpenseWorkbook(t, exportCur, rates) {
+  const codeCur = currencyCode(t);
+  const expenses = [...(t.expenses || [])].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  const conv = exp => convertAmount(exp.amount, (exp.currency || codeCur).toUpperCase(), exportCur, rates);
+  const r2 = n => Math.round(n * 100) / 100;
+  const NUM = '#,##0.00';
+
+  // ── Styles ───────────────────────────────────────────────────────────
+  const thin = { style: 'thin', color: { rgb: 'E2DCF0' } };
+  const S = {
+    title:   { font: { bold: true, sz: 15, color: { rgb: 'FFFFFF' } }, fill: { patternType: 'solid', fgColor: { rgb: '7C3AED' } }, alignment: { horizontal: 'center', vertical: 'center' } },
+    sub:     { font: { sz: 10, color: { rgb: '7A7A8C' } }, alignment: { horizontal: 'center' } },
+    head:    { font: { bold: true, sz: 11, color: { rgb: 'FFFFFF' } }, fill: { patternType: 'solid', fgColor: { rgb: '8B5CF6' } }, alignment: { horizontal: 'center' }, border: { bottom: thin } },
+    cell:    { border: { bottom: thin } },
+    zebra:   { fill: { patternType: 'solid', fgColor: { rgb: 'F6F3FC' } }, border: { bottom: thin } },
+    total:   { font: { bold: true, sz: 11 }, fill: { patternType: 'solid', fgColor: { rgb: 'EDE7F9' } }, border: { top: { style: 'medium', color: { rgb: '7C3AED' } } } },
+    section: { font: { bold: true, sz: 12, color: { rgb: '7C3AED' } } },
+    pos:     { font: { bold: true, color: { rgb: '16A34A' } }, border: { bottom: thin } },
+    neg:     { font: { bold: true, color: { rgb: 'DC2626' } }, border: { bottom: thin } },
+  };
+  const setS = (ws, r, c, style, z) => {
+    const addr = XLSX.utils.encode_cell({ r, c });
+    if (!ws[addr]) ws[addr] = { t: 's', v: '' };
+    ws[addr].s = style;
+    if (z) ws[addr].z = z;
+  };
+  const styleRow = (ws, r, nCols, style, numCols = [], z = NUM) => {
+    for (let c = 0; c < nCols; c++) setS(ws, r, c, style, numCols.includes(c) ? z : undefined);
+  };
+
+  // ── Sheet 1: Expenses ────────────────────────────────────────────────
+  const NC1 = 10;
+  const headers = ['#', 'Date', 'Description', 'Category', 'Paid By', 'Split Among', 'Amount', 'Currency', `Amount (${exportCur})`, `Per Person (${exportCur})`];
+  const aoa1 = [
+    [`${t.emoji || '🌍'} ${t.destination || 'Trip'} — Expense Report`],
+    [`${fmtDate(t.start)} → ${fmtDate(t.end)}   ·   Exported ${new Date().toLocaleDateString()}   ·   Conversions in ${exportCur}`],
+    [],
+    headers,
+  ];
+  let grandTotal = 0;
+  expenses.forEach((exp, i) => {
+    const converted = r2(conv(exp));
+    grandTotal += converted;
+    const split = exp.splitAmong || [];
+    aoa1.push([
+      i + 1,
+      exp.date || '',
+      exp.desc || EXP_CAT_LABELS[exp.category || 'other'],
+      EXP_CAT_LABELS[exp.category || 'other'] || exp.category,
+      personById(t, exp.paidBy)?.name || '',
+      split.map(id => personById(t, id)?.name || '').join(', '),
+      Number(exp.amount),
+      (exp.currency || codeCur).toUpperCase(),
+      converted,
+      split.length ? r2(converted / split.length) : '',
+    ]);
+  });
+  const totalR1 = aoa1.length;
+  aoa1.push(['', '', '', '', '', 'TOTAL', '', '', r2(grandTotal), '']);
+
+  const ws1 = XLSX.utils.aoa_to_sheet(aoa1);
+  ws1['!cols'] = [{ wch: 4 }, { wch: 12 }, { wch: 32 }, { wch: 16 }, { wch: 16 }, { wch: 30 }, { wch: 12 }, { wch: 9 }, { wch: 15 }, { wch: 16 }];
+  ws1['!rows'] = [{ hpt: 30 }, { hpt: 16 }];
+  ws1['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: NC1 - 1 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: NC1 - 1 } },
+  ];
+  setS(ws1, 0, 0, S.title);
+  setS(ws1, 1, 0, S.sub);
+  styleRow(ws1, 3, NC1, S.head);
+  for (let r = 4; r < totalR1; r++) styleRow(ws1, r, NC1, (r % 2 === 0) ? S.zebra : S.cell, [6, 8, 9]);
+  styleRow(ws1, totalR1, NC1, S.total, [8]);
+
+  // ── Sheet 2: Summary ─────────────────────────────────────────────────
+  const NC2 = 4;
+  const aoa2 = [[`Summary — ${t.destination || 'Trip'}`], [`All amounts in ${exportCur}`], []];
+  const marks = { sections: [], heads: [], totals: [], posneg: [] };
+
+  // By category
+  marks.sections.push(aoa2.length); aoa2.push(['💰 Spending by Category']);
+  marks.heads.push(aoa2.length);    aoa2.push(['Category', 'Count', `Total (${exportCur})`, 'Share %']);
+  const byCategory = {};
+  expenses.forEach(exp => {
+    const c = EXP_CAT_LABELS[exp.category || 'other'];
+    if (!byCategory[c]) byCategory[c] = { count: 0, total: 0 };
+    byCategory[c].count++;
+    byCategory[c].total += conv(exp);
+  });
+  Object.entries(byCategory).sort((a, b) => b[1].total - a[1].total).forEach(([cat, { count, total }]) => {
+    aoa2.push([cat, count, r2(total), grandTotal > 0 ? r2(total / grandTotal * 100) : 0]);
+  });
+  marks.totals.push(aoa2.length); aoa2.push(['TOTAL', expenses.length, r2(grandTotal), 100]);
+  aoa2.push([]);
+
+  // By person
+  marks.sections.push(aoa2.length); aoa2.push(['👥 Per Person']);
+  marks.heads.push(aoa2.length);    aoa2.push(['Person', `Paid (${exportCur})`, `Fair Share (${exportCur})`, `Net Balance (${exportCur})`]);
+  const paid = {}, share = {};
+  (t.people || []).forEach(p => { paid[p.id] = 0; share[p.id] = 0; });
+  expenses.forEach(exp => {
+    const amt = conv(exp);
+    if (exp.paidBy != null && paid[exp.paidBy] !== undefined) paid[exp.paidBy] += amt;
+    const split = exp.splitAmong || [];
+    if (split.length) {
+      const each = amt / split.length;
+      split.forEach(pid => { if (share[pid] !== undefined) share[pid] += each; });
+    }
+  });
+  (t.people || []).forEach(p => {
+    const net = r2(paid[p.id] - share[p.id]);
+    marks.posneg.push({ r: aoa2.length, c: 3, pos: net >= 0 });
+    aoa2.push([p.name, r2(paid[p.id]), r2(share[p.id]), net]);
+  });
+  aoa2.push([]);
+
+  // Who owes who — fewest transfers
+  marks.sections.push(aoa2.length); aoa2.push(['🤝 Who Owes Who — Settle Up (fewest transfers)']);
+  marks.heads.push(aoa2.length);    aoa2.push(['From', 'To', `Amount (${exportCur})`, '']);
+  const settlements = simplifyDebts(calculateBalances(t, rates, exportCur));
+  if (settlements.length) {
+    settlements.forEach(s => aoa2.push([personById(t, s.from)?.name || '?', personById(t, s.to)?.name || '?', r2(s.amount), '']));
+  } else {
+    aoa2.push(['All settled up! 🎉', '', '', '']);
   }
+  aoa2.push([]);
+
+  // Pairwise debts, netted per pair
+  marks.sections.push(aoa2.length); aoa2.push(['🔍 Detailed Pairwise Debts (mutual debts offset)']);
+  marks.heads.push(aoa2.length);    aoa2.push(['From', 'To', `Amount (${exportCur})`, '']);
+  const matrix = computePairwiseDebts(t, rates, exportCur);
+  const seenPairs = new Set();
+  let pairCount = 0;
+  Object.keys(matrix).forEach(a => Object.keys(matrix[a]).forEach(b => {
+    const key = [a, b].sort().join('|');
+    if (seenPairs.has(key)) return;
+    seenPairs.add(key);
+    const net = (matrix[a]?.[b] || 0) - (matrix[b]?.[a] || 0);
+    if (Math.abs(net) < 0.01) return;
+    const [from, to, amt] = net > 0 ? [a, b, net] : [b, a, -net];
+    aoa2.push([personById(t, from)?.name || '?', personById(t, to)?.name || '?', r2(amt), '']);
+    pairCount++;
+  }));
+  if (!pairCount) aoa2.push(['No outstanding debts between any pair', '', '', '']);
+
+  const ws2 = XLSX.utils.aoa_to_sheet(aoa2);
+  ws2['!cols'] = [{ wch: 34 }, { wch: 18 }, { wch: 20 }, { wch: 20 }];
+  ws2['!rows'] = [{ hpt: 30 }, { hpt: 16 }];
+  ws2['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: NC2 - 1 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: NC2 - 1 } },
+    ...marks.sections.map(r => ({ s: { r, c: 0 }, e: { r, c: NC2 - 1 } })),
+  ];
+  setS(ws2, 0, 0, S.title);
+  setS(ws2, 1, 0, S.sub);
+  marks.sections.forEach(r => setS(ws2, r, 0, S.section));
+  marks.heads.forEach(r => styleRow(ws2, r, NC2, S.head));
+  marks.heads.forEach(hr => {
+    // style the data rows under each header until a blank row
+    for (let r = hr + 1; r < aoa2.length && (aoa2[r] || []).some(v => v !== '' && v != null); r++) {
+      styleRow(ws2, r, NC2, (r - hr) % 2 === 0 ? S.zebra : S.cell, [1, 2, 3].filter(c => typeof (aoa2[r] || [])[c] === 'number'));
+    }
+  });
+  marks.totals.forEach(r => styleRow(ws2, r, NC2, S.total, [2]));
+  marks.posneg.forEach(({ r, c, pos }) => setS(ws2, r, c, pos ? S.pos : S.neg, NUM));
+
+  // ── Workbook ─────────────────────────────────────────────────────────
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws1, 'Expenses');
+  XLSX.utils.book_append_sheet(wb, ws2, 'Summary');
+  const filename = `${(t.destination || 'Trip').replace(/[^a-z0-9]/gi, '_')}_expenses_${exportCur}.xlsx`;
+  XLSX.writeFile(wb, filename);
+  toast('Excel file downloaded ✓');
 }
 
 const EXP_CAT_LABELS = { food:'Food & Drink', transport:'Transport', hotel:'Accommodation', activity:'Activity', shopping:'Shopping', attraction:'Attraction', other:'Other' };
