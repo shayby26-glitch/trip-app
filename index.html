@@ -1342,6 +1342,22 @@ function subscribeToSharedTripUpdates() {
       if (!remote || remote._pushedBy === currentUser.uid) return;
       const local = trips.find(x => x.id === t.id);
       if (!local) return;
+
+      // Collaborator's copy is newer — adopt it wholesale so edits,
+      // deletions, and every tab (notes, packing, journal…) propagate,
+      // not just list additions.
+      if (remote._updatedAt && remote._updatedAt > (local._updatedAt || 0)) {
+        const idx = trips.indexOf(local);
+        const adopted = { ...remote, isShared: true };
+        delete adopted._pushedBy;
+        trips[idx] = adopted;
+        save();
+        if (currentTripId === t.id) { renderAllTabs(); toast('🔄 Synced with collaborators'); }
+        return;
+      }
+
+      // Fallback (no timestamp — collaborator on an older app version):
+      // merge list additions only.
       let changed = false;
       ['expenses', 'itinerary', 'stays', 'transport', 'destinations'].forEach(field => {
         const merged = _mergeListById(local[field], remote[field]);
@@ -1364,8 +1380,12 @@ async function _pushToCloud() {
     if (sharedMode) {
       const t = getTrip();
       if (!t) return;
-      const resp = await fetch(`${DB}/shared/${t.id}.json${q}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(t) });
-      if (resp.ok) { setCloudStatus('connected'); toast('☁️ Saved to cloud'); }
+      // Re-tag with OUR uid — the trip may still carry _pushedBy from the
+      // owner's last mirror, which would make the owner skip this update
+      // as a self-echo.
+      const payload = { ...t, _pushedBy: uid, _updatedAt: t._updatedAt || Date.now() };
+      const resp = await fetch(`${DB}/shared/${t.id}.json${q}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      if (resp.ok) { pendingLocalSave = false; setCloudStatus('connected'); toast('☁️ Saved to cloud'); }
     } else {
       const tripsObj = {};
       trips.forEach(t => { tripsObj[t.id] = t; });
@@ -1391,6 +1411,8 @@ async function _pushToCloud() {
 
 // Save to both localStorage (offline cache) and Firebase
 function save() {
+  const _t = getTrip();
+  if (_t) _t._updatedAt = Date.now(); // lets shared-trip listeners tell fresh data from stale echoes
   if (!sharedMode) localStorage.setItem('trips', JSON.stringify(trips));
   pendingLocalSave = true;
   setCloudStatus(_isConnected ? 'connecting' : 'offline');
@@ -4578,6 +4600,11 @@ function checkUrlForSharedTrip() {
       if (!sharedMode) return;
       const updated = snap.val();
       if (!updated) return;
+      // Don't clobber local edits that haven't been pushed yet
+      if (pendingLocalSave) return;
+      // Ignore snapshots older than what we already have (stale echoes)
+      const cur = trips[0];
+      if (cur && cur._updatedAt && updated._updatedAt && updated._updatedAt < cur._updatedAt) return;
       trips = [updated];
       if (currentTripId === updated.id) renderAllTabs();
     });
