@@ -1594,7 +1594,6 @@ function removeAttachment(id, idx) {
 // server-side increment keeps concurrent likes from clobbering each other.
 const LIKES_DB = 'https://trip-planner-c6bad-default-rtdb.europe-west1.firebasedatabase.app/recipe_likes';
 const LIKES_CACHE_KEY = 'my_recipes_likes_v1';  // local cache of global counts (offline fallback)
-const LIKED_KEY = 'my_recipes_liked_v1';         // ids this device has liked
 let likeCounts = loadLikeCache();                // in-memory { id: count }
 
 function loadLikeCache() {
@@ -1603,14 +1602,7 @@ function loadLikeCache() {
 function saveLikeCache() {
   try { localStorage.setItem(LIKES_CACHE_KEY, JSON.stringify(likeCounts)); } catch (e) {}
 }
-function loadLiked() {
-  try { return new Set(JSON.parse(localStorage.getItem(LIKED_KEY) || '[]')); } catch { return new Set(); }
-}
-function saveLiked(set) {
-  try { localStorage.setItem(LIKED_KEY, JSON.stringify([...set])); } catch (e) {}
-}
 function getLikeCount(id) { return likeCounts[id] || 0; }
-function isLiked(id) { return loadLiked().has(id); }
 
 // Pull the shared counts and update any counters currently on screen.
 async function refreshLikeCounts() {
@@ -1635,27 +1627,23 @@ async function refreshLikeCounts() {
   } catch (e) { /* offline — cached counts stay on screen */ }
 }
 
-// Toggle this device's like and push an atomic increment to the shared DB.
-async function toggleLike(id) {
-  const liked = loadLiked();
-  const willLike = !liked.has(id);
-  const delta = willLike ? 1 : -1;
-  if (willLike) liked.add(id); else liked.delete(id);
-  saveLiked(liked);
-  likeCounts[id] = Math.max(0, (likeCounts[id] || 0) + delta);  // optimistic
+// Add one like — every tap counts, no per-device limit — pushing an atomic
+// increment to the shared DB so the global tally goes up for everyone.
+async function addLike(id) {
+  likeCounts[id] = (likeCounts[id] || 0) + 1;  // optimistic
   saveLikeCache();
   try {
     const res = await fetch(LIKES_DB + '/' + encodeURIComponent(id) + '.json', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ '.sv': { increment: delta } }),
+      body: JSON.stringify({ '.sv': { increment: 1 } }),
     });
     if (res.ok) {
       const val = await res.json();
-      if (typeof val === 'number') { likeCounts[id] = Math.max(0, val); saveLikeCache(); }
+      if (typeof val === 'number') { likeCounts[id] = val; saveLikeCache(); }
     }
   } catch (e) { /* offline — optimistic value stands, reconciles on next refresh */ }
-  return { count: getLikeCount(id), liked: willLike };
+  return getLikeCount(id);
 }
 
 /* ─── Tag bar ─── */
@@ -1789,8 +1777,8 @@ function buildCard(r) {
         <div class="card-meta">${meta}</div>
       </div>
       <div class="card-actions">
-        <button class="icon-btn card-like${isLiked(r.id) ? ' liked' : ''}" aria-label="אהבתי" title="אהבתי" aria-pressed="${isLiked(r.id)}">
-          <span class="like-heart">${isLiked(r.id) ? '❤️' : '🤍'}</span><span class="like-count">${getLikeCount(r.id)}</span>
+        <button class="icon-btn card-like liked" aria-label="הוסף לב" title="הוסף לב">
+          <span class="like-heart">❤️</span><span class="like-count">${getLikeCount(r.id)}</span>
         </button>
         <button class="icon-btn card-edit" aria-label="ערוך מתכון" title="ערוך">✏️</button>
         <button class="icon-btn card-delete" aria-label="מחק מתכון" title="מחק">🗑️</button>
@@ -1834,29 +1822,18 @@ function attachCardEvents(container) {
       });
     });
 
-    // Like toggle (global count, optimistic UI)
+    // Like button — every tap adds one to the shared count (optimistic UI)
     const likeBtn = card.querySelector('.card-like');
     if (likeBtn) {
       likeBtn.addEventListener('click', e => {
         e.stopPropagation();
-        const heartEl = likeBtn.querySelector('.like-heart');
-        const cntEl   = likeBtn.querySelector('.like-count');
-        const nowLiked = !isLiked(id);
-        // optimistic update for a snappy tap
-        likeBtn.classList.toggle('liked', nowLiked);
-        likeBtn.setAttribute('aria-pressed', nowLiked);
-        heartEl.textContent = nowLiked ? '❤️' : '🤍';
-        cntEl.textContent = Math.max(0, getLikeCount(id) + (nowLiked ? 1 : -1));
+        const cntEl = likeBtn.querySelector('.like-count');
+        cntEl.textContent = getLikeCount(id) + 1;  // optimistic +1
         likeBtn.classList.remove('pop');
         void likeBtn.offsetWidth; // restart animation
         likeBtn.classList.add('pop');
-        // persist locally + sync the shared count, then reconcile
-        toggleLike(id).then(({ count, liked }) => {
-          likeBtn.classList.toggle('liked', liked);
-          likeBtn.setAttribute('aria-pressed', liked);
-          heartEl.textContent = liked ? '❤️' : '🤍';
-          cntEl.textContent = count;
-        });
+        // persist + sync the shared count, then reconcile with the server value
+        addLike(id).then(count => { cntEl.textContent = count; });
       });
     }
 
