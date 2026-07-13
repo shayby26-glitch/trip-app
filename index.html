@@ -1154,17 +1154,7 @@
   </div>
 </div>
 
-<!-- ═══ MODAL: DATE CONFLICT ═══ -->
-<div class="overlay" id="modal-date-conflict">
-  <div class="modal" style="max-width:480px">
-    <div class="modal-title">⚠️ Items Outside New Dates</div>
-    <div id="date-conflict-body" style="font-size:.875rem;color:var(--muted);margin-bottom:18px;line-height:1.6"></div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="resolveDateConflict('keep')">Keep &amp; Fix Manually</button>
-      <button class="btn btn-danger" onclick="resolveDateConflict('remove')">Remove Out-of-Range</button>
-    </div>
-  </div>
-</div>
+<!-- date-conflict modal removed — date changes now always keep all data -->
 
 <!-- ═══ MODAL: ADD STAY ═══ -->
 <div class="overlay" id="modal-stay">
@@ -2033,7 +2023,6 @@ function removeEditTripPerson(id) {
   renderPeople();
   renderPacking();
 }
-let pendingTripEdit = null;
 
 function saveEditTrip() {
   const t = getTrip();
@@ -2050,40 +2039,11 @@ function saveEditTrip() {
   const sel      = document.querySelector('#et-emoji-picker .emoji-opt.selected');
   const emoji    = sel ? sel.textContent : t.emoji;
 
-  // Detect conflicts only when dates actually changed
-  if (start !== t.start || end !== t.end) {
-    const badStays = (t.stays||[]).filter(s => s.checkin < start || s.checkout > end);
-    const badItems = (t.itinerary||[]).filter(a => a.day < start || a.day > end);
-    if (badStays.length || badItems.length) {
-      pendingTripEdit = { t, dest, start, end, desc, currency, budget, emoji, badStays, badItems };
-      const stayList  = badStays.map(s => `🏨 <strong>${escHtml(s.name)}</strong> (${fmtDate(s.checkin)} → ${fmtDate(s.checkout)})`).join('<br>');
-      const itemList  = badItems.map(a => `🗓 <strong>${escHtml(a.name)}</strong> (${fmtDateShort(a.day)})`).join('<br>');
-      document.getElementById('date-conflict-body').innerHTML =
-        `The new trip dates are <strong>${fmtDate(start)} → ${fmtDate(end)}</strong>.<br><br>` +
-        `The following items fall outside that range:<br><br>${[stayList, itemList].filter(Boolean).join('<br>')}` +
-        `<br><br>Remove them automatically, or keep and fix manually?`;
-      document.getElementById('modal-date-conflict').classList.add('open');
-      return;
-    }
-  }
-  applyTripEdit({ t, dest, start, end, desc, currency, budget, emoji });
+  const datesChanged = start !== t.start || end !== t.end;
+  applyTripEdit({ t, dest, start, end, desc, currency, budget, emoji, datesChanged, oldStart: t.start, oldEnd: t.end });
 }
 
-function resolveDateConflict(action) {
-  if (!pendingTripEdit) return;
-  const { t, badStays, badItems } = pendingTripEdit;
-  if (action === 'remove') {
-    const badStayIds = new Set(badStays.map(s => s.id));
-    const badItemIds = new Set(badItems.map(a => a.id));
-    t.stays     = (t.stays||[]).filter(s => !badStayIds.has(s.id));
-    t.itinerary = (t.itinerary||[]).filter(a => !badItemIds.has(a.id));
-  }
-  closeModal('modal-date-conflict');
-  applyTripEdit(pendingTripEdit);
-  pendingTripEdit = null;
-}
-
-function applyTripEdit({ t, dest, start, end, desc, currency, budget, emoji }) {
+function applyTripEdit({ t, dest, start, end, desc, currency, budget, emoji, datesChanged, oldStart, oldEnd }) {
   t.destination = dest;
   t.start       = start;
   t.end         = end;
@@ -2102,6 +2062,45 @@ function applyTripEdit({ t, dest, start, end, desc, currency, budget, emoji }) {
      <span class="badge badge-${st}" style="margin-left:4px">${st}</span>`;
   renderOverview(); renderItinerary(); renderStay();
   toast('Trip updated ✓');
+  if (datesChanged) showDateChangeNotice(oldStart, oldEnd, start, end);
+}
+
+function showDateChangeNotice(oldStart, oldEnd, newStart, newEnd) {
+  const existing = document.getElementById('date-change-notice');
+  if (existing) existing.remove();
+
+  const notice = document.createElement('div');
+  notice.id = 'date-change-notice';
+  notice.innerHTML =
+    `<div style="display:flex;align-items:flex-start;gap:12px">` +
+      `<span style="font-size:1.4rem;line-height:1">📅</span>` +
+      `<div style="flex:1">` +
+        `<div style="font-weight:700;font-size:.9rem;margin-bottom:4px">Trip dates updated</div>` +
+        `<div style="font-size:.82rem;line-height:1.5;opacity:.85">` +
+          `<span style="text-decoration:line-through;opacity:.6">${fmtDate(oldStart)} → ${fmtDate(oldEnd)}</span>` +
+          ` &nbsp;→&nbsp; <strong>${fmtDate(newStart)} → ${fmtDate(newEnd)}</strong><br>` +
+          `Please review your stays and itinerary to ensure all bookings align with the new dates.` +
+        `</div>` +
+      `</div>` +
+      `<button onclick="document.getElementById('date-change-notice').remove()" ` +
+        `style="background:none;border:none;color:inherit;font-size:1.1rem;cursor:pointer;padding:0;line-height:1;opacity:.6">✕</button>` +
+    `</div>`;
+  Object.assign(notice.style, {
+    position: 'relative',
+    margin: '12px 16px 4px',
+    padding: '14px 16px',
+    borderRadius: '12px',
+    background: 'linear-gradient(135deg,rgba(251,191,36,.15),rgba(245,158,11,.08))',
+    border: '1px solid rgba(251,191,36,.35)',
+    color: 'var(--text)',
+    zIndex: '10',
+  });
+
+  const detailPage = document.querySelector('.detail-page');
+  if (detailPage) detailPage.insertBefore(notice, detailPage.firstChild);
+
+  // Auto-dismiss after 12 s
+  setTimeout(() => { if (notice.parentNode) notice.remove(); }, 12000);
 }
 
 // ══════════════════════════════════════════════
