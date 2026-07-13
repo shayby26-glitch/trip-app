@@ -1588,14 +1588,20 @@ function removeAttachment(id, idx) {
   if (all[id]) { all[id].splice(idx, 1); saveAllAttachments(all); }
 }
 
-/* ─── Likes storage ─── */
-const LIKES_KEY = 'my_recipes_likes_v1';  // { id: totalCount }
-const LIKED_KEY = 'my_recipes_liked_v1';  // ids this device has liked
-function loadLikes() {
-  try { return JSON.parse(localStorage.getItem(LIKES_KEY) || '{}'); } catch { return {}; }
+/* ─── Likes (global, shared via Firebase Realtime Database) ─── */
+// Reuses the main app's open Realtime Database so like counts are shared
+// across all visitors. Counts live under /recipe_likes/{id}; the atomic
+// server-side increment keeps concurrent likes from clobbering each other.
+const LIKES_DB = 'https://trip-planner-c6bad-default-rtdb.europe-west1.firebasedatabase.app/recipe_likes';
+const LIKES_CACHE_KEY = 'my_recipes_likes_v1';  // local cache of global counts (offline fallback)
+const LIKED_KEY = 'my_recipes_liked_v1';         // ids this device has liked
+let likeCounts = loadLikeCache();                // in-memory { id: count }
+
+function loadLikeCache() {
+  try { return JSON.parse(localStorage.getItem(LIKES_CACHE_KEY) || '{}'); } catch { return {}; }
 }
-function saveLikes(d) {
-  try { localStorage.setItem(LIKES_KEY, JSON.stringify(d)); } catch (e) {}
+function saveLikeCache() {
+  try { localStorage.setItem(LIKES_CACHE_KEY, JSON.stringify(likeCounts)); } catch (e) {}
 }
 function loadLiked() {
   try { return new Set(JSON.parse(localStorage.getItem(LIKED_KEY) || '[]')); } catch { return new Set(); }
@@ -1603,21 +1609,53 @@ function loadLiked() {
 function saveLiked(set) {
   try { localStorage.setItem(LIKED_KEY, JSON.stringify([...set])); } catch (e) {}
 }
-function getLikeCount(id) { return loadLikes()[id] || 0; }
+function getLikeCount(id) { return likeCounts[id] || 0; }
 function isLiked(id) { return loadLiked().has(id); }
-function toggleLike(id) {
-  const likes = loadLikes();
+
+// Pull the shared counts and update any counters currently on screen.
+async function refreshLikeCounts() {
+  try {
+    const res = await fetch(LIKES_DB + '.json');
+    if (!res.ok) return;
+    const data = await res.json();
+    const next = {};
+    if (data && typeof data === 'object') {
+      for (const k in data) {
+        const v = data[k];
+        next[k] = typeof v === 'number' ? v : (v && typeof v.count === 'number' ? v.count : 0);
+      }
+    }
+    likeCounts = next;
+    saveLikeCache();
+    document.querySelectorAll('.recipe-card .card-like').forEach(btn => {
+      const card = btn.closest('.recipe-card');
+      const cnt = btn.querySelector('.like-count');
+      if (card && cnt) cnt.textContent = getLikeCount(card.dataset.id);
+    });
+  } catch (e) { /* offline — cached counts stay on screen */ }
+}
+
+// Toggle this device's like and push an atomic increment to the shared DB.
+async function toggleLike(id) {
   const liked = loadLiked();
-  if (liked.has(id)) {
-    liked.delete(id);
-    likes[id] = Math.max(0, (likes[id] || 0) - 1);
-  } else {
-    liked.add(id);
-    likes[id] = (likes[id] || 0) + 1;
-  }
-  saveLikes(likes);
+  const willLike = !liked.has(id);
+  const delta = willLike ? 1 : -1;
+  if (willLike) liked.add(id); else liked.delete(id);
   saveLiked(liked);
-  return { count: likes[id], liked: liked.has(id) };
+  likeCounts[id] = Math.max(0, (likeCounts[id] || 0) + delta);  // optimistic
+  saveLikeCache();
+  try {
+    const res = await fetch(LIKES_DB + '/' + encodeURIComponent(id) + '.json', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ '.sv': { increment: delta } }),
+    });
+    if (res.ok) {
+      const val = await res.json();
+      if (typeof val === 'number') { likeCounts[id] = Math.max(0, val); saveLikeCache(); }
+    }
+  } catch (e) { /* offline — optimistic value stands, reconciles on next refresh */ }
+  return { count: getLikeCount(id), liked: willLike };
 }
 
 /* ─── Tag bar ─── */
@@ -1796,19 +1834,29 @@ function attachCardEvents(container) {
       });
     });
 
-    // Like toggle
+    // Like toggle (global count, optimistic UI)
     const likeBtn = card.querySelector('.card-like');
     if (likeBtn) {
       likeBtn.addEventListener('click', e => {
         e.stopPropagation();
-        const { count, liked } = toggleLike(id);
-        likeBtn.classList.toggle('liked', liked);
-        likeBtn.setAttribute('aria-pressed', liked);
-        likeBtn.querySelector('.like-heart').textContent = liked ? '❤️' : '🤍';
-        likeBtn.querySelector('.like-count').textContent = count;
+        const heartEl = likeBtn.querySelector('.like-heart');
+        const cntEl   = likeBtn.querySelector('.like-count');
+        const nowLiked = !isLiked(id);
+        // optimistic update for a snappy tap
+        likeBtn.classList.toggle('liked', nowLiked);
+        likeBtn.setAttribute('aria-pressed', nowLiked);
+        heartEl.textContent = nowLiked ? '❤️' : '🤍';
+        cntEl.textContent = Math.max(0, getLikeCount(id) + (nowLiked ? 1 : -1));
         likeBtn.classList.remove('pop');
         void likeBtn.offsetWidth; // restart animation
         likeBtn.classList.add('pop');
+        // persist locally + sync the shared count, then reconcile
+        toggleLike(id).then(({ count, liked }) => {
+          likeBtn.classList.toggle('liked', liked);
+          likeBtn.setAttribute('aria-pressed', liked);
+          heartEl.textContent = liked ? '❤️' : '🤍';
+          cntEl.textContent = count;
+        });
       });
     }
 
@@ -2071,6 +2119,8 @@ document.getElementById('importInput').addEventListener('change', e => {
 /* ─── Init ─── */
 renderTagBar();
 renderRecipes();
+refreshLikeCounts();                         // pull shared like counts on load
+setInterval(refreshLikeCounts, 30000);       // keep counts fresh across devices
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

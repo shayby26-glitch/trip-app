@@ -14,13 +14,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Service-account auth via the official action (replaces the deprecated
-      # FIREBASE_TOKEN). Deploys the recipe-app folder to the live channel.
-      - name: Deploy hosting (live channel)
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SA_MY_RECIPES }}
-          projectId: my-recipes-ef1e5
-          channelId: live
-          entryPoint: ./recipe-app
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Deploy to Firebase Hosting
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        working-directory: recipe-app
+        run: firebase deploy --only hosting
