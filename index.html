@@ -2051,6 +2051,20 @@ function applyTripEdit({ t, dest, start, end, desc, currency, budget, emoji, dat
   t.currency    = currency;
   t.budget      = budget;
   t.emoji       = emoji;
+
+  // Clamp itinerary activities and destinations that fall outside the new range
+  // to the nearest valid date so they stay visible (not silently hidden).
+  if (datesChanged) {
+    (t.itinerary || []).forEach(a => {
+      if (a.day && a.day < start) a.day = start;
+      else if (a.day && a.day > end) a.day = end;
+    });
+    (t.destinations || []).forEach(d => {
+      if (d.day && d.day < start) d.day = start;
+      else if (d.day && d.day > end) d.day = end;
+    });
+  }
+
   save();
   closeModal('modal-edit-trip');
   document.getElementById('d-title').textContent = t.destination;
@@ -2079,7 +2093,7 @@ function showDateChangeNotice(oldStart, oldEnd, newStart, newEnd) {
         `<div style="font-size:.82rem;line-height:1.5;opacity:.85">` +
           `<span style="text-decoration:line-through;opacity:.6">${fmtDate(oldStart)} → ${fmtDate(oldEnd)}</span>` +
           ` &nbsp;→&nbsp; <strong>${fmtDate(newStart)} → ${fmtDate(newEnd)}</strong><br>` +
-          `Please review your stays and itinerary to ensure all bookings align with the new dates.` +
+          `Any activities outside the new range were moved to the nearest available day. Please review your stays and itinerary to ensure all bookings align with the new dates.` +
         `</div>` +
       `</div>` +
       `<button onclick="document.getElementById('date-change-notice').remove()" ` +
