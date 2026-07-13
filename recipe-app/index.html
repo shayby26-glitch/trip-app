@@ -482,6 +482,30 @@
     }
     .icon-btn:hover { background: var(--primary-light); }
 
+    /* ── Like button ── */
+    .card-like {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 0.95rem;
+    }
+    .card-like .like-heart { line-height: 1; display: inline-block; transition: transform 0.15s; }
+    .card-like .like-count {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--muted, #888);
+      min-width: 8px;
+      text-align: center;
+    }
+    .card-like.liked .like-count { color: #e0245e; }
+    .card-like:active .like-heart { transform: scale(1.35); }
+    .card-like.pop .like-heart { animation: heart-pop 0.3s ease; }
+    @keyframes heart-pop {
+      0% { transform: scale(1); }
+      40% { transform: scale(1.4); }
+      100% { transform: scale(1); }
+    }
+
     /* ── Cooking mode trigger ── */
     .cook-mode-trigger { padding: 16px 18px 0; }
     .cook-mode-btn {
@@ -1437,6 +1461,40 @@ const KHAO_SOI = {
   ],
 };
 
+const SPANAKOPITA = {
+  id: 'spanakopita',
+  emoji: '🥬',
+  title: 'ספנקופיטה – מאפה תרד ופטה יווני',
+  tags: ['יווני', 'מאפה', 'פילו', 'תרד'],
+  temp: '180°C',
+  cookTime: '45–55 דקות',
+  yields: 'תבנית 20×30 ס"מ',
+  ingredients: [
+    { name: 'עלי פילו', amount: 'חבילה (כ-450 גרם)' },
+    { name: 'תרד טרי (או 300 גרם תרד קפוא, מופשר וסחוט היטב)', amount: '500 גרם' },
+    { name: 'גבינת פטה מפוררת', amount: '250 גרם' },
+    { name: 'גבינת ריקוטה או קוטג\' (לא חובה, מוסיף קרמיות)', amount: '150 גרם' },
+    { name: 'ביצים', amount: '2 יחידות' },
+    { name: 'בצל קטן קצוץ ומטוגן', amount: '1 יחידה' },
+    { name: 'שמיר קצוץ', amount: '2–3 כפות' },
+    { name: 'פטרוזיליה קצוצה', amount: '2 כפות' },
+    { name: 'פלפל שחור', amount: 'לפי הטעם' },
+    { name: 'אגוז מוסקט (לא חובה)', amount: 'מעט' },
+    { name: 'שמן זית או חמאה מומסת (להברשת עלי הפילו)', amount: 'לפי הצורך' },
+  ],
+  steps: [
+    'מטגנים את הבצל עד להזהבה.',
+    'מוסיפים את התרד ומבשלים רק עד שהוא מתכווץ. מקררים וסוחטים היטב מנוזלים.',
+    'מערבבים את התרד עם הפטה, הריקוטה, הביצים, השמיר, הפטרוזיליה והתבלינים.',
+    'משמנים תבנית ומניחים 5–6 עלי פילו, כשמברישים כל עלה בשמן זית.',
+    'מפזרים את המלית באופן אחיד.',
+    'מכסים בעוד 5–6 עלי פילו, שוב עם הברשה בין כל עלה.',
+    'חורצים קלות את החלק העליון לריבועים.',
+    'אופים ב-180°C במשך 45–55 דקות, עד שהמאפה זהוב ופריך.',
+  ],
+  tip: 'חשוב מאוד לסחוט את התרד היטב, אחרת המאפה יהיה רטוב. משתמשים בשמן זית איכותי ולא מגזימים עם הגבינות – כך מתקבל הטעם היווני האותנטי.',
+};
+
 const SEED_RECIPES = [
   BREAD_RECIPE, AREEK_RECIPE,
   THAI_FISH_SOUP, GNOCCHI_MULLET, PHYLLO_FISH,
@@ -1446,6 +1504,7 @@ const SEED_RECIPES = [
   GA_NON_SALAD,
   RILEY_SWEET_SOUR_VEG, RILEY_GAI_YANG, PHIPHI_YAM_TALAY, RILEY_SOM_TAM,
   PINEAPPLE_FRIED_RICE, PAD_KAPRAO, PAD_THAI, TOM_YUM, GREEN_CURRY, KHAO_SOI,
+  SPANAKOPITA,
 ];
 
 const DELETED_KEY = 'my_recipes_deleted_v1';
@@ -1527,6 +1586,76 @@ function addAttachment(id, name, type, dataUrl) {
 function removeAttachment(id, idx) {
   const all = loadAllAttachments();
   if (all[id]) { all[id].splice(idx, 1); saveAllAttachments(all); }
+}
+
+/* ─── Likes (global, shared via Firebase Realtime Database) ─── */
+// Reuses the main app's open Realtime Database so like counts are shared
+// across all visitors. Counts live under /recipe_likes/{id}; the atomic
+// server-side increment keeps concurrent likes from clobbering each other.
+const LIKES_DB = 'https://trip-planner-c6bad-default-rtdb.europe-west1.firebasedatabase.app/recipe_likes';
+const LIKES_CACHE_KEY = 'my_recipes_likes_v1';  // local cache of global counts (offline fallback)
+const LIKED_KEY = 'my_recipes_liked_v1';         // ids this device has liked
+let likeCounts = loadLikeCache();                // in-memory { id: count }
+
+function loadLikeCache() {
+  try { return JSON.parse(localStorage.getItem(LIKES_CACHE_KEY) || '{}'); } catch { return {}; }
+}
+function saveLikeCache() {
+  try { localStorage.setItem(LIKES_CACHE_KEY, JSON.stringify(likeCounts)); } catch (e) {}
+}
+function loadLiked() {
+  try { return new Set(JSON.parse(localStorage.getItem(LIKED_KEY) || '[]')); } catch { return new Set(); }
+}
+function saveLiked(set) {
+  try { localStorage.setItem(LIKED_KEY, JSON.stringify([...set])); } catch (e) {}
+}
+function getLikeCount(id) { return likeCounts[id] || 0; }
+function isLiked(id) { return loadLiked().has(id); }
+
+// Pull the shared counts and update any counters currently on screen.
+async function refreshLikeCounts() {
+  try {
+    const res = await fetch(LIKES_DB + '.json');
+    if (!res.ok) return;
+    const data = await res.json();
+    const next = {};
+    if (data && typeof data === 'object') {
+      for (const k in data) {
+        const v = data[k];
+        next[k] = typeof v === 'number' ? v : (v && typeof v.count === 'number' ? v.count : 0);
+      }
+    }
+    likeCounts = next;
+    saveLikeCache();
+    document.querySelectorAll('.recipe-card .card-like').forEach(btn => {
+      const card = btn.closest('.recipe-card');
+      const cnt = btn.querySelector('.like-count');
+      if (card && cnt) cnt.textContent = getLikeCount(card.dataset.id);
+    });
+  } catch (e) { /* offline — cached counts stay on screen */ }
+}
+
+// Toggle this device's like and push an atomic increment to the shared DB.
+async function toggleLike(id) {
+  const liked = loadLiked();
+  const willLike = !liked.has(id);
+  const delta = willLike ? 1 : -1;
+  if (willLike) liked.add(id); else liked.delete(id);
+  saveLiked(liked);
+  likeCounts[id] = Math.max(0, (likeCounts[id] || 0) + delta);  // optimistic
+  saveLikeCache();
+  try {
+    const res = await fetch(LIKES_DB + '/' + encodeURIComponent(id) + '.json', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ '.sv': { increment: delta } }),
+    });
+    if (res.ok) {
+      const val = await res.json();
+      if (typeof val === 'number') { likeCounts[id] = Math.max(0, val); saveLikeCache(); }
+    }
+  } catch (e) { /* offline — optimistic value stands, reconciles on next refresh */ }
+  return { count: getLikeCount(id), liked: willLike };
 }
 
 /* ─── Tag bar ─── */
@@ -1660,6 +1789,9 @@ function buildCard(r) {
         <div class="card-meta">${meta}</div>
       </div>
       <div class="card-actions">
+        <button class="icon-btn card-like${isLiked(r.id) ? ' liked' : ''}" aria-label="אהבתי" title="אהבתי" aria-pressed="${isLiked(r.id)}">
+          <span class="like-heart">${isLiked(r.id) ? '❤️' : '🤍'}</span><span class="like-count">${getLikeCount(r.id)}</span>
+        </button>
         <button class="icon-btn card-edit" aria-label="ערוך מתכון" title="ערוך">✏️</button>
         <button class="icon-btn card-delete" aria-label="מחק מתכון" title="מחק">🗑️</button>
       </div>
@@ -1701,6 +1833,32 @@ function attachCardEvents(container) {
         }
       });
     });
+
+    // Like toggle (global count, optimistic UI)
+    const likeBtn = card.querySelector('.card-like');
+    if (likeBtn) {
+      likeBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        const heartEl = likeBtn.querySelector('.like-heart');
+        const cntEl   = likeBtn.querySelector('.like-count');
+        const nowLiked = !isLiked(id);
+        // optimistic update for a snappy tap
+        likeBtn.classList.toggle('liked', nowLiked);
+        likeBtn.setAttribute('aria-pressed', nowLiked);
+        heartEl.textContent = nowLiked ? '❤️' : '🤍';
+        cntEl.textContent = Math.max(0, getLikeCount(id) + (nowLiked ? 1 : -1));
+        likeBtn.classList.remove('pop');
+        void likeBtn.offsetWidth; // restart animation
+        likeBtn.classList.add('pop');
+        // persist locally + sync the shared count, then reconcile
+        toggleLike(id).then(({ count, liked }) => {
+          likeBtn.classList.toggle('liked', liked);
+          likeBtn.setAttribute('aria-pressed', liked);
+          heartEl.textContent = liked ? '❤️' : '🤍';
+          cntEl.textContent = count;
+        });
+      });
+    }
 
     // Edit / delete recipe
     card.querySelector('.card-edit').addEventListener('click', e => {
@@ -1961,6 +2119,8 @@ document.getElementById('importInput').addEventListener('change', e => {
 /* ─── Init ─── */
 renderTagBar();
 renderRecipes();
+refreshLikeCounts();                         // pull shared like counts on load
+setInterval(refreshLikeCounts, 30000);       // keep counts fresh across devices
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
