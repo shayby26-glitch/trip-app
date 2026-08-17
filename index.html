@@ -833,7 +833,9 @@
         <input type="text" id="new-pack-name" placeholder="Item…" />
         <select id="new-pack-cat">
           <option>Essentials</option><option>Clothing</option><option>Toiletries</option>
-          <option>Electronics</option><option>Documents</option><option>Other</option>
+          <option>Electronics</option><option>Documents</option>
+          <option>Camping Gear</option><option>Cooking</option><option>Food &amp; Drink</option>
+          <option>First Aid</option><option>Car</option><option>Other</option>
         </select>
         <select id="new-pack-person"></select>
         <button class="btn btn-primary btn-sm" onclick="addPackItem()">Add</button>
@@ -3784,7 +3786,7 @@ function renderPacking() {
           }
           return `<div class="pack-item${item.checked?' checked':''}" id="pi-${item.id}">
             <input type="checkbox" ${item.checked?'checked':''} onchange="togglePack('${item.id}',this.checked)" />
-            <span class="pack-name">${escHtml(item.name)}</span>
+            <span class="pack-name" dir="auto">${escHtml(item.name)}</span>
             ${personTag(item)}
             <button class="btn-icon" onclick="startEditPackItem('${item.id}')">✏️</button>
             <button class="btn-icon" onclick="removePack('${item.id}')">✕</button>
@@ -4352,6 +4354,26 @@ const PACK_TEMPLATES = {
   Business: [{name:'Laptop + charger',cat:'Electronics'},{name:'Business cards',cat:'Documents'},{name:'Smart shoes',cat:'Clothing'},{name:'Dress shirts (x3)',cat:'Clothing'},{name:'Blazer / suit jacket',cat:'Clothing'},{name:'Portable charger',cat:'Electronics'},{name:'Travel adapter',cat:'Electronics'},{name:'Headphones',cat:'Electronics'},{name:'Notebook & pen',cat:'Essentials'},{name:'Toiletry bag',cat:'Toiletries'},{name:'Passport / ID',cat:'Documents'}],
   Adventure:[{name:'Hiking boots',cat:'Clothing'},{name:'Rain jacket',cat:'Clothing'},{name:'Hiking socks (x4)',cat:'Clothing'},{name:'Reusable water bottle',cat:'Essentials'},{name:'First aid kit',cat:'Essentials'},{name:'Sunscreen',cat:'Toiletries'},{name:'Insect repellent',cat:'Toiletries'},{name:'Headlamp + batteries',cat:'Essentials'},{name:'Energy snacks',cat:'Other'},{name:'Emergency whistle',cat:'Essentials'},{name:'Travel insurance docs',cat:'Documents'}],
   MedSummer:[{name:'Light, breathable clothes (linen or cotton)',cat:'Clothing'},{name:'1–2 cover-ups for churches/monasteries (shoulders and knees covered)',cat:'Clothing'},{name:"A light layer for evenings — it cools down more than you'd expect",cat:'Clothing'},{name:"Swimwear (2–3 sets so one's always dry)",cat:'Clothing'},{name:'Comfortable walking sandals + one pair of closed shoes for cobblestones',cat:'Clothing'},{name:'High SPF sunscreen — reapply constantly, the Greek sun is brutal',cat:'Toiletries'},{name:'Sunglasses and a wide-brim hat',cat:'Essentials'},{name:"Reef-safe sunscreen if you're swimming in protected areas",cat:'Toiletries'},{name:'Reusable water bottle — stay very hydrated',cat:'Essentials'},{name:'Small day bag or crossbody',cat:'Essentials'},{name:'Power adapter (Type C/F plugs in Greece)',cat:'Electronics'},{name:'Portable charger',cat:'Electronics'},{name:'Any personal medications',cat:'Essentials'},{name:'Blister plasters — cobblestones and sandals are a rough combo',cat:'Toiletries'},{name:'Basic OTC meds (antihistamine, ibuprofen, stomach relief)',cat:'Toiletries'},{name:'Insect repellent for evenings',cat:'Toiletries'},{name:'Passport, travel insurance details, accommodation confirmations',cat:'Documents'},{name:'Some cash — smaller islands and tavernas often prefer it',cat:'Essentials'}],
+  CampWeekend:[
+    // אוהל ושינה
+    {name:'אוהל 3–4 אנשים עם Porch/צילייה',cat:'Camping Gear'},{name:'יתדות וחבלים לאוהל',cat:'Camping Gear'},{name:'פטיש קטן ליתדות',cat:'Camping Gear'},{name:'2 מזרני שינה',cat:'Camping Gear'},{name:'2 שקי שינה',cat:'Camping Gear'},{name:'2 כריות',cat:'Camping Gear'},{name:'שמיכה חמה נוספת',cat:'Camping Gear'},{name:'משאבה למזרנים, אם צריך',cat:'Camping Gear'},
+    // בישול
+    {name:'גזייה',cat:'Cooking'},{name:'בלון גז מתאים',cat:'Cooking'},{name:'מצית + מצית גיבוי',cat:'Cooking'},{name:'סיר',cat:'Cooking'},{name:'מחבת',cat:'Cooking'},{name:'2 צלחות',cat:'Cooking'},{name:'2 כוסות',cat:'Cooking'},{name:'2 סטים של סכו״ם',cat:'Cooking'},{name:'סכין מטבח',cat:'Cooking'},{name:'קרש חיתוך',cat:'Cooking'},{name:'ספוג + סבון כלים',cat:'Cooking'},{name:'מגבת מטבח',cat:'Cooking'},{name:'שקיות אשפה',cat:'Cooking'},{name:'צידנית/תיק קירור',cat:'Cooking'},
+    // אוכל ושתייה
+    {name:'מים — לפחות 2–3 ליטר לאדם ליום',cat:'Food & Drink'},{name:'לחם/פיתות',cat:'Food & Drink'},{name:'ביצים',cat:'Food & Drink'},{name:'גבינות/ממרחים',cat:'Food & Drink'},{name:'טונה/שימורים',cat:'Food & Drink'},{name:'פסטה/נודלס',cat:'Food & Drink'},{name:'פירות',cat:'Food & Drink'},{name:'חטיפים',cat:'Food & Drink'},{name:'קפה/תה',cat:'Food & Drink'},{name:'חלב',cat:'Food & Drink'},{name:'מלח ופלפל',cat:'Food & Drink'},{name:'שמן',cat:'Food & Drink'},{name:'משהו לארוחת בוקר',cat:'Food & Drink'},{name:'משהו קל לארוחת ערב',cat:'Food & Drink'},
+    // בגדים
+    {name:'3 חולצות לכל אחד',cat:'Clothing'},{name:'2 מכנסיים',cat:'Clothing'},{name:'תחתונים',cat:'Clothing'},{name:'3–4 זוגות גרביים',cat:'Clothing'},{name:'בגדי שינה',cat:'Clothing'},{name:'סווטשירט/פליז',cat:'Clothing'},{name:'מעיל גשם טוב',cat:'Clothing'},{name:'נעלי הליכה',cat:'Clothing'},{name:'נעליים יבשות להחלפה',cat:'Clothing'},{name:'כפכפים',cat:'Clothing'},{name:'בגד ים',cat:'Clothing'},{name:'מגבת',cat:'Clothing'},
+    // לים ולטיולים
+    {name:'תיק יום קטן',cat:'Essentials'},{name:'בקבוק מים',cat:'Essentials'},{name:'קרם הגנה',cat:'Essentials'},{name:'כובע',cat:'Essentials'},{name:'משקפי שמש',cat:'Essentials'},{name:'מגבת חוף',cat:'Essentials'},{name:'שקית לבגדים רטובים',cat:'Essentials'},{name:'נעלי מים — אופציונלי',cat:'Essentials'},
+    // חשמל וציוד
+    {name:'2 פנסי ראש',cat:'Electronics'},{name:'Power bank',cat:'Electronics'},{name:'מטענים לטלפונים',cat:'Electronics'},{name:'פנס נוסף',cat:'Electronics'},{name:'סוללות רזרביות',cat:'Electronics'},{name:'כיסאות קמפינג — אם יש',cat:'Electronics'},{name:'שולחן קטן — אם יש',cat:'Electronics'},
+    // היגיינה
+    {name:'מברשת שיניים',cat:'Toiletries'},{name:'משחת שיניים',cat:'Toiletries'},{name:'שמפו',cat:'Toiletries'},{name:'סבון',cat:'Toiletries'},{name:'נייר טואלט',cat:'Toiletries'},{name:'מגבונים',cat:'Toiletries'},{name:'דאודורנט',cat:'Toiletries'},{name:'שקית לכביסה מלוכלכת',cat:'Toiletries'},
+    // חשוב
+    {name:'ערכת עזרה ראשונה',cat:'First Aid'},{name:'פלסטרים',cat:'First Aid'},{name:'חומר חיטוי',cat:'First Aid'},{name:'תרופות אישיות',cat:'First Aid'},{name:'דוחה חרקים',cat:'First Aid'},
+    // לרכב
+    {name:'רישיון נהיגה',cat:'Car'},{name:'טלפון עם ניווט',cat:'Car'},{name:'מטען לרכב',cat:'Car'},{name:'מים לדרך',cat:'Car'},{name:'מגבת/שמיכה ישנה לתא המטען',cat:'Car'},{name:'כבל/מתאם USB לרכב',cat:'Car'},
+  ],
   Essentials:[{name:'Passport / ID',cat:'Documents'},{name:'Travel insurance documents',cat:'Documents'},{name:'Accommodation confirmations',cat:'Documents'},{name:'Wallet (cards & some cash)',cat:'Essentials'},{name:'Phone',cat:'Electronics'},{name:'Phone charger',cat:'Electronics'},{name:'Portable charger',cat:'Electronics'},{name:'Travel adapter',cat:'Electronics'},{name:'Headphones',cat:'Electronics'},{name:'Reusable water bottle',cat:'Essentials'},{name:'Any personal medications',cat:'Essentials'},{name:'Basic OTC meds (painkillers, antihistamine)',cat:'Toiletries'},{name:'Toothbrush & toothpaste',cat:'Toiletries'},{name:'Hand sanitizer',cat:'Toiletries'},{name:'Sunglasses',cat:'Essentials'},{name:'Small day bag',cat:'Essentials'},{name:'Snacks for the journey',cat:'Other'}],
 };
 // Built-in templates (PACK_TEMPLATES) are fixed; user customizations layer on
@@ -4363,7 +4385,7 @@ let customPackTemplates = JSON.parse(localStorage.getItem('customPackTemplates')
 const PACK_TEMPLATE_META = {
   Essentials: '🎒 Essentials', Beach: '🏖 Beach Vacation', City: '🏙 City Break',
   Winter: '❄️ Winter Trip', Business: '💼 Business Travel', Adventure: '🥾 Adventure / Hiking',
-  MedSummer: '🏛 Mediterranean Summer',
+  MedSummer: '🏛 Mediterranean Summer', CampWeekend: '🏕 קמפינג סופ״ש (Camping Weekend)',
 };
 function saveCustomTemplates() { localStorage.setItem('customPackTemplates', JSON.stringify(customPackTemplates)); }
 function getTemplateItems(key) {
