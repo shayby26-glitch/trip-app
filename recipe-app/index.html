@@ -1707,15 +1707,37 @@ function saveDeletedIds(set) {
   catch { return false; }
 }
 
+// Ids of seed recipes the user has edited locally — these are never
+// overwritten when a newer version of the seed ships.
+const EDITED_KEY = 'my_recipes_edited_v1';
+function loadEditedIds() {
+  try { return new Set(JSON.parse(localStorage.getItem(EDITED_KEY) || '[]')); } catch { return new Set(); }
+}
+function saveEditedIds(set) {
+  try { localStorage.setItem(EDITED_KEY, JSON.stringify([...set])); return true; }
+  catch { return false; }
+}
+
 function loadRecipes() {
   try {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
     const deleted = loadDeletedIds();
+    const edited = loadEditedIds();
     let changed = false;
     SEED_RECIPES.forEach(seed => {
-      if (!stored.find(r => r.id === seed.id) && !deleted.has(seed.id)) {
+      if (deleted.has(seed.id)) return;
+      const idx = stored.findIndex(r => r.id === seed.id);
+      if (idx === -1) {
+        // brand-new seed recipe → add it
         stored.unshift(seed);
         changed = true;
+      } else if (!edited.has(seed.id)) {
+        // seed the user hasn't touched → refresh to the latest version
+        // (in place, so order and any separately-stored likes/attachments stay)
+        if (JSON.stringify(stored[idx]) !== JSON.stringify(seed)) {
+          stored[idx] = { ...seed };
+          changed = true;
+        }
       }
     });
     if (changed) saveRecipes(stored);
@@ -2187,6 +2209,10 @@ document.getElementById('modalSave').addEventListener('click', () => {
   if (editingId) {
     const idx = list.findIndex(r => r.id === editingId);
     if (idx >= 0) list[idx] = { ...list[idx], ...recipeData };
+    // remember this recipe was edited so seed refreshes won't overwrite it
+    const edited = loadEditedIds();
+    edited.add(editingId);
+    saveEditedIds(edited);
   } else {
     list.unshift({ id: 'r_' + Date.now(), ...recipeData });
   }
